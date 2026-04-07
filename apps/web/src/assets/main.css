@@ -1,0 +1,225 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #7C3AED;
+  --color-secondary: #EC4899;
+  --color-accent: #F59E0B;
+}
+
+/* ─── Base ─────────────────────────────────────────────── */
+@layer base {
+  body {
+    @apply bg-white text-gray-900 antialiased;
+    font-feature-settings: "kern", "liga";
+  }
+
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ─── Component utilities ───────────────────────────────── */
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-600 to-secondary-500 bg-clip-text text-transparent;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-2xl px-6 py-3
+           transition-all duration-200 shadow-md hover:shadow-lg active:scale-95
+           focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-primary-600 border-2 border-primary-600 font-semibold
+           rounded-2xl px-6 py-3 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2;
+  }
+
+  .card {
+    @apply bg-white rounded-3xl shadow-md hover:shadow-xl transition-all duration-300;
+  }
+
+  /* Glass morphism */
+  .glass {
+    backdrop-filter: blur(12px) saturate(1.8);
+    background: rgba(255, 255, 255, 0.85);
+  }
+
+  /* Shimmer loading */
+  .shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Reveal on scroll */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.18s; }
+  .reveal-delay-3 { transition-delay: 0.26s; }
+  .reveal-delay-4 { transition-delay: 0.34s; }
+  .reveal-delay-5 { transition-delay: 0.42s; }
+  .reveal-delay-6 { transition-delay: 0.5s; }
+
+  /* Floating animation */
+  .float {
+    animation: float 4s ease-in-out infinite;
+  }
+
+  .float-slow {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .float-delay {
+    animation: float 4s ease-in-out infinite 1.5s;
+  }
+
+  /* Pulse ring */
+  .pulse-ring::after {
+    content: '';
+    @apply absolute inset-0 rounded-full;
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    background: inherit;
+  }
+
+  /* Gradient border */
+  .gradient-border {
+    position: relative;
+    background: white;
+    border-radius: 1rem;
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    z-index: -1;
+  }
+}
+
+/* ─── Keyframes ─────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px);   }
+  50%       { transform: translateY(-14px); }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes slide-in-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes slide-in-down {
+  from { transform: translateY(-12px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes bounce-in {
+  0%   { transform: scale(0.3); opacity: 0; }
+  50%  { transform: scale(1.08); }
+  70%  { transform: scale(0.95); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+@keyframes cart-pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.5); }
+  60%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+@keyframes checkmark {
+  from { stroke-dashoffset: 40; }
+  to   { stroke-dashoffset: 0;  }
+}
+
+@keyframes spin-once {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ─── Animation classes ─────────────────────────────────── */
+.animate-slide-in-right { animation: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-in-up    { animation: slide-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-in-down  { animation: slide-in-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in        { animation: fade-in 0.4s ease forwards; }
+.animate-bounce-in      { animation: bounce-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-cart-pop       { animation: cart-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* ─── Page transitions ──────────────────────────────────── */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* ─── List transitions ──────────────────────────────────── */
+.list-enter-active { transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.list-leave-active { transition: all 0.2s ease; }
+.list-enter-from   { opacity: 0; transform: translateY(16px) scale(0.96); }
+.list-leave-to     { opacity: 0; transform: scale(0.95); }
+
+/* ─── Scroll snap for carousels ─────────────────────────── */
+.snap-scroll {
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.snap-scroll::-webkit-scrollbar { display: none; }
+.snap-item { scroll-snap-align: start; }
+
+/* ─── Custom focus ring ─────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ─── Safe area for notched phones ─────────────────────── */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

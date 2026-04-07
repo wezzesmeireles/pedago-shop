@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// AUTH & USERS
+// ─────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String?
+  googleId     String?   @unique
+  avatarUrl    String?
+  phone        String?
+  role         UserRole  @default(CUSTOMER)
+  isActive     Boolean   @default(true)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+  orders        Order[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+
+  @@map("refresh_tokens")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+// ─────────────────────────────────────────
+// CATALOG
+// ─────────────────────────────────────────
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id            String    @id @default(uuid())
+  name          String
+  slug          String    @unique
+  description   String
+  richContent   String?
+  price         Decimal   @db.Decimal(10, 2)
+  comparePrice  Decimal?  @db.Decimal(10, 2)
+  coverImageUrl String
+  previewImages String[]
+  categoryId    String
+  category      Category  @relation(fields: [categoryId], references: [id])
+  r2FileKey     String
+  fileSize      Int       @default(0)
+  pageCount     Int?
+  tags          String[]
+  isActive      Boolean   @default(true)
+  isFeatured    Boolean   @default(false)
+  sortOrder     Int       @default(0)
+  maxDownloads  Int       @default(5)
+  downloadCount Int       @default(0)
+  salesCount    Int       @default(0)
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+// ─────────────────────────────────────────
+// ORDERS & PAYMENTS
+// ─────────────────────────────────────────
+
+model Order {
+  id             String        @id @default(uuid())
+  orderNumber    String        @unique
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  status         OrderStatus   @default(PENDING)
+  totalAmount    Decimal       @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod?
+  mpPreferenceId String?
+  mpPaymentId    String?       @unique
+  mpStatus       String?
+  paidAt         DateTime?
+  expiresAt      DateTime?
+  customerEmail  String
+  customerName   String
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items          OrderItem[]
+  downloadTokens DownloadToken[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id])
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  productName String
+  unitPrice   Decimal @db.Decimal(10, 2)
+  quantity    Int     @default(1)
+
+  downloadTokens DownloadToken[]
+
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING
+  AWAITING_PAYMENT
+  PAID
+  CANCELLED
+  REFUNDED
+  EXPIRED
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+}
+
+// ─────────────────────────────────────────
+// WEBHOOK IDEMPOTENCY
+// ─────────────────────────────────────────
+
+model WebhookEvent {
+  id           String   @id @default(uuid())
+  source       String
+  eventId      String
+  eventType    String
+  payload      Json
+  processedAt  DateTime @default(now())
+  status       String
+  errorMessage String?
+
+  @@unique([source, eventId])
+  @@map("webhook_events")
+}
+
+// ─────────────────────────────────────────
+// DOWNLOADS
+// ─────────────────────────────────────────
+
+model DownloadToken {
+  id             String    @id @default(uuid())
+  token          String    @unique @default(uuid())
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id])
+  orderItemId    String
+  orderItem      OrderItem @relation(fields: [orderItemId], references: [id])
+  downloadCount  Int       @default(0)
+  maxDownloads   Int
+  expiresAt      DateTime
+  lastDownloadAt DateTime?
+  lastDownloadIp String?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@map("download_tokens")
+}
+
+// ─────────────────────────────────────────
+// FILE STORAGE
+// ─────────────────────────────────────────
+
+model StoredFile {
+  id        String   @id @default(uuid())
+  filename  String
+  mimeType  String
+  size      Int
+  data      Bytes
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("stored_files")
+}
+
+// ─────────────────────────────────────────
+// SITE CONFIGURATION
+// ─────────────────────────────────────────
+
+model SiteConfig {
+  id               String   @id @default(uuid())
+  key              String   @unique
+  value            Json
+  updatedAt        DateTime @updatedAt
+  updatedByAdminId String?
+
+  @@map("site_config")
+}

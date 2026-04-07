@@ -1,0 +1,17 @@
+{
+  "name": "pedago-shop",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm --parallel -r build",
+    "lint": "pnpm --parallel -r lint",
+    "db:migrate": "pnpm --filter api prisma migrate dev",
+    "db:generate": "pnpm --filter api prisma generate",
+    "db:seed": "dotenv -e .env -- pnpm --filter api prisma db seed",
+    "db:studio": "pnpm --filter api prisma studio"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0",
+    "typescript": "^5.4.5"
+  }
+}

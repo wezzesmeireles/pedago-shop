@@ -1,0 +1,168 @@
+<template>
+  <div
+    class="group bg-white rounded-xl overflow-hidden border border-gray-100
+           hover:border-gray-200 hover:shadow-lg transition-all duration-300
+           flex flex-col hover:-translate-y-0.5"
+  >
+    <!-- Image -->
+    <RouterLink :to="`/produto/${product.slug}`" class="block relative overflow-hidden bg-gray-50">
+      <div class="aspect-square overflow-hidden">
+        <img
+          :src="product.coverImageUrl"
+          :alt="product.name"
+          class="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
+          loading="lazy"
+        />
+      </div>
+
+      <!-- Gradient overlay on hover -->
+      <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent
+                  opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+      <!-- Badges -->
+      <div class="absolute top-1.5 left-1.5 flex flex-col gap-1">
+        <span
+          v-if="product.comparePrice"
+          class="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none shadow"
+        >OFERTA</span>
+        <span
+          v-else-if="product.isFeatured"
+          class="bg-yellow-400 text-yellow-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none shadow"
+        >★ TOP</span>
+      </div>
+
+      <!-- Quick view hint -->
+      <div
+        class="absolute inset-x-0 bottom-0 text-center pb-2
+               opacity-0 group-hover:opacity-100 transition-all duration-300
+               translate-y-2 group-hover:translate-y-0"
+      >
+        <span class="bg-white/90 text-gray-800 text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-sm backdrop-blur-sm">
+          Ver detalhes
+        </span>
+      </div>
+    </RouterLink>
+
+    <!-- Info -->
+    <div class="p-2.5 flex flex-col flex-1">
+      <RouterLink :to="`/produto/${product.slug}`">
+        <h3 class="text-xs font-medium text-gray-700 leading-snug line-clamp-2 mb-2
+                   hover:text-primary-600 transition-colors duration-200 min-h-[2.5rem]">
+          {{ product.name }}
+        </h3>
+      </RouterLink>
+
+      <div class="mt-auto space-y-2">
+        <!-- Price -->
+        <div class="flex items-center gap-1.5">
+          <span class="text-sm font-bold text-green-600">{{ formatPrice(product.price) }}</span>
+          <span v-if="product.comparePrice" class="text-[11px] text-gray-400 line-through">
+            {{ formatPrice(product.comparePrice) }}
+          </span>
+        </div>
+
+        <!-- Add to cart button -->
+        <button
+          @click.prevent="addToCart"
+          :disabled="justAdded"
+          class="w-full font-semibold text-xs py-2 rounded-lg transition-all duration-200
+                 flex items-center justify-center gap-1.5 active:scale-95
+                 focus:outline-none focus:ring-2 focus:ring-offset-1"
+          :class="justAdded
+            ? 'bg-green-600 text-white focus:ring-green-400'
+            : 'bg-green-500 hover:bg-green-600 text-white hover:shadow-md focus:ring-green-400'"
+        >
+          <transition name="btn-icon" mode="out-in">
+            <!-- Success checkmark -->
+            <svg
+              v-if="justAdded"
+              key="check"
+              class="w-3.5 h-3.5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+            <!-- Cart icon -->
+            <svg
+              v-else
+              key="cart"
+              class="w-3.5 h-3.5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-9H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+          </transition>
+          <transition name="btn-text" mode="out-in">
+            <span :key="justAdded ? 'added' : 'buy'">
+              {{ justAdded ? 'Adicionado!' : 'Comprar' }}
+            </span>
+          </transition>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useCartStore } from '@/stores/cart.store';
+
+const props = defineProps<{
+  product: {
+    id: string;
+    name: string;
+    slug: string;
+    price: number;
+    comparePrice?: number;
+    coverImageUrl: string;
+    isFeatured?: boolean;
+    pageCount?: number;
+    category?: { name: string };
+  };
+}>();
+
+const cart = useCartStore();
+const justAdded = ref(false);
+
+function formatPrice(price: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
+}
+
+function addToCart() {
+  cart.add({
+    productId: props.product.id,
+    name: props.product.name,
+    price: Number(props.product.price),
+    coverImageUrl: props.product.coverImageUrl,
+    slug: props.product.slug,
+  });
+
+  justAdded.value = true;
+  setTimeout(() => { justAdded.value = false; }, 1800);
+}
+</script>
+
+<style scoped>
+/* Image zoom class that Tailwind can't do at 1.08 */
+.group-hover\:scale-108:is(.group:hover *) {
+  transform: scale(1.08);
+}
+
+.btn-icon-enter-active,
+.btn-icon-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.btn-icon-enter-from { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+.btn-icon-leave-to   { opacity: 0; transform: scale(0.5) rotate(10deg); }
+
+.btn-text-enter-active,
+.btn-text-leave-active {
+  transition: opacity 0.15s ease;
+}
+.btn-text-enter-from,
+.btn-text-leave-to { opacity: 0; }
+</style>
