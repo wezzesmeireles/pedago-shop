@@ -7,6 +7,7 @@ cmds = ["pnpm install --no-frozen-lockfile"]
 [phases.build]
 cmds = [
   "pnpm --filter @pedago/shared build 2>/dev/null || true",
+  "node_modules/.bin/prisma generate --schema=apps/api/prisma/schema.prisma",
   "pnpm --filter api build",
   "pnpm --filter web build",
   "mkdir -p /usr/share/nginx/html",
