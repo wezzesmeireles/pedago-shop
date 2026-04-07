@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nginx"]
+aptPkgs = ["nginx"]
 
 [phases.install]
 cmds = ["pnpm install --no-frozen-lockfile"]
