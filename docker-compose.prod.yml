@@ -19,10 +19,10 @@ services:
     networks:
       - pedago_net
 
-  api:
+  app:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -45,16 +45,8 @@ services:
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
     volumes:
       - uploads_data:/app/apps/api/uploads
-    networks:
-      - pedago_net
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      - api
+    ports:
+      - "80"
     networks:
       - pedago_net
 
