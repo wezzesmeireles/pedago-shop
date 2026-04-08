@@ -12,11 +12,8 @@ export class DownloadsController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const { data, mimeType, fileName } = await this.svc.download(token, req);
-    const encoded = encodeURIComponent(fileName);
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encoded}; filename="${encoded}"`);
-    res.setHeader('Content-Length', data.length);
-    res.send(data);
+    const { signedUrl, fileName } = await this.svc.download(token, req);
+    // Redirect to Supabase signed URL — browser will download the file directly
+    res.redirect(302, signedUrl);
   }
 }

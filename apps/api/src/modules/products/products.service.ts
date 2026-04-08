@@ -1,122 +1,168 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 
-const PUBLIC_SELECT = {
-  id: true, name: true, slug: true, description: true, richContent: true,
-  price: true, comparePrice: true, coverImageUrl: true, previewImages: true,
-  pageCount: true, fileSize: true, tags: true, isFeatured: true,
-  salesCount: true, downloadCount: true, sortOrder: true,
-  category: { select: { id: true, name: true, slug: true } },
-  r2FileKey: false, // never expose
-};
-
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private supabase: SupabaseService) {}
 
   async findAll(query: QueryProductsDto) {
     const { category, search, tag, featured, page = 1, limit = 12, sort = 'newest' } = query;
-    const skip = (page - 1) * limit;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-    const where: any = { isActive: true, deletedAt: null };
-    if (category) where.category = { slug: category };
-    if (tag) where.tags = { has: tag };
-    if (featured) where.isFeatured = true;
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { tags: { has: search } },
-      ];
-    }
+    let q = this.supabase.db
+      .from('products')
+      .select(
+        'id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, tags, page_count, categories(id, name, slug)',
+        { count: 'exact' },
+      )
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .range(from, to);
 
-    const orderBy: any =
-      sort === 'price_asc' ? { price: 'asc' }
-      : sort === 'price_desc' ? { price: 'desc' }
-      : sort === 'popular' ? { salesCount: 'desc' }
-      : { createdAt: 'desc' };
+    if (featured) q = q.eq('is_featured', true);
+    if (tag) q = q.contains('tags', [tag]);
+    if (search) q = q.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+    if (category) q = q.eq('categories.slug', category);
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.product.findMany({
-        where, skip, take: limit, orderBy,
-        select: {
-          id: true, name: true, slug: true, price: true, comparePrice: true,
-          coverImageUrl: true, isFeatured: true, salesCount: true,
-          tags: true, pageCount: true,
-          category: { select: { id: true, name: true, slug: true } },
-        },
-      }),
-      this.prisma.product.count({ where }),
-    ]);
+    if (sort === 'price_asc') q = q.order('price', { ascending: true });
+    else if (sort === 'price_desc') q = q.order('price', { ascending: false });
+    else if (sort === 'popular') q = q.order('sales_count', { ascending: false });
+    else q = q.order('created_at', { ascending: false });
 
-    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const { data, error, count } = await q;
+    if (error) throw new Error(error.message);
+
+    const total = count ?? 0;
+    return { items: data ?? [], total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findBySlug(slug: string) {
-    const product = await this.prisma.product.findFirst({
-      where: { slug, isActive: true, deletedAt: null },
-      select: {
-        id: true, name: true, slug: true, description: true, richContent: true,
-        price: true, comparePrice: true, coverImageUrl: true, previewImages: true,
-        pageCount: true, fileSize: true, tags: true, isFeatured: true,
-        salesCount: true, maxDownloads: true,
-        category: { select: { id: true, name: true, slug: true } },
-      },
-    });
-    if (!product) throw new NotFoundException('Produto não encontrado.');
-    return product;
+    const { data, error } = await this.supabase.db
+      .from('products')
+      .select(
+        'id, name, slug, description, rich_content, price, compare_price, cover_image_url, preview_images, page_count, file_size, tags, is_featured, sales_count, max_downloads, categories(id, name, slug)',
+      )
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .single();
+
+    if (error || !data) throw new NotFoundException('Produto não encontrado.');
+    return data;
   }
 
   async findFeatured() {
-    return this.prisma.product.findMany({
-      where: { isFeatured: true, isActive: true, deletedAt: null },
-      orderBy: { sortOrder: 'asc' },
-      take: 8,
-      select: {
-        id: true, name: true, slug: true, price: true, comparePrice: true,
-        coverImageUrl: true, isFeatured: true, salesCount: true,
-        category: { select: { id: true, name: true, slug: true } },
-      },
-    });
+    const { data, error } = await this.supabase.db
+      .from('products')
+      .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, categories(id, name, slug)')
+      .eq('is_featured', true)
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .order('sort_order', { ascending: true })
+      .limit(8);
+
+    if (error) throw new Error(error.message);
+    return data ?? [];
   }
 
   async create(dto: CreateProductDto) {
-    return this.prisma.product.create({
-      data: {
-        ...dto,
-        price: dto.price as any,
-        comparePrice: dto.comparePrice as any,
-        coverImageUrl: dto.coverImageUrl ?? '',
-        previewImages: dto.previewImages ?? [],
+    const { data, error } = await this.supabase.db
+      .from('products')
+      .insert({
+        name: dto.name,
+        slug: dto.slug,
+        description: dto.description ?? '',
+        rich_content: dto.richContent ?? null,
+        price: dto.price,
+        compare_price: dto.comparePrice ?? null,
+        cover_image_url: dto.coverImageUrl ?? '',
+        preview_images: dto.previewImages ?? [],
+        category_id: dto.categoryId,
+        file_key: dto.r2FileKey ?? '',
+        file_size: dto.fileSize ?? 0,
+        page_count: dto.pageCount ?? null,
         tags: dto.tags ?? [],
-        fileSize: dto.fileSize ?? 0,
-        r2FileKey: dto.r2FileKey ?? '',
-      },
-    });
+        is_active: dto.isActive ?? true,
+        is_featured: dto.isFeatured ?? false,
+        sort_order: dto.sortOrder ?? 0,
+        max_downloads: dto.maxDownloads ?? 5,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async update(id: string, dto: Partial<CreateProductDto>) {
     await this.findForAdmin(id);
-    return this.prisma.product.update({ where: { id }, data: dto as any });
+
+    const update: any = { updated_at: new Date().toISOString() };
+    if (dto.name !== undefined) update.name = dto.name;
+    if (dto.slug !== undefined) update.slug = dto.slug;
+    if (dto.description !== undefined) update.description = dto.description;
+    if (dto.richContent !== undefined) update.rich_content = dto.richContent;
+    if (dto.price !== undefined) update.price = dto.price;
+    if (dto.comparePrice !== undefined) update.compare_price = dto.comparePrice;
+    if (dto.coverImageUrl !== undefined) update.cover_image_url = dto.coverImageUrl;
+    if (dto.previewImages !== undefined) update.preview_images = dto.previewImages;
+    if (dto.categoryId !== undefined) update.category_id = dto.categoryId;
+    if (dto.r2FileKey !== undefined) update.file_key = dto.r2FileKey;
+    if (dto.fileSize !== undefined) update.file_size = dto.fileSize;
+    if (dto.pageCount !== undefined) update.page_count = dto.pageCount;
+    if (dto.tags !== undefined) update.tags = dto.tags;
+    if (dto.isActive !== undefined) update.is_active = dto.isActive;
+    if (dto.isFeatured !== undefined) update.is_featured = dto.isFeatured;
+    if (dto.sortOrder !== undefined) update.sort_order = dto.sortOrder;
+    if (dto.maxDownloads !== undefined) update.max_downloads = dto.maxDownloads;
+
+    const { data, error } = await this.supabase.db
+      .from('products')
+      .update(update)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async remove(id: string) {
     await this.findForAdmin(id);
-    return this.prisma.product.update({
-      where: { id },
-      data: { deletedAt: new Date(), isActive: false },
-    });
+    const { data, error } = await this.supabase.db
+      .from('products')
+      .update({ deleted_at: new Date().toISOString(), is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
-  async updateFileKey(id: string, r2FileKey: string, fileSize: number) {
-    return this.prisma.product.update({ where: { id }, data: { r2FileKey, fileSize } });
+  async updateFileKey(id: string, fileKey: string, fileSize: number) {
+    const { data, error } = await this.supabase.db
+      .from('products')
+      .update({ file_key: fileKey, file_size: fileSize, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async findForAdmin(id: string) {
-    const p = await this.prisma.product.findUnique({ where: { id } });
-    if (!p) throw new NotFoundException('Produto não encontrado.');
-    return p;
+    const { data, error } = await this.supabase.db
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) throw new NotFoundException('Produto não encontrado.');
+    return data;
   }
 }

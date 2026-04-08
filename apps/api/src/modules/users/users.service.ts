@@ -1,24 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private supabase: SupabaseService) {}
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    const user = await this.prisma.user.update({
-      where: { id: userId },
-      data: dto,
-    });
-    const { passwordHash, ...safe } = user;
-    return safe;
+    const { data, error } = await this.supabase.db
+      .from('profiles')
+      .update({
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.avatarUrl !== undefined && { avatar_url: dto.avatarUrl }),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId)
+      .select('id, name, phone, avatar_url, role, is_active, created_at')
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async findById(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) return null;
-    const { passwordHash, ...safe } = user;
-    return safe;
+    const { data } = await this.supabase.db
+      .from('profiles')
+      .select('id, name, phone, avatar_url, role, is_active, created_at')
+      .eq('id', id)
+      .single();
+
+    return data ?? null;
   }
 }

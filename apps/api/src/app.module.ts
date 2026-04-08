@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { PrismaModule } from './modules/prisma/prisma.module';
+import { SupabaseModule } from './modules/supabase/supabase.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { CategoriesModule } from './modules/categories/categories.module';
@@ -25,7 +25,7 @@ import { validate } from './config/env.validation';
       { name: 'short', ttl: 1000, limit: 10 },
       { name: 'long', ttl: 60000, limit: 100 },
     ]),
-    PrismaModule,
+    SupabaseModule,
     AuthModule,
     UsersModule,
     CategoriesModule,

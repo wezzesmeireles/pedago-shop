@@ -8,8 +8,8 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Redirect,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -34,12 +34,8 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() dto: LoginDto,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const tokens = await this.authService.login(dto, req.ip, req.headers['user-agent']);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const tokens = await this.authService.login(dto);
     this.setRefreshCookie(res, tokens.refreshToken);
     return { accessToken: tokens.accessToken };
   }
@@ -52,7 +48,7 @@ export class AuthController {
       res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Token não encontrado.' });
       return;
     }
-    const tokens = await this.authService.refresh(token, req.ip, req.headers['user-agent']);
+    const tokens = await this.authService.refresh(token);
     this.setRefreshCookie(res, tokens.refreshToken);
     return { accessToken: tokens.accessToken };
   }
@@ -60,35 +56,15 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(
-    @CurrentUser('id') userId: string,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const token = req.cookies?.['refresh_token'];
-    if (token) {
-      const { createHash } = await import('crypto');
-      const tokenHash = createHash('sha256').update(token).digest('hex');
-      await this.authService.logout(userId, tokenHash);
-    }
+  async logout(@CurrentUser('id') userId: string, @Res({ passthrough: true }) res: Response) {
+    await this.authService.logout(userId);
     res.clearCookie('refresh_token');
   }
 
   @Get('google')
-  @UseGuards(AuthGuard('google'))
-  googleAuth() {}
-
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  async googleCallback(@Req() req: Request, @Res() res: Response) {
-    const tokens = await this.authService.googleLogin(
-      req.user,
-      req.ip,
-      req.headers['user-agent'],
-    );
-    this.setRefreshCookie(res, tokens.refreshToken);
-    const frontendUrl = this.config.get('FRONTEND_URL');
-    res.redirect(`${frontendUrl}/auth/google-callback?token=${tokens.accessToken}`);
+  googleAuth(@Res() res: Response) {
+    const supabaseUrl = this.config.get<string>('SUPABASE_URL');
+    res.redirect(`${supabaseUrl}/auth/v1/authorize?provider=google`);
   }
 
   private setRefreshCookie(res: Response, token: string) {
@@ -96,7 +72,7 @@ export class AuthController {
       httpOnly: true,
       sameSite: 'strict',
       secure: this.config.get('NODE_ENV') === 'production',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
   }

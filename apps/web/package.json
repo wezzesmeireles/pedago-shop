@@ -11,6 +11,7 @@
     "@pedago/shared": "workspace:*",
     "@vueuse/core": "^10.11.0",
     "@vueuse/head": "^2.0.0",
+    "@supabase/supabase-js": "^2.45.4",
     "axios": "^1.7.2",
     "pinia": "^2.2.0",
     "vue": "^3.4.31",

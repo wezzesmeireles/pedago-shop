@@ -1,26 +1,32 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { DEFAULT_SITE_CONFIG, SiteConfigData } from '@pedago/shared';
 
 @Injectable()
 export class SiteConfigService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private supabase: SupabaseService) {}
 
   async get(): Promise<SiteConfigData> {
-    const config = await this.prisma.siteConfig.findUnique({ where: { key: 'global' } });
-    if (!config) return DEFAULT_SITE_CONFIG;
-    return { ...DEFAULT_SITE_CONFIG, ...(config.value as any) };
+    const { data } = await this.supabase.db
+      .from('site_config')
+      .select('value')
+      .eq('key', 'global')
+      .single();
+
+    if (!data) return DEFAULT_SITE_CONFIG;
+    return { ...DEFAULT_SITE_CONFIG, ...(data.value as any) };
   }
 
   async update(data: Partial<SiteConfigData>, adminId: string): Promise<SiteConfigData> {
     const current = await this.get();
     const merged = { ...current, ...data };
 
-    await this.prisma.siteConfig.upsert({
-      where: { key: 'global' },
-      update: { value: merged as any, updatedByAdminId: adminId },
-      create: { key: 'global', value: merged as any, updatedByAdminId: adminId },
-    });
+    await this.supabase.db
+      .from('site_config')
+      .upsert(
+        { key: 'global', value: merged as any, updated_by_admin_id: adminId, updated_at: new Date().toISOString() },
+        { onConflict: 'key' },
+      );
 
     return merged;
   }

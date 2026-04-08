@@ -6,14 +6,11 @@ import { StorageService } from './storage.service';
 export class FilesController {
   constructor(private storage: StorageService) {}
 
-  @Get(':id')
-  async serve(@Param('id') id: string, @Res() res: Response) {
-    const file = await this.storage.getFile(id);
-    if (!file.isPublic) throw new NotFoundException('Arquivo não encontrado.');
-
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Length', file.size);
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    res.send(file.data);
+  // Public files are now served directly from Supabase Storage CDN.
+  // This endpoint is kept for backwards compatibility but redirects.
+  @Get(':path(*)')
+  async serve(@Param('path') path: string, @Res() res: Response) {
+    const url = this.storage.getPublicUrl('product-covers', path);
+    res.redirect(301, url);
   }
 }

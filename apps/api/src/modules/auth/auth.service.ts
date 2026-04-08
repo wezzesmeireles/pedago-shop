@@ -1,142 +1,103 @@
-import {
-  Injectable,
-  ConflictException,
-  UnauthorizedException,
-  BadRequestException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
+import { SupabaseService } from '../supabase/supabase.service';
+import { createClient } from '@supabase/supabase-js';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
-    private jwt: JwtService,
+    private supabase: SupabaseService,
     private config: ConfigService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    const exists = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (exists) throw new ConflictException('Email já cadastrado.');
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({
-      data: { name: dto.name, email: dto.email, passwordHash, phone: dto.phone },
-    });
-
-    return this.generateTokens(user.id, user.email, user.role);
+  // Create a user-scoped client for auth operations
+  private userClient() {
+    return createClient(
+      this.config.get<string>('SUPABASE_URL')!,
+      this.config.get<string>('SUPABASE_ANON_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
   }
 
-  async login(dto: LoginDto, ip?: string, userAgent?: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email, deletedAt: null },
+  async register(dto: RegisterDto) {
+    const { data, error } = await this.supabase.db.auth.admin.createUser({
+      email: dto.email,
+      password: dto.password,
+      email_confirm: true,
+      user_metadata: { name: dto.name, phone: dto.phone ?? null },
     });
 
-    if (!user || !user.passwordHash) {
+    if (error) {
+      if (error.message?.includes('already registered')) {
+        throw new UnauthorizedException('Email já cadastrado.');
+      }
+      throw new UnauthorizedException(error.message);
+    }
+
+    // Update profile with name/phone (trigger handles creation)
+    await this.supabase.db
+      .from('profiles')
+      .update({ name: dto.name, phone: dto.phone ?? null })
+      .eq('id', data.user!.id);
+
+    // Sign in to get tokens
+    const { data: session, error: signInError } = await this.supabase.db.auth.signInWithPassword({
+      email: dto.email,
+      password: dto.password,
+    });
+
+    if (signInError || !session.session) {
+      throw new UnauthorizedException('Erro ao criar sessão.');
+    }
+
+    return {
+      accessToken: session.session.access_token,
+      refreshToken: session.session.refresh_token,
+    };
+  }
+
+  async login(dto: LoginDto) {
+    const { data, error } = await this.supabase.db.auth.signInWithPassword({
+      email: dto.email,
+      password: dto.password,
+    });
+
+    if (error || !data.session) {
       throw new UnauthorizedException('Credenciais inválidas.');
     }
 
-    const valid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Credenciais inválidas.');
-    if (!user.isActive) throw new UnauthorizedException('Conta desativada.');
+    const { data: profile } = await this.supabase.db
+      .from('profiles')
+      .select('is_active')
+      .eq('id', data.user.id)
+      .single();
 
-    return this.generateTokens(user.id, user.email, user.role, ip, userAgent);
-  }
-
-  async googleLogin(googleUser: any, ip?: string, userAgent?: string) {
-    let user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ googleId: googleUser.googleId }, { email: googleUser.email }],
-        deletedAt: null,
-      },
-    });
-
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          email: googleUser.email,
-          name: googleUser.name,
-          googleId: googleUser.googleId,
-          avatarUrl: googleUser.avatarUrl,
-        },
-      });
-    } else if (!user.googleId) {
-      user = await this.prisma.user.update({
-        where: { id: user.id },
-        data: { googleId: googleUser.googleId, avatarUrl: googleUser.avatarUrl },
-      });
-    }
-
-    if (!user.isActive) throw new UnauthorizedException('Conta desativada.');
-
-    return this.generateTokens(user.id, user.email, user.role, ip, userAgent);
-  }
-
-  async refresh(token: string, ip?: string, userAgent?: string) {
-    const tokenHash = await this.hashToken(token);
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash },
-      include: { user: true },
-    });
-
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-      throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
-    }
-
-    if (!stored.user.isActive || stored.user.deletedAt) {
+    if (!profile?.is_active) {
       throw new UnauthorizedException('Conta desativada.');
     }
 
-    // Rotate refresh token
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { revokedAt: new Date() },
-    });
-
-    return this.generateTokens(stored.user.id, stored.user.email, stored.user.role, ip, userAgent);
+    return {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+    };
   }
 
-  async logout(userId: string, tokenHash: string) {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, tokenHash },
-      data: { revokedAt: new Date() },
-    });
+  async refresh(refreshToken: string) {
+    const { data, error } = await this.supabase.db.auth.refreshSession({ refresh_token: refreshToken });
+
+    if (error || !data.session) {
+      throw new UnauthorizedException('Sessão expirada. Faça login novamente.');
+    }
+
+    return {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+    };
   }
 
-  async generateTokens(
-    userId: string,
-    email: string,
-    role: string,
-    ip?: string,
-    userAgent?: string,
-  ) {
-    const payload = { sub: userId, email, role };
-
-    const accessToken = this.jwt.sign(payload, {
-      secret: this.config.get('JWT_ACCESS_SECRET'),
-      expiresIn: this.config.get('JWT_ACCESS_EXPIRES_IN', '15m'),
-    });
-
-    const rawRefreshToken = uuidv4();
-    const tokenHash = await this.hashToken(rawRefreshToken);
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    await this.prisma.refreshToken.create({
-      data: { tokenHash, userId, expiresAt, ipAddress: ip, userAgent },
-    });
-
-    return { accessToken, refreshToken: rawRefreshToken };
-  }
-
-  private async hashToken(token: string): Promise<string> {
-    // Simple SHA256 via crypto — refresh tokens are UUIDs (high entropy), no need for bcrypt
-    const { createHash } = await import('crypto');
-    return createHash('sha256').update(token).digest('hex');
+  async logout(userId: string) {
+    await this.supabase.db.auth.admin.signOut(userId);
   }
 }

@@ -7,7 +7,6 @@ cmds = ["pnpm install --no-frozen-lockfile"]
 [phases.build]
 cmds = [
   "pnpm --filter @pedago/shared build 2>/dev/null || true",
-  "pnpm --filter api exec prisma generate",
   "pnpm --filter api build",
   "pnpm --filter web build",
   "mkdir -p /usr/share/nginx/html",
@@ -17,4 +16,4 @@ cmds = [
 ]
 
 [start]
-cmd = "cd /app && (apps/api/node_modules/.bin/prisma migrate deploy --schema=apps/api/prisma/schema.prisma || true) && node apps/api/dist/main.js & nginx -g 'daemon off;'"
+cmd = "node apps/api/dist/main.js & nginx -g 'daemon off;'"

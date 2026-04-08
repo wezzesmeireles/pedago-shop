@@ -1,67 +1,64 @@
-import {
-  Injectable,
-  NotFoundException,
-  GoneException,
-  ForbiddenException,
-} from '@nestjs/common';
-// Note: download tokens are UUIDs (122-bit random) — the token itself is the auth credential.
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, GoneException, ForbiddenException } from '@nestjs/common';
+import { SupabaseService } from '../supabase/supabase.service';
 import { StorageService } from '../storage/storage.service';
 import { Request } from 'express';
 
 @Injectable()
 export class DownloadsService {
   constructor(
-    private prisma: PrismaService,
+    private supabase: SupabaseService,
     private storage: StorageService,
   ) {}
 
   async download(token: string, req: Request) {
-    const downloadToken = await this.prisma.downloadToken.findUnique({
-      where: { token },
-      include: {
-        order: { select: { userId: true, status: true } },
-        orderItem: {
-          include: { product: { select: { r2FileKey: true, name: true } } },
-        },
-      },
-    });
+    const { data: downloadToken, error } = await this.supabase.db
+      .from('download_tokens')
+      .select(`
+        *,
+        orders(user_id, status),
+        order_items(
+          product_id,
+          products(file_key, name)
+        )
+      `)
+      .eq('token', token)
+      .single();
 
-    if (!downloadToken) throw new NotFoundException('Token de download inválido.');
+    if (error || !downloadToken) throw new NotFoundException('Token de download inválido.');
 
-    if (downloadToken.order.status !== 'PAID') {
+    if (downloadToken.orders.status !== 'PAID') {
       throw new ForbiddenException('Pedido não confirmado.');
     }
 
-    if (downloadToken.revokedAt) {
+    if (downloadToken.revoked_at) {
       throw new GoneException('Este link de download foi revogado.');
     }
 
-    if (downloadToken.expiresAt < new Date()) {
+    if (new Date(downloadToken.expires_at) < new Date()) {
       throw new GoneException('Link de download expirado. Entre em contato com o suporte.');
     }
 
-    const fileId = downloadToken.orderItem.product.r2FileKey;
-    const file = await this.storage.getFile(fileId);
+    const fileKey = downloadToken.order_items.products.file_key;
+    const productName = downloadToken.order_items.products.name;
 
-    await this.prisma.downloadToken.update({
-      where: { id: downloadToken.id },
-      data: {
-        downloadCount: { increment: 1 },
-        lastDownloadAt: new Date(),
-        lastDownloadIp: req.ip,
-      },
-    });
+    // Get signed URL for private file (valid for 60 seconds)
+    const signedUrl = await this.storage.getSignedUrl(fileKey, 60);
 
-    await this.prisma.product.update({
-      where: { id: downloadToken.orderItem.productId },
-      data: { downloadCount: { increment: 1 } },
-    });
+    // Update download stats
+    await this.supabase.db
+      .from('download_tokens')
+      .update({
+        download_count: downloadToken.download_count + 1,
+        last_download_at: new Date().toISOString(),
+        last_download_ip: req.ip,
+      })
+      .eq('id', downloadToken.id);
 
-    return {
-      data: file.data,
-      mimeType: file.mimeType,
-      fileName: `${downloadToken.orderItem.product.name}.pdf`,
-    };
+    await this.supabase.db
+      .from('products')
+      .update({ download_count: downloadToken.order_items.products.download_count + 1 })
+      .eq('id', downloadToken.order_items.product_id);
+
+    return { signedUrl, fileName: `${productName}.pdf` };
   }
 }

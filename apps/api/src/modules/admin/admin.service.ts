@@ -1,188 +1,201 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private supabase: SupabaseService) {}
 
   async getDashboard() {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
 
     const [
-      totalRevenue,
-      monthRevenue,
-      lastMonthRevenue,
-      totalOrders,
-      monthOrders,
-      pendingOrders,
-      totalUsers,
-      topProducts,
-      recentOrders,
-    ] = await this.prisma.$transaction([
-      this.prisma.order.aggregate({ where: { status: 'PAID' }, _sum: { totalAmount: true } }),
-      this.prisma.order.aggregate({ where: { status: 'PAID', paidAt: { gte: startOfMonth } }, _sum: { totalAmount: true } }),
-      this.prisma.order.aggregate({ where: { status: 'PAID', paidAt: { gte: startOfLastMonth, lt: startOfMonth } }, _sum: { totalAmount: true } }),
-      this.prisma.order.count({ where: { status: 'PAID' } }),
-      this.prisma.order.count({ where: { status: 'PAID', createdAt: { gte: startOfMonth } } }),
-      this.prisma.order.count({ where: { status: 'AWAITING_PAYMENT' } }),
-      this.prisma.user.count({ where: { role: 'CUSTOMER' } }),
-      this.prisma.product.findMany({
-        where: { deletedAt: null },
-        orderBy: { salesCount: 'desc' },
-        take: 5,
-        select: { id: true, name: true, salesCount: true, coverImageUrl: true, price: true },
-      }),
-      this.prisma.order.findMany({
-        where: { status: 'PAID' },
-        orderBy: { paidAt: 'desc' },
-        take: 10,
-        include: {
-          user: { select: { name: true, email: true } },
-          items: { select: { productName: true } },
-        },
-      }),
+      { data: totalRev },
+      { data: monthRev },
+      { data: lastMonthRev },
+      { count: totalOrders },
+      { count: monthOrders },
+      { count: pendingOrders },
+      { count: totalUsers },
+      { data: topProducts },
+      { data: recentOrders },
+    ] = await Promise.all([
+      this.supabase.db.from('orders').select('total_amount').eq('status', 'PAID'),
+      this.supabase.db.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfMonth),
+      this.supabase.db.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfLastMonth).lt('paid_at', startOfMonth),
+      this.supabase.db.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID'),
+      this.supabase.db.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID').gte('created_at', startOfMonth),
+      this.supabase.db.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'AWAITING_PAYMENT'),
+      this.supabase.db.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'CUSTOMER'),
+      this.supabase.db.from('products').select('id, name, sales_count, cover_image_url, price').is('deleted_at', null).order('sales_count', { ascending: false }).limit(5),
+      this.supabase.db.from('orders').select('*, profiles(name, email), order_items(product_name)').eq('status', 'PAID').order('paid_at', { ascending: false }).limit(10),
     ]);
+
+    const sumRev = (rows: any[]) => (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_amount), 0);
 
     return {
       revenue: {
-        total: Number(totalRevenue._sum.totalAmount ?? 0),
-        month: Number(monthRevenue._sum.totalAmount ?? 0),
-        lastMonth: Number(lastMonthRevenue._sum.totalAmount ?? 0),
+        total: sumRev(totalRev ?? []),
+        month: sumRev(monthRev ?? []),
+        lastMonth: sumRev(lastMonthRev ?? []),
       },
-      orders: { total: totalOrders, month: monthOrders, pending: pendingOrders },
-      users: { total: totalUsers },
-      topProducts,
-      recentOrders,
+      orders: { total: totalOrders ?? 0, month: monthOrders ?? 0, pending: pendingOrders ?? 0 },
+      users: { total: totalUsers ?? 0 },
+      topProducts: topProducts ?? [],
+      recentOrders: recentOrders ?? [],
     };
   }
 
   async getOrders(page: number, limit: number, status?: string, search?: string) {
-    const skip = (page - 1) * limit;
-    const where: any = {};
-    if (status) where.status = status;
-    if (search) {
-      where.OR = [
-        { orderNumber: { contains: search, mode: 'insensitive' } },
-        { customerEmail: { contains: search, mode: 'insensitive' } },
-        { customerName: { contains: search, mode: 'insensitive' } },
-      ];
-    }
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.order.findMany({
-        where, skip, take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: { select: { name: true, email: true, avatarUrl: true } },
-          items: { select: { productName: true, quantity: true, unitPrice: true } },
-        },
-      }),
-      this.prisma.order.count({ where }),
-    ]);
+    let q = this.supabase.db
+      .from('orders')
+      .select('*, profiles(name, email, avatar_url), order_items(product_name, quantity, unit_price)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
-    return { items, total, page, limit };
+    if (status) q = q.eq('status', status);
+    if (search) q = q.or(`order_number.ilike.%${search}%,customer_email.ilike.%${search}%,customer_name.ilike.%${search}%`);
+
+    const { data, error, count } = await q;
+    if (error) throw new Error(error.message);
+    return { items: data ?? [], total: count ?? 0, page, limit };
   }
 
   async getOrder(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-      include: {
-        user: true,
-        items: {
-          include: {
-            product: { select: { id: true, name: true, coverImageUrl: true } },
-            downloadTokens: true,
-          },
-        },
-      },
-    });
-    if (!order) throw new NotFoundException('Pedido não encontrado.');
-    return order;
+    const { data, error } = await this.supabase.db
+      .from('orders')
+      .select('*, profiles(*), order_items(*, products(id, name, cover_image_url), download_tokens(*))')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) throw new NotFoundException('Pedido não encontrado.');
+    return data;
   }
 
   async updateOrderStatus(id: string, status: string) {
-    const order = await this.prisma.order.findUnique({ where: { id } });
+    const { data: order } = await this.supabase.db.from('orders').select('id').eq('id', id).single();
     if (!order) throw new NotFoundException('Pedido não encontrado.');
-    return this.prisma.order.update({ where: { id }, data: { status: status as any } });
+
+    const { data, error } = await this.supabase.db
+      .from('orders')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async getUsers(page: number, limit: number, search?: string) {
-    const skip = (page - 1) * limit;
-    const where: any = { deletedAt: null };
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-      ];
-    }
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.user.findMany({
-        where, skip, take: limit,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true, name: true, email: true, phone: true, role: true, isActive: true,
-          avatarUrl: true, createdAt: true,
-          _count: { select: { orders: { where: { status: 'PAID' } } } },
-        },
+    let q = this.supabase.db
+      .from('profiles')
+      .select('id, name, phone, avatar_url, role, is_active, created_at, orders(count)', { count: 'exact' })
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (search) q = q.or(`name.ilike.%${search}%`);
+
+    const { data, error, count } = await q;
+    if (error) throw new Error(error.message);
+
+    // Also get emails from auth admin
+    const items = await Promise.all(
+      (data ?? []).map(async (profile: any) => {
+        const { data: { user } } = await this.supabase.db.auth.admin.getUserById(profile.id);
+        return { ...profile, email: user?.email ?? '' };
       }),
-      this.prisma.user.count({ where }),
-    ]);
+    );
 
-    return { items, total, page, limit };
+    return { items, total: count ?? 0, page, limit };
   }
 
   async getUserOrders(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, name: true, email: true, phone: true },
-    });
-    if (!user) throw new NotFoundException('Usuário não encontrado.');
+    const { data: profile } = await this.supabase.db
+      .from('profiles')
+      .select('id, name, phone')
+      .eq('id', userId)
+      .single();
 
-    const orders = await this.prisma.order.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      include: { items: { select: { productName: true, quantity: true, unitPrice: true } } },
-    });
+    if (!profile) throw new NotFoundException('Usuário não encontrado.');
 
-    return { user, orders };
+    const { data: authUser } = await this.supabase.db.auth.admin.getUserById(userId);
+
+    const { data: orders } = await this.supabase.db
+      .from('orders')
+      .select('*, order_items(product_name, quantity, unit_price)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    return {
+      user: { ...profile, email: authUser.user?.email ?? '' },
+      orders: orders ?? [],
+    };
   }
 
   async updateUser(id: string, data: { role?: string; isActive?: boolean }) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException('Usuário não encontrado.');
-    return this.prisma.user.update({ where: { id }, data: data as any });
+    const { data: profile } = await this.supabase.db.from('profiles').select('id').eq('id', id).single();
+    if (!profile) throw new NotFoundException('Usuário não encontrado.');
+
+    const update: any = { updated_at: new Date().toISOString() };
+    if (data.role !== undefined) update.role = data.role;
+    if (data.isActive !== undefined) update.is_active = data.isActive;
+
+    const { data: updated, error } = await this.supabase.db
+      .from('profiles')
+      .update(update)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return updated;
   }
 
   async resetDownloadToken(tokenId: string) {
-    const token = await this.prisma.downloadToken.findUnique({ where: { id: tokenId } });
+    const { data: token } = await this.supabase.db.from('download_tokens').select('id').eq('id', tokenId).single();
     if (!token) throw new NotFoundException('Token não encontrado.');
-    return this.prisma.downloadToken.update({
-      where: { id: tokenId },
-      data: { downloadCount: 0, revokedAt: null },
-    });
+
+    const { data, error } = await this.supabase.db
+      .from('download_tokens')
+      .update({ download_count: 0, revoked_at: null })
+      .eq('id', tokenId)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async getIntegrations() {
-    const config = await this.prisma.siteConfig.findUnique({ where: { key: 'integrations' } });
-    return (config?.value as any) ?? {
+    const { data } = await this.supabase.db
+      .from('site_config')
+      .select('value')
+      .eq('key', 'integrations')
+      .single();
+
+    return (data?.value as any) ?? {
       mercadoPagoAccessToken: '',
       mercadoPagoPixKey: '',
       mercadoPagoWebhookSecret: '',
-      googleClientId: '',
-      googleClientSecret: '',
-      googleCallbackUrl: '',
     };
   }
 
   async setIntegrations(data: Record<string, string>, adminId: string) {
-    await this.prisma.siteConfig.upsert({
-      where: { key: 'integrations' },
-      update: { value: data as any, updatedByAdminId: adminId },
-      create: { key: 'integrations', value: data as any, updatedByAdminId: adminId },
-    });
+    await this.supabase.db
+      .from('site_config')
+      .upsert(
+        { key: 'integrations', value: data as any, updated_by_admin_id: adminId, updated_at: new Date().toISOString() },
+        { onConflict: 'key' },
+      );
     return data;
   }
 }

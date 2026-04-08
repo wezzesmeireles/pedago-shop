@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import MercadoPagoConfig, { Payment, Preference, PaymentRefund } from 'mercadopago';
 import { randomUUID } from 'crypto';
 
@@ -13,26 +13,30 @@ export class PaymentsService {
 
   constructor(
     private config: ConfigService,
-    private prisma: PrismaService,
+    private supabase: SupabaseService,
   ) {}
 
   // ─── Client factory ─────────────────────────────────────────────────────────
 
   private async getMpClient(): Promise<MercadoPagoConfig> {
-    const integrations = await this.prisma.siteConfig.findUnique({
-      where: { key: 'integrations' },
-    });
-    const dbToken = (integrations?.value as any)?.mercadoPagoAccessToken as string | undefined;
+    const { data } = await this.supabase.db
+      .from('site_config')
+      .select('value')
+      .eq('key', 'integrations')
+      .single();
+    const dbToken = (data?.value as any)?.mercadoPagoAccessToken as string | undefined;
     const accessToken =
       (dbToken?.trim() ? dbToken : this.config.get<string>('MERCADO_PAGO_ACCESS_TOKEN')) ?? '';
     return new MercadoPagoConfig({ accessToken });
   }
 
   async getWebhookSecret(): Promise<string | undefined> {
-    const integrations = await this.prisma.siteConfig.findUnique({
-      where: { key: 'integrations' },
-    });
-    const dbSecret = (integrations?.value as any)?.mercadoPagoWebhookSecret as string | undefined;
+    const { data } = await this.supabase.db
+      .from('site_config')
+      .select('value')
+      .eq('key', 'integrations')
+      .single();
+    const dbSecret = (data?.value as any)?.mercadoPagoWebhookSecret as string | undefined;
     return dbSecret?.trim() || this.config.get<string>('MERCADO_PAGO_WEBHOOK_SECRET');
   }
 
@@ -250,8 +254,8 @@ export class PaymentsService {
 
   private async getStoreName(): Promise<string> {
     try {
-      const config = await this.prisma.siteConfig.findUnique({ where: { key: 'general' } });
-      return (config?.value as any)?.storeName ?? 'LOJA';
+      const { data } = await this.supabase.db.from('site_config').select('value').eq('key', 'general').single();
+      return (data?.value as any)?.storeName ?? 'LOJA';
     } catch {
       return 'LOJA';
     }

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { supabase } from '@/lib/supabase';
 import api, { setAccessToken } from '@/services/api';
 
 interface User {
@@ -18,26 +19,48 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'ADMIN');
 
   async function init() {
-    // Try to refresh on app load (uses HttpOnly cookie)
-    try {
-      const res = await api.post('/auth/refresh');
-      setAccessToken(res.data.accessToken);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setAccessToken(session.access_token);
       await fetchMe();
-    } catch {
-      // No valid session — that's ok
     }
+
+    // Auto-refresh when Supabase renews the token
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        setAccessToken(session.access_token);
+        if (!user.value) await fetchMe();
+      } else {
+        setAccessToken(null);
+        user.value = null;
+      }
+    });
   }
 
   async function fetchMe() {
-    const res = await api.get('/users/me');
-    user.value = res.data;
+    try {
+      const [profileRes, { data: { user: authUser } }] = await Promise.all([
+        api.get('/users/me'),
+        supabase.auth.getUser(),
+      ]);
+      user.value = {
+        id: profileRes.data.id,
+        name: profileRes.data.name,
+        email: authUser?.email ?? '',
+        role: profileRes.data.role,
+        avatarUrl: profileRes.data.avatar_url,
+      };
+    } catch {
+      user.value = null;
+    }
   }
 
   async function login(email: string, password: string) {
     loading.value = true;
     try {
-      const res = await api.post('/auth/login', { email, password });
-      setAccessToken(res.data.accessToken);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw { response: { data: { message: error.message } } };
+      setAccessToken(data.session!.access_token);
       await fetchMe();
     } finally {
       loading.value = false;
@@ -49,6 +72,9 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await api.post('/auth/register', { name, email, password, phone });
       setAccessToken(res.data.accessToken);
+      // Sync Supabase session from backend
+      const { data } = await supabase.auth.signInWithPassword({ email, password });
+      if (data.session) setAccessToken(data.session.access_token);
       await fetchMe();
     } finally {
       loading.value = false;
@@ -56,16 +82,15 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    try {
-      await api.post('/auth/logout');
-    } catch {}
+    await supabase.auth.signOut();
+    await api.post('/auth/logout').catch(() => {});
     setAccessToken(null);
     user.value = null;
   }
 
   function clearUser() {
-    user.value = null;
     setAccessToken(null);
+    user.value = null;
   }
 
   return { user, loading, isLoggedIn, isAdmin, init, fetchMe, login, register, logout, clearUser };
