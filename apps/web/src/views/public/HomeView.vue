@@ -9,51 +9,49 @@
       </div>
 
       <!-- Slides -->
-      <div class="relative">
-        <transition-group name="banner-slide" tag="div">
+      <div class="relative min-h-[340px] md:min-h-[420px]">
+        <div
+          v-for="(slide, idx) in bannerSlides"
+          v-show="bannerIndex === idx"
+          :key="idx"
+          class="absolute inset-0 flex items-center"
+          :style="slideBg(slide, idx)"
+        >
+          <!-- Background image -->
           <div
-            v-for="(slide, idx) in bannerSlides"
-            v-show="bannerIndex === idx"
-            :key="idx"
-            class="relative"
-            :style="slideBg(slide, idx)"
+            v-if="slide.imageUrl"
+            class="absolute inset-0 bg-cover bg-center"
+            :style="{ backgroundImage: `url(${slide.imageUrl})` }"
           >
-            <!-- Background image overlay -->
-            <div
-              v-if="slide.imageUrl"
-              class="absolute inset-0 bg-cover bg-center"
-              :style="{ backgroundImage: `url(${slide.imageUrl})` }"
-            >
-              <div class="absolute inset-0 bg-black/40"></div>
-            </div>
+            <div class="absolute inset-0 bg-black/50"></div>
+          </div>
 
-            <!-- Decorative blobs -->
-            <div class="absolute top-6 right-16 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
-            <div class="absolute bottom-6 left-10 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+          <!-- Decorative blobs -->
+          <div class="absolute top-6 right-16 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
+          <div class="absolute bottom-6 left-10 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
 
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20 relative z-10">
-              <div class="text-center md:text-left max-w-2xl mx-auto md:mx-0">
-                <h1 class="font-black leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white drop-shadow-lg mb-3">
-                  {{ slide.title }}
-                </h1>
-                <p class="text-white/80 text-base sm:text-lg mb-8 drop-shadow">
-                  {{ slide.subtitle }}
-                </p>
-                <RouterLink
-                  :to="slide.ctaLink || '/catalogo'"
-                  class="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300
-                         active:scale-95 text-yellow-900 font-bold px-7 py-3.5 rounded-2xl
-                         shadow-lg hover:shadow-xl transition-all duration-200 text-sm"
-                >
-                  {{ slide.ctaText || 'Ver Produtos' }}
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                  </svg>
-                </RouterLink>
-              </div>
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20 relative z-10 w-full">
+            <div class="text-center md:text-left max-w-2xl mx-auto md:mx-0">
+              <h1 class="font-black leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white drop-shadow-lg mb-3">
+                {{ slide.title }}
+              </h1>
+              <p class="text-white/80 text-base sm:text-lg mb-8 drop-shadow">
+                {{ slide.subtitle }}
+              </p>
+              <RouterLink
+                :to="slide.ctaLink || '/catalogo'"
+                class="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300
+                       active:scale-95 text-yellow-900 font-bold px-7 py-3.5 rounded-2xl
+                       shadow-lg hover:shadow-xl transition-all duration-200 text-sm"
+              >
+                {{ slide.ctaText || 'Ver Produtos' }}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                </svg>
+              </RouterLink>
             </div>
           </div>
-        </transition-group>
+        </div>
 
         <!-- Prev/Next arrows -->
         <button
@@ -390,8 +388,8 @@ const bannerIndex = ref(0);
 let bannerTimer: ReturnType<typeof setInterval> | null = null;
 
 const bannerSlides = computed(() => {
-  const slides = config.banners && config.banners.length > 0 ? config.banners : [];
-  return slides;
+  const cfg = siteConfigStore.config;
+  return cfg.banners && cfg.banners.length > 0 ? cfg.banners : [];
 });
 
 const slideGradients = [

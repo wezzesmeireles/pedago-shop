@@ -12,7 +12,12 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     try {
       const { data } = await supabase.from('site_config').select('value').eq('key', 'global').single();
       if (data?.value) {
-        config.value = { ...DEFAULT_SITE_CONFIG, ...(data.value as any) };
+        const merged = { ...DEFAULT_SITE_CONFIG, ...(data.value as any) };
+        // If DB has no banners or empty banners, keep defaults
+        if (!merged.banners || merged.banners.length === 0) {
+          merged.banners = DEFAULT_SITE_CONFIG.banners;
+        }
+        config.value = merged;
       }
       loaded.value = true;
       applyTheme(config.value);
