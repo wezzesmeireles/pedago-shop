@@ -1,19 +1,7 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Req,
-  Res,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-  Redirect,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, Req, Res, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ConfigService } from '@nestjs/config';
@@ -25,30 +13,14 @@ export class AuthController {
     private config: ConfigService,
   ) {}
 
-  @Post('register')
-  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
-    const tokens = await this.authService.register(dto);
-    this.setRefreshCookie(res, tokens.refreshToken);
-    return { accessToken: tokens.accessToken };
+  @Get('admin-status')
+  adminStatus() {
+    return this.authService.getAdminStatus();
   }
 
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const tokens = await this.authService.login(dto);
-    this.setRefreshCookie(res, tokens.refreshToken);
-    return { accessToken: tokens.accessToken };
-  }
-
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const token = req.cookies?.['refresh_token'];
-    if (!token) {
-      res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Token não encontrado.' });
-      return;
-    }
-    const tokens = await this.authService.refresh(token);
+  @Post('create-admin')
+  async createAdmin(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const tokens = await this.authService.createFirstAdmin(dto);
     this.setRefreshCookie(res, tokens.refreshToken);
     return { accessToken: tokens.accessToken };
   }
@@ -59,18 +31,6 @@ export class AuthController {
   async logout(@CurrentUser('id') userId: string, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(userId);
     res.clearCookie('refresh_token');
-  }
-
-  @Get('admin-status')
-  async adminStatus() {
-    return this.authService.getAdminStatus();
-  }
-
-  @Post('create-admin')
-  async createAdmin(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
-    const tokens = await this.authService.createFirstAdmin(dto);
-    this.setRefreshCookie(res, tokens.refreshToken);
-    return { accessToken: tokens.accessToken };
   }
 
   @Get('google')

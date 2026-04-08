@@ -25,7 +25,6 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchMe();
     }
 
-    // Auto-refresh when Supabase renews the token
     supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
         setAccessToken(session.access_token);
@@ -70,11 +69,23 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(name: string, email: string, password: string, phone?: string) {
     loading.value = true;
     try {
-      const res = await api.post('/auth/register', { name, email, password, phone });
-      setAccessToken(res.data.accessToken);
-      // Sync Supabase session from backend
-      const { data } = await supabase.auth.signInWithPassword({ email, password });
-      if (data.session) setAccessToken(data.session.access_token);
+      // Create user directly in Supabase — trigger creates profile automatically
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+
+      if (error) throw { response: { data: { message: error.message } } };
+      if (!data.session) throw { response: { data: { message: 'Erro ao criar sessão.' } } };
+
+      setAccessToken(data.session.access_token);
+
+      // Update phone separately if provided (trigger doesn't handle phone)
+      if (phone) {
+        await api.patch('/users/me', { phone }).catch(() => {});
+      }
+
       await fetchMe();
     } finally {
       loading.value = false;
