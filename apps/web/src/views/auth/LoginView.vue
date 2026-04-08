@@ -75,7 +75,7 @@ const form = reactive({ email: '', password: '' });
 const errors = reactive({ email: '', password: '', captcha: '', general: '' });
 
 async function loginGoogle() {
-  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/auth/callback' } });
+  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/auth/google-callback' } });
 }
 
 function confirmHuman() {

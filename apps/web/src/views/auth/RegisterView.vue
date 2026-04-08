@@ -102,7 +102,7 @@ const humanConfirmed = ref(false);
 const form = reactive({ name: '', email: '', password: '', phone: '' });
 
 async function loginGoogle() {
-  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/auth/callback' } });
+  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/auth/google-callback' } });
 }
 
 function confirmHuman() {
