@@ -69,23 +69,11 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(name: string, email: string, password: string, phone?: string) {
     loading.value = true;
     try {
-      // Create user directly in Supabase — trigger creates profile automatically
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { name } },
-      });
-
-      if (error) throw { response: { data: { message: error.message } } };
-      if (!data.session) throw { response: { data: { message: 'Erro ao criar sessão.' } } };
-
-      setAccessToken(data.session.access_token);
-
-      // Update phone separately if provided (trigger doesn't handle phone)
-      if (phone) {
-        await api.patch('/users/me', { phone }).catch(() => {});
-      }
-
+      // Backend uses admin.createUser with email_confirm:true — no email confirmation needed
+      const res = await api.post('/auth/register', { name, email, password, phone });
+      setAccessToken(res.data.accessToken);
+      // Sync Supabase session on the client
+      await supabase.auth.signInWithPassword({ email, password });
       await fetchMe();
     } finally {
       loading.value = false;

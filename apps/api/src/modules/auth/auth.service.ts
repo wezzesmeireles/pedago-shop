@@ -6,6 +6,39 @@ import { RegisterDto } from './dto/register.dto';
 export class AuthService {
   constructor(private supabase: SupabaseService) {}
 
+  async register(dto: RegisterDto) {
+    const { data, error } = await this.supabase.db.auth.admin.createUser({
+      email: dto.email,
+      password: dto.password,
+      email_confirm: true, // skip email confirmation — session available immediately
+      user_metadata: { name: dto.name, phone: dto.phone ?? null },
+    });
+
+    if (error) {
+      if (error.message?.includes('already registered')) {
+        throw new UnauthorizedException('Email já cadastrado.');
+      }
+      throw new UnauthorizedException(error.message);
+    }
+
+    // Trigger creates profile; update name/phone to ensure correct values
+    await this.supabase.db
+      .from('profiles')
+      .update({ name: dto.name, phone: dto.phone ?? null })
+      .eq('id', data.user!.id);
+
+    const { data: session, error: signInError } = await this.supabase.db.auth.signInWithPassword({
+      email: dto.email,
+      password: dto.password,
+    });
+
+    if (signInError || !session.session) {
+      throw new UnauthorizedException('Usuário criado mas erro ao iniciar sessão. Faça login manualmente.');
+    }
+
+    return { accessToken: session.session.access_token };
+  }
+
   async getAdminStatus() {
     const { count } = await this.supabase.db
       .from('profiles')

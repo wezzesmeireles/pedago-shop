@@ -13,6 +13,11 @@ export class AuthController {
     private config: ConfigService,
   ) {}
 
+  @Post('register')
+  async register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
   @Get('admin-status')
   adminStatus() {
     return this.authService.getAdminStatus();
