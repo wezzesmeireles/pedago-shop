@@ -17,4 +17,4 @@ cmds = [
 ]
 
 [start]
-cmd = "cd /app && node_modules/.bin/prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js & nginx -g 'daemon off;'"
+cmd = "cd /app && (apps/api/node_modules/.bin/prisma migrate deploy --schema=apps/api/prisma/schema.prisma || true) && node apps/api/dist/main.js & nginx -g 'daemon off;'"
