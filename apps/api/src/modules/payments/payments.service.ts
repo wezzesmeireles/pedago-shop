@@ -18,26 +18,25 @@ export class PaymentsService {
 
   // ─── Client factory ─────────────────────────────────────────────────────────
 
-  private async getMpClient(): Promise<MercadoPagoConfig> {
+  private async getSiteConfig(): Promise<Record<string, any>> {
     const { data } = await this.supabase.db
       .from('site_config')
       .select('value')
-      .eq('key', 'integrations')
+      .eq('key', 'global')
       .single();
-    const dbToken = (data?.value as any)?.mercadoPagoAccessToken as string | undefined;
+    return (data?.value as Record<string, any>) ?? {};
+  }
+
+  private async getMpClient(): Promise<MercadoPagoConfig> {
+    const cfg = await this.getSiteConfig();
     const accessToken =
-      (dbToken?.trim() ? dbToken : this.config.get<string>('MERCADO_PAGO_ACCESS_TOKEN')) ?? '';
+      (cfg.mercadoPagoAccessToken?.trim() || this.config.get<string>('MERCADO_PAGO_ACCESS_TOKEN')) ?? '';
     return new MercadoPagoConfig({ accessToken });
   }
 
   async getWebhookSecret(): Promise<string | undefined> {
-    const { data } = await this.supabase.db
-      .from('site_config')
-      .select('value')
-      .eq('key', 'integrations')
-      .single();
-    const dbSecret = (data?.value as any)?.mercadoPagoWebhookSecret as string | undefined;
-    return dbSecret?.trim() || this.config.get<string>('MERCADO_PAGO_WEBHOOK_SECRET');
+    const cfg = await this.getSiteConfig();
+    return cfg.mercadoPagoWebhookSecret?.trim() || this.config.get<string>('MERCADO_PAGO_WEBHOOK_SECRET');
   }
 
   /**
@@ -254,8 +253,8 @@ export class PaymentsService {
 
   private async getStoreName(): Promise<string> {
     try {
-      const { data } = await this.supabase.db.from('site_config').select('value').eq('key', 'general').single();
-      return (data?.value as any)?.storeName ?? 'LOJA';
+      const cfg = await this.getSiteConfig();
+      return cfg.storeName ?? 'LOJA';
     } catch {
       return 'LOJA';
     }

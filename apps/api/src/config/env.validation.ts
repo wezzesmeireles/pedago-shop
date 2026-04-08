@@ -6,7 +6,7 @@ class EnvironmentVariables {
   @IsString() SUPABASE_SERVICE_ROLE_KEY: string;
   @IsString() SUPABASE_JWT_SECRET: string;
   @IsString() @IsOptional() SUPABASE_ANON_KEY: string;
-  @IsString() MERCADO_PAGO_ACCESS_TOKEN: string;
+  @IsString() @IsOptional() MERCADO_PAGO_ACCESS_TOKEN: string;
   @IsString() @IsOptional() MERCADO_PAGO_WEBHOOK_SECRET: string;
   @IsString() @IsOptional() MERCADO_PAGO_PIX_KEY: string;
   @IsString() @IsOptional() FRONTEND_URL: string = 'http://localhost:5173';

@@ -179,23 +179,43 @@ export class AdminService {
     const { data } = await this.supabase.db
       .from('site_config')
       .select('value')
-      .eq('key', 'integrations')
+      .eq('key', 'global')
       .single();
 
-    return (data?.value as any) ?? {
-      mercadoPagoAccessToken: '',
-      mercadoPagoPixKey: '',
-      mercadoPagoWebhookSecret: '',
+    const cfg = (data?.value as any) ?? {};
+    return {
+      mercadoPagoAccessToken: cfg.mercadoPagoAccessToken ?? '',
+      mercadoPagoPixKey: cfg.mercadoPagoPixKey ?? '',
+      mercadoPagoWebhookSecret: cfg.mercadoPagoWebhookSecret ?? '',
     };
   }
 
-  async setIntegrations(data: Record<string, string>, adminId: string) {
+  async setIntegrations(incoming: Record<string, string>, adminId: string) {
+    const { data } = await this.supabase.db
+      .from('site_config')
+      .select('value')
+      .eq('key', 'global')
+      .single();
+
+    const current = (data?.value as Record<string, any>) ?? {};
+    const merged = {
+      ...current,
+      mercadoPagoAccessToken: incoming.mercadoPagoAccessToken ?? current.mercadoPagoAccessToken ?? '',
+      mercadoPagoPixKey: incoming.mercadoPagoPixKey ?? current.mercadoPagoPixKey ?? '',
+      mercadoPagoWebhookSecret: incoming.mercadoPagoWebhookSecret ?? current.mercadoPagoWebhookSecret ?? '',
+    };
+
     await this.supabase.db
       .from('site_config')
       .upsert(
-        { key: 'integrations', value: data as any, updated_by_admin_id: adminId, updated_at: new Date().toISOString() },
+        { key: 'global', value: merged as any, updated_by_admin_id: adminId, updated_at: new Date().toISOString() },
         { onConflict: 'key' },
       );
-    return data;
+
+    return {
+      mercadoPagoAccessToken: merged.mercadoPagoAccessToken,
+      mercadoPagoPixKey: merged.mercadoPagoPixKey,
+      mercadoPagoWebhookSecret: merged.mercadoPagoWebhookSecret,
+    };
   }
 }

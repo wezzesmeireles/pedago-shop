@@ -29,6 +29,9 @@ export interface SiteConfigData {
   seoTitle: string;
   seoDescription: string;
   maintenanceMode: boolean;
+  mercadoPagoAccessToken: string | null;
+  mercadoPagoWebhookSecret: string | null;
+  mercadoPagoPixKey: string | null;
 }
 
 export const DEFAULT_SITE_CONFIG: SiteConfigData = {
@@ -55,4 +58,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfigData = {
   seoTitle: 'sitepedagogico - Atividades Pedagógicas Digitais',
   seoDescription: 'Compre atividades pedagógicas digitais em PDF. Entrega automática após o pagamento.',
   maintenanceMode: false,
+  mercadoPagoAccessToken: null,
+  mercadoPagoWebhookSecret: null,
+  mercadoPagoPixKey: null,
 };
