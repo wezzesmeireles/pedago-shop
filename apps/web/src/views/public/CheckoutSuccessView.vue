@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import { useCartStore } from '@/stores/cart.store';
 
 const route = useRoute();
@@ -80,32 +80,33 @@ const loading = ref(true);
 let pollInterval: ReturnType<typeof setInterval>;
 
 async function loadOrder() {
-  const res = await api.get(`/orders/${route.params.orderId}`);
-  order.value = res.data;
-  return res.data.status;
+  const { data } = await supabase
+    .from('orders')
+    .select('*, order_items(*, products(id, name, cover_image_url, slug), download_tokens(*))')
+    .eq('id', route.params.orderId as string)
+    .single();
+  order.value = data;
+  return data?.status;
 }
 
 onMounted(async () => {
   try {
-    // Clear cart when landing here (coming back from card payment)
     cart.clear();
-
     const status = await loadOrder();
     loading.value = false;
 
-    // Card payments: MP redirects back before webhook fires — poll until PAID
     if (status === 'AWAITING_PAYMENT') {
       let attempts = 0;
       pollInterval = setInterval(async () => {
         attempts++;
         try {
-          const res = await api.get(`/orders/${route.params.orderId}/status`);
-          if (res.data.status === 'PAID') {
+          const { data } = await supabase.from('orders').select('status').eq('id', route.params.orderId as string).single();
+          if (data?.status === 'PAID') {
             clearInterval(pollInterval);
-            await loadOrder(); // reload full order with downloads
+            await loadOrder();
           }
         } catch {}
-        if (attempts >= 12) clearInterval(pollInterval); // stop after 60s
+        if (attempts >= 12) clearInterval(pollInterval);
       }, 5000);
     }
   } catch {

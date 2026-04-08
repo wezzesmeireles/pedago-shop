@@ -107,10 +107,10 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import AppModal from '@/components/ui/AppModal.vue';
 
-const categories = ref([]);
+const categories = ref<any[]>([]);
 const modalOpen = ref(false);
 const saving = ref(false);
 const editing = ref<any>(null);
@@ -126,7 +126,7 @@ function openCreate() {
 
 function openEdit(cat: any) {
   editing.value = cat;
-  Object.assign(form, { name: cat.name, slug: cat.slug, description: cat.description || '', imageUrl: cat.imageUrl || '' });
+  Object.assign(form, { name: cat.name, slug: cat.slug, description: cat.description || '', imageUrl: cat.image_url || '' });
   errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -135,28 +135,33 @@ async function save() {
   saving.value = true;
   errorMsg.value = '';
   try {
+    const payload = { name: form.name, slug: form.slug, description: form.description || null, image_url: form.imageUrl || null, updated_at: new Date().toISOString() };
     if (editing.value) {
-      await api.patch(`/categories/${editing.value.id}`, form);
+      const { error } = await supabase.from('categories').update(payload).eq('id', editing.value.id);
+      if (error) throw new Error(error.message);
     } else {
-      await api.post('/categories', form);
+      const { data: existing } = await supabase.from('categories').select('id').eq('slug', form.slug).single();
+      if (existing) throw new Error('Slug já existe.');
+      const { error } = await supabase.from('categories').insert(payload);
+      if (error) throw new Error(error.message);
     }
     await loadCategories();
     modalOpen.value = false;
   } catch (err: any) {
-    errorMsg.value = err?.response?.data?.message || 'Erro ao salvar categoria.';
+    errorMsg.value = err?.message || 'Erro ao salvar categoria.';
   } finally {
     saving.value = false;
   }
 }
 
 async function toggleActive(cat: any) {
-  await api.patch(`/categories/${cat.id}`, { isActive: !cat.isActive });
+  await supabase.from('categories').update({ is_active: !cat.is_active, updated_at: new Date().toISOString() }).eq('id', cat.id);
   await loadCategories();
 }
 
 async function loadCategories() {
-  const res = await api.get('/categories', { params: { includeInactive: true } });
-  categories.value = res.data;
+  const { data } = await supabase.from('categories').select('*, products(count)').order('sort_order');
+  categories.value = (data ?? []).map((c: any) => ({ ...c, isActive: c.is_active, imageUrl: c.image_url }));
 }
 
 onMounted(loadCategories);

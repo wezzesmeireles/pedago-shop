@@ -131,7 +131,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
+import { invokeFunction } from '@/services/api';
 import AppModal from '@/components/ui/AppModal.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 
@@ -168,14 +169,23 @@ function debouncedLoad() {
 }
 
 async function loadUsers(page = 1) {
-  const res = await api.get('/admin/users', { params: { page, limit: 20, search: search.value || undefined } });
-  users.value = res.data.items;
-  totalPages.value = Math.ceil(res.data.total / 20);
+  // Use Edge Function to get emails from auth.users
+  const res = await invokeFunction('admin-users', null).catch(() => null);
+  // invokeFunction uses POST, but we need GET with params — call via fetch
+  const { data: { session } } = await supabase.auth.getSession();
+  const params = new URLSearchParams({ page: String(page), limit: '20' });
+  if (search.value) params.set('search', search.value);
+  const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?${params}`, {
+    headers: { Authorization: `Bearer ${session?.access_token}` },
+  });
+  const data = await resp.json();
+  users.value = data.items ?? [];
+  totalPages.value = Math.ceil((data.total ?? 0) / 20);
   currentPage.value = page;
 }
 
 async function toggleActive(user: any) {
-  await api.patch(`/admin/users/${user.id}`, { isActive: !user.isActive });
+  await supabase.from('profiles').update({ is_active: !user.is_active, updated_at: new Date().toISOString() }).eq('id', user.id);
   await loadUsers(currentPage.value);
 }
 
@@ -185,8 +195,12 @@ async function openOrders(user: any) {
   loadingOrders.value = true;
   userOrders.value = [];
   try {
-    const res = await api.get(`/admin/users/${user.id}/orders`);
-    userOrders.value = res.data.orders;
+    const { data: { session } } = await supabase.auth.getSession();
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?userId=${user.id}`, {
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    const data = await resp.json();
+    userOrders.value = data.orders ?? [];
   } finally {
     loadingOrders.value = false;
   }

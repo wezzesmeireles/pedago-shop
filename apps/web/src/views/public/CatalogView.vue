@@ -111,7 +111,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import { useCatalogStore } from '@/stores/catalog.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
 
@@ -157,9 +157,23 @@ async function fetchProducts(page = 1) {
     const params: Record<string, any> = { page, limit: 12, sort: filters.sort };
     if (filters.search) params.search = filters.search;
     if (filters.category) params.category = filters.category;
-    const res = await api.get('/products', { params });
-    products.value = res.data.items;
-    pagination.value = { page: res.data.page, limit: res.data.limit, total: res.data.total, totalPages: res.data.totalPages };
+    const limit = 12;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    let q = supabase
+      .from('products')
+      .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, tags, categories(id, name, slug)', { count: 'exact' })
+      .eq('is_active', true).is('deleted_at', null).range(from, to);
+    if (filters.search) q = q.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+    if (filters.category) q = q.eq('categories.slug', filters.category);
+    if (filters.sort === 'price_asc') q = q.order('price', { ascending: true });
+    else if (filters.sort === 'price_desc') q = q.order('price', { ascending: false });
+    else if (filters.sort === 'popular') q = q.order('sales_count', { ascending: false });
+    else q = q.order('created_at', { ascending: false });
+    const { data, count } = await q;
+    products.value = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price, isFeatured: p.is_featured, salesCount: p.sales_count }));
+    const total = count ?? 0;
+    pagination.value = { page, limit, total, totalPages: Math.ceil(total / limit) };
   } finally {
     loading.value = false;
   }

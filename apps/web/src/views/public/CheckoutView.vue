@@ -198,7 +198,8 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
+import { invokeFunction } from '@/services/api';
 import { useCartStore } from '@/stores/cart.store';
 
 const router = useRouter();
@@ -245,7 +246,7 @@ async function createOrder() {
   creating.value = true;
   errorMessage.value = '';
   try {
-    const res = await api.post('/orders', {
+    const res = await invokeFunction('create-order', {
       items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       paymentMethod: selectedMethod.value,
     });
@@ -290,14 +291,15 @@ function startPolling() {
   pollingInterval = setInterval(async () => {
     if (!orderId.value) return;
     try {
-      const res = await api.get(`/orders/${orderId.value}/status`);
-      if (res.data.status === 'PAID') {
+      const { data: orderStatus } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
+      const res = { data: orderStatus };
+      if (res.data?.status === 'PAID') {
         clearInterval(pollingInterval);
         clearInterval(countdownInterval);
         step.value = 'done';
         cart.clear();
         router.push(`/checkout/success/${orderId.value}`);
-      } else if (['CANCELLED', 'EXPIRED'].includes(res.data.status)) {
+      } else if (['CANCELLED', 'EXPIRED'].includes(res.data?.status)) {
         clearInterval(pollingInterval);
       }
     } catch {}

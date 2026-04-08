@@ -177,11 +177,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import AppModal from '@/components/ui/AppModal.vue';
+import { v4 as uuidv4 } from 'uuid';
 
-const products = ref([]);
-const categories = ref([]);
+const products = ref<any[]>([]);
+const categories = ref<any[]>([]);
 const search = ref('');
 const modalOpen = ref(false);
 const saving = ref(false);
@@ -218,33 +219,18 @@ function autoSlug() {
 function openCreate() {
   editingProduct.value = null;
   Object.assign(form, { name: '', slug: '', description: '', price: '', categoryId: '', isActive: true, isFeatured: false });
-  pdfFile.value = null;
-  coverFile.value = null;
-  coverPreview.value = '';
-  errorMsg.value = '';
+  pdfFile.value = null; coverFile.value = null; coverPreview.value = ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 
 function openEdit(product: any) {
   editingProduct.value = product;
-  Object.assign(form, {
-    name: product.name, slug: product.slug,
-    description: product.description || '',
-    price: product.price,
-    categoryId: product.categoryId,
-    isActive: product.isActive, isFeatured: product.isFeatured,
-  });
-  pdfFile.value = null;
-  coverFile.value = null;
-  coverPreview.value = product.coverImageUrl || '';
-  errorMsg.value = '';
+  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured });
+  pdfFile.value = null; coverFile.value = null; coverPreview.value = product.cover_image_url || ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 
-function onPdfSelected(e: Event) {
-  pdfFile.value = (e.target as HTMLInputElement).files?.[0] || null;
-}
-
+function onPdfSelected(e: Event) { pdfFile.value = (e.target as HTMLInputElement).files?.[0] || null; }
 function onCoverSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0] || null;
   coverFile.value = file;
@@ -255,50 +241,69 @@ async function saveProduct() {
   saving.value = true;
   errorMsg.value = '';
   try {
-    const payload: any = { ...form, price: parseFloat(form.price) };
     let productId: string;
+    let coverUrl = editingProduct.value?.cover_image_url ?? '';
+    let fileKey = editingProduct.value?.file_key ?? '';
+    let fileSize = editingProduct.value?.file_size ?? 0;
+
+    // Upload cover image first
+    if (coverFile.value) {
+      const ext = coverFile.value.name.split('.').pop() ?? 'jpg';
+      const path = `${uuidv4()}.${ext}`;
+      const { error } = await supabase.storage.from('product-covers').upload(path, coverFile.value, { contentType: coverFile.value.type });
+      if (error) throw new Error('Erro ao fazer upload da capa.');
+      const { data: urlData } = supabase.storage.from('product-covers').getPublicUrl(path);
+      coverUrl = urlData.publicUrl;
+    }
+
+    // Upload PDF
+    if (pdfFile.value) {
+      const path = `${uuidv4()}.pdf`;
+      const { error } = await supabase.storage.from('product-files').upload(path, pdfFile.value, { contentType: 'application/pdf' });
+      if (error) throw new Error('Erro ao fazer upload do PDF.');
+      fileKey = path;
+      fileSize = pdfFile.value.size;
+    }
+
+    const payload: any = {
+      name: form.name, slug: form.slug, description: form.description,
+      price: parseFloat(form.price), category_id: form.categoryId || null,
+      is_active: form.isActive, is_featured: form.isFeatured,
+      cover_image_url: coverUrl, file_key: fileKey, file_size: fileSize,
+      updated_at: new Date().toISOString(),
+    };
 
     if (editingProduct.value) {
-      await api.patch(`/products/${editingProduct.value.id}`, payload);
+      const { error } = await supabase.from('products').update(payload).eq('id', editingProduct.value.id);
+      if (error) throw new Error(error.message);
       productId = editingProduct.value.id;
     } else {
-      payload.r2FileKey = '';
-      const res = await api.post('/products', payload);
-      productId = res.data.id;
-    }
-
-    if (pdfFile.value) {
-      const fd = new FormData();
-      fd.append('file', pdfFile.value);
-      await api.post(`/products/${productId}/upload-pdf`, fd);
-    }
-    if (coverFile.value) {
-      const fd = new FormData();
-      fd.append('file', coverFile.value);
-      await api.post(`/products/${productId}/upload-cover`, fd);
+      const { data, error } = await supabase.from('products').insert(payload).select().single();
+      if (error) throw new Error(error.message);
+      productId = data.id;
     }
 
     await loadData();
     modalOpen.value = false;
   } catch (err: any) {
-    errorMsg.value = err?.response?.data?.message || 'Erro ao salvar produto.';
+    errorMsg.value = err?.message || 'Erro ao salvar produto.';
   } finally {
     saving.value = false;
   }
 }
 
 async function toggleActive(product: any) {
-  await api.patch(`/products/${product.id}`, { isActive: !product.isActive });
+  await supabase.from('products').update({ is_active: !product.is_active, updated_at: new Date().toISOString() }).eq('id', product.id);
   await loadData();
 }
 
 async function loadData() {
-  const [prodRes, catRes] = await Promise.all([
-    api.get('/products', { params: { limit: 100 } }),
-    api.get('/categories'),
+  const [{ data: prods }, { data: cats }] = await Promise.all([
+    supabase.from('products').select('*, categories(id, name, slug)').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
+    supabase.from('categories').select('*').order('sort_order'),
   ]);
-  products.value = prodRes.data.items;
-  categories.value = catRes.data;
+  products.value = (prods ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, categoryId: p.category_id, isActive: p.is_active, isFeatured: p.is_featured, salesCount: p.sales_count, category: p.categories }));
+  categories.value = cats ?? [];
 }
 
 onMounted(loadData);

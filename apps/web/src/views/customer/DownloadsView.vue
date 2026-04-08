@@ -58,7 +58,7 @@
                 <span v-if="download.expired" class="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2.5 py-1.5 rounded-xl font-medium whitespace-nowrap">
                   Expirado
                 </span>
-                <a v-else :href="`/api/downloads/${download.token}`" target="_blank"
+                <a v-else href="#" @click.prevent="downloadFile(download)"
                   class="inline-flex items-center gap-1.5 bg-primary-600 text-white px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors whitespace-nowrap">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -86,10 +86,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 
 interface DownloadEntry {
   token: string;
+  fileKey: string;
   productName: string;
   orderNumber: string;
   coverImageUrl?: string;
@@ -102,44 +103,54 @@ interface DownloadEntry {
 const loading = ref(true);
 const allDownloads = ref<DownloadEntry[]>([]);
 
-function downloadProgress(d: DownloadEntry): number {
-  return d.maxDownloads > 0 ? (d.downloadCount / d.maxDownloads) * 100 : 0;
-}
-
 function isExpiringSoon(d: DownloadEntry): boolean {
   if (d.expired) return false;
-  const msLeft = new Date(d.expiresAt).getTime() - Date.now();
-  return msLeft < 7 * 24 * 60 * 60 * 1000; // < 7 days
+  return new Date(d.expiresAt).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
 }
 
 function formatExpiry(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+async function downloadFile(d: DownloadEntry) {
+  if (d.expired) return;
+  const { data } = await supabase.storage.from('product-files').createSignedUrl(d.fileKey, 60);
+  if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+
+  // Update download count
+  await supabase.from('download_tokens')
+    .update({ download_count: d.downloadCount + 1, last_download_at: new Date().toISOString() })
+    .eq('token', d.token);
+  d.downloadCount++;
+}
+
 onMounted(async () => {
   try {
-    const ordersRes = await api.get('/orders', { params: { limit: 50 } });
-    const paidOrders = ordersRes.data.items.filter((o: any) => o.status === 'PAID');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('order_number, order_items(product_name, products(cover_image_url, file_key), download_tokens(*))')
+      .eq('user_id', user!.id)
+      .eq('status', 'PAID');
 
     const downloads: DownloadEntry[] = [];
-
-    for (const order of paidOrders) {
-      for (const item of order.items) {
-        for (const token of item.downloadTokens ?? []) {
+    for (const order of orders ?? []) {
+      for (const item of (order as any).order_items ?? []) {
+        for (const token of item.download_tokens ?? []) {
           downloads.push({
             token: token.token,
-            productName: item.productName,
-            orderNumber: order.orderNumber,
-            coverImageUrl: item.product?.coverImageUrl,
-            downloadCount: token.downloadCount,
-            maxDownloads: token.maxDownloads,
-            expiresAt: token.expiresAt,
-            expired: new Date(token.expiresAt) < new Date(),
+            fileKey: item.products?.file_key ?? '',
+            productName: item.product_name,
+            orderNumber: (order as any).order_number,
+            coverImageUrl: item.products?.cover_image_url,
+            downloadCount: token.download_count,
+            maxDownloads: token.max_downloads,
+            expiresAt: token.expires_at,
+            expired: new Date(token.expires_at) < new Date() || !!token.revoked_at,
           });
         }
       }
     }
-
     allDownloads.value = downloads;
   } finally {
     loading.value = false;

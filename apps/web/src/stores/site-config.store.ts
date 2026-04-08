@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import type { SiteConfigData } from '@pedago/shared';
 import { DEFAULT_SITE_CONFIG } from '@pedago/shared';
 
@@ -10,20 +10,26 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
 
   async function fetch() {
     try {
-      const res = await api.get('/site-config');
-      config.value = res.data;
+      const { data } = await supabase.from('site_config').select('value').eq('key', 'global').single();
+      if (data?.value) {
+        config.value = { ...DEFAULT_SITE_CONFIG, ...(data.value as any) };
+      }
       loaded.value = true;
-      applyTheme(res.data);
+      applyTheme(config.value);
     } catch {
       applyTheme(DEFAULT_SITE_CONFIG);
     }
   }
 
   async function update(data: Partial<SiteConfigData>) {
-    const res = await api.patch('/site-config', data);
-    config.value = res.data;
-    applyTheme(res.data);
-    return res.data;
+    const merged = { ...config.value, ...data };
+    await supabase.from('site_config').upsert(
+      { key: 'global', value: merged as any, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    );
+    config.value = merged;
+    applyTheme(merged);
+    return merged;
   }
 
   function applyTheme(cfg: SiteConfigData) {
@@ -31,17 +37,11 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     root.style.setProperty('--color-primary', cfg.primaryColor);
     root.style.setProperty('--color-secondary', cfg.secondaryColor);
     root.style.setProperty('--color-accent', cfg.accentColor);
-
-    // Update favicon
     if (cfg.faviconUrl) {
       const favicon = document.getElementById('favicon') as HTMLLinkElement;
       if (favicon) favicon.href = cfg.faviconUrl;
     }
-
-    // Update page title
-    if (cfg.storeName) {
-      document.title = cfg.storeName;
-    }
+    if (cfg.storeName) document.title = cfg.storeName;
   }
 
   return { config, loaded, fetch, update };

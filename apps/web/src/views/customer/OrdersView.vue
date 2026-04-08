@@ -103,13 +103,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 
-const orders = ref([]);
+const orders = ref<any[]>([]);
 const loading = ref(true);
 const currentPage = ref(1);
 const totalPages = ref(1);
+const LIMIT = 10;
 
 function formatPrice(p: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p));
@@ -123,9 +124,29 @@ async function loadPage(page: number) {
   if (page < 1 || page > totalPages.value) return;
   loading.value = true;
   try {
-    const res = await api.get('/orders', { params: { page, limit: 10 } });
-    orders.value = res.data.items;
-    totalPages.value = Math.ceil(res.data.total / 10);
+    const from = (page - 1) * LIMIT;
+    const to = from + LIMIT - 1;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, count } = await supabase
+      .from('orders')
+      .select('*, order_items(id, product_name, products(id, name, cover_image_url, slug), download_tokens(*))', { count: 'exact' })
+      .eq('user_id', user!.id)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    orders.value = (data ?? []).map((o: any) => ({
+      ...o,
+      orderNumber: o.order_number,
+      totalAmount: o.total_amount,
+      createdAt: o.created_at,
+      items: (o.order_items ?? []).map((i: any) => ({
+        ...i,
+        productName: i.product_name,
+        product: i.products ? { coverImageUrl: i.products.cover_image_url } : null,
+        downloadTokens: i.download_tokens ?? [],
+      })),
+    }));
+    totalPages.value = Math.ceil((count ?? 0) / LIMIT);
     currentPage.value = page;
   } finally {
     loading.value = false;

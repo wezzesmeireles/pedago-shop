@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -147,9 +147,15 @@ function buyNow() {
 
 onMounted(async () => {
   try {
-    const res = await api.get(`/products/${route.params.slug}`);
-    product.value = res.data;
-    activeImage.value = res.data.coverImageUrl;
+    const { data } = await supabase
+      .from('products')
+      .select('id, name, slug, description, rich_content, price, compare_price, cover_image_url, preview_images, page_count, file_size, tags, is_featured, sales_count, categories(id, name, slug)')
+      .eq('slug', route.params.slug as string)
+      .eq('is_active', true)
+      .is('deleted_at', null)
+      .single();
+    product.value = data ? { ...data, coverImageUrl: data.cover_image_url, comparePrice: data.compare_price, richContent: data.rich_content, pageCount: data.page_count, fileSize: data.file_size, isFeatured: data.is_featured, salesCount: data.sales_count } : null;
+    activeImage.value = data?.cover_image_url ?? '';
   } catch {
     //
   } finally {

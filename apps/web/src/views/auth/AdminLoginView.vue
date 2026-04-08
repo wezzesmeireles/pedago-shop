@@ -106,8 +106,8 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
-import api, { setAccessToken } from '@/services/api';
 import { supabase } from '@/lib/supabase';
+import { invokeFunction } from '@/services/api';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -119,15 +119,13 @@ const errorMsg = ref('');
 const form = reactive({ name: '', email: '', password: '' });
 
 onMounted(async () => {
-  // If already logged in as admin, go to dashboard
   if (auth.isAdmin) {
     router.replace('/admin/dashboard');
     return;
   }
-  // Check if first-time setup is needed
   try {
-    const res = await api.get('/auth/admin-status');
-    setupMode.value = !res.data.hasAdmin;
+    const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'ADMIN');
+    setupMode.value = (count ?? 0) === 0;
   } catch {
     setupMode.value = false;
   }
@@ -138,18 +136,10 @@ async function handleSubmit() {
   loading.value = true;
   try {
     if (setupMode.value) {
-      // Create first admin
-      const res = await api.post('/auth/create-admin', {
-        name: form.name,
-        email: form.email,
-        password: form.password,
-      });
-      setAccessToken(res.data.accessToken);
-      // Sync supabase session
+      await invokeFunction('create-admin', { name: form.name, email: form.email, password: form.password });
       await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
       await auth.fetchMe();
     } else {
-      // Normal admin login
       await auth.login(form.email, form.password);
       if (!auth.isAdmin) {
         await auth.logout();
@@ -159,7 +149,7 @@ async function handleSubmit() {
     }
     router.replace('/admin/dashboard');
   } catch (err: any) {
-    const msg = err?.response?.data?.message || 'Erro ao fazer login.';
+    const msg = err?.response?.data?.message || err?.message || 'Erro ao fazer login.';
     errorMsg.value = Array.isArray(msg) ? msg.join(', ') : msg;
   } finally {
     loading.value = false;

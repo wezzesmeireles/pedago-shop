@@ -451,7 +451,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
@@ -554,19 +554,20 @@ onMounted(async () => {
   setupReveal();
 
   await Promise.allSettled([
-    api.get('/products/featured').then((res) => {
-      featuredProducts.value = res.data ?? [];
-      loadingFeatured.value = false;
-    }).catch(() => { loadingFeatured.value = false; }),
-
-    api.get('/products', { params: { limit: 24 } }).then((res) => {
-      const data = res.data?.items ?? res.data ?? [];
-      atividades.value = data;
-      groupProduct.value = data.find((p: any) =>
-        p.name?.toLowerCase().includes('grupo') || Number(p.price) > 20
-      ) ?? null;
-      loadingAtividades.value = false;
-    }).catch(() => { loadingAtividades.value = false; }),
+    (async () => {
+      try {
+        const { data } = await supabase.from('products').select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, categories(id, name, slug)').eq('is_featured', true).eq('is_active', true).is('deleted_at', null).order('sort_order').limit(8);
+        featuredProducts.value = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price }));
+      } finally { loadingFeatured.value = false; }
+    })(),
+    (async () => {
+      try {
+        const { data } = await supabase.from('products').select('id, name, slug, price, compare_price, cover_image_url, sales_count, categories(id, name, slug)').eq('is_active', true).is('deleted_at', null).order('created_at', { ascending: false }).limit(24);
+        const mapped = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price }));
+        atividades.value = mapped;
+        groupProduct.value = mapped.find((p: any) => p.name?.toLowerCase().includes('grupo') || Number(p.price) > 20) ?? null;
+      } finally { loadingAtividades.value = false; }
+    })(),
   ]);
 });
 

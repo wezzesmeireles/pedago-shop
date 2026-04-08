@@ -155,7 +155,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 
@@ -213,12 +213,15 @@ function debouncedLoad() {
 }
 
 async function loadOrders(page = 1) {
-  const params: any = { page, limit: 20 };
-  if (search.value) params.search = search.value;
-  if (statusFilter.value) params.status = statusFilter.value;
-  const res = await api.get('/admin/orders', { params });
-  orders.value = res.data.items;
-  totalPages.value = Math.ceil(res.data.total / 20);
+  const limit = 20;
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  let q = supabase.from('orders').select('*, profiles(name, avatar_url), order_items(product_name, quantity, unit_price)', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
+  if (statusFilter.value) q = q.eq('status', statusFilter.value);
+  if (search.value) q = q.or(`order_number.ilike.%${search.value}%,customer_email.ilike.%${search.value}%,customer_name.ilike.%${search.value}%`);
+  const { data, count } = await q;
+  orders.value = (data ?? []).map((o: any) => ({ ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at }));
+  totalPages.value = Math.ceil((count ?? 0) / limit);
   currentPage.value = page;
 }
 
@@ -227,8 +230,8 @@ async function openDetails(id: string) {
   loadingDetail.value = true;
   selectedOrder.value = null;
   try {
-    const res = await api.get(`/admin/orders/${id}`);
-    selectedOrder.value = res.data;
+    const { data } = await supabase.from('orders').select('*, profiles(*), order_items(*, products(id, name, cover_image_url), download_tokens(*))').eq('id', id).single();
+    selectedOrder.value = data ? { ...data, orderNumber: data.order_number, totalAmount: data.total_amount, customerName: data.customer_name } : null;
   } finally {
     loadingDetail.value = false;
   }
@@ -237,7 +240,7 @@ async function openDetails(id: string) {
 async function updateStatus(id: string, status: string) {
   updatingStatus.value = true;
   try {
-    await api.patch(`/admin/orders/${id}/status`, { status });
+    await supabase.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
     selectedOrder.value = { ...selectedOrder.value, status };
     await loadOrders(currentPage.value);
   } finally {

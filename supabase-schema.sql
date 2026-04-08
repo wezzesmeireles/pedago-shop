@@ -3,11 +3,10 @@
 -- Cole este arquivo no SQL Editor do Supabase e execute
 -- ═══════════════════════════════════════════════════════
 
--- Extensão para UUID
 create extension if not exists "uuid-ossp";
 
 -- ─────────────────────────────────────────
--- PROFILES (estende auth.users do Supabase)
+-- PROFILES
 -- ─────────────────────────────────────────
 create table if not exists profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -21,7 +20,6 @@ create table if not exists profiles (
   updated_at  timestamptz not null default now()
 );
 
--- Trigger: cria profile automaticamente ao registrar
 create or replace function handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
@@ -137,7 +135,7 @@ create table if not exists download_tokens (
 );
 
 -- ─────────────────────────────────────────
--- WEBHOOK EVENTS (idempotência)
+-- WEBHOOK EVENTS
 -- ─────────────────────────────────────────
 create table if not exists webhook_events (
   id            uuid primary key default uuid_generate_v4(),
@@ -162,12 +160,9 @@ create table if not exists site_config (
   updated_by_admin_id uuid references profiles(id)
 );
 
--- ─────────────────────────────────────────
--- RLS (Row Level Security)
--- ─────────────────────────────────────────
--- O backend usa service_role key (bypassa RLS)
--- Habilitamos RLS mas o backend tem acesso total
-
+-- ═══════════════════════════════════════════════════════
+-- RLS
+-- ═══════════════════════════════════════════════════════
 alter table profiles enable row level security;
 alter table categories enable row level security;
 alter table products enable row level security;
@@ -177,22 +172,59 @@ alter table download_tokens enable row level security;
 alter table webhook_events enable row level security;
 alter table site_config enable row level security;
 
--- Policies públicas para leitura de categories e products
-create policy "categories_public_read" on categories for select using (is_active = true);
-create policy "products_public_read" on products for select using (is_active = true and deleted_at is null);
+-- Helper function: is current user an admin?
+create or replace function is_admin()
+returns boolean language sql security definer as $$
+  select coalesce(
+    (select raw_app_meta_data->>'role' = 'ADMIN' from auth.users where id = auth.uid()),
+    false
+  );
+$$;
 
--- ─────────────────────────────────────────
+-- ─── PROFILES ───
+create policy "profiles_read_own" on profiles for select using (auth.uid() = id);
+create policy "profiles_update_own" on profiles for update using (auth.uid() = id);
+create policy "profiles_admin_all" on profiles for all using (is_admin());
+
+-- ─── CATEGORIES ───
+create policy "categories_public_read" on categories for select using (is_active = true);
+create policy "categories_admin_all" on categories for all using (is_admin());
+
+-- ─── PRODUCTS ───
+create policy "products_public_read" on products for select using (is_active = true and deleted_at is null);
+create policy "products_admin_all" on products for all using (is_admin());
+
+-- ─── ORDERS ───
+create policy "orders_read_own" on orders for select using (auth.uid() = user_id);
+create policy "orders_admin_all" on orders for all using (is_admin());
+
+-- ─── ORDER ITEMS ───
+create policy "order_items_read_own" on order_items for select
+  using (exists (select 1 from orders where id = order_items.order_id and user_id = auth.uid()));
+create policy "order_items_admin_all" on order_items for all using (is_admin());
+
+-- ─── DOWNLOAD TOKENS ───
+create policy "download_tokens_read_own" on download_tokens for select
+  using (exists (select 1 from orders where id = download_tokens.order_id and user_id = auth.uid()));
+create policy "download_tokens_admin_all" on download_tokens for all using (is_admin());
+
+-- ─── SITE CONFIG ───
+create policy "site_config_public_read" on site_config for select using (true);
+create policy "site_config_admin_write" on site_config for all using (is_admin());
+
+-- ─── WEBHOOK EVENTS ───
+create policy "webhook_events_admin_all" on webhook_events for all using (is_admin());
+
+-- ═══════════════════════════════════════════════════════
 -- STORAGE BUCKETS
--- ─────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════
 insert into storage.buckets (id, name, public) values
   ('product-covers', 'product-covers', true),
   ('product-previews', 'product-previews', true),
   ('product-files', 'product-files', false)
 on conflict (id) do nothing;
 
--- Policy: leitura pública dos buckets públicos
-create policy "public_covers_read" on storage.objects
-  for select using (bucket_id = 'product-covers');
-
-create policy "public_previews_read" on storage.objects
-  for select using (bucket_id = 'product-previews');
+create policy "public_covers_read" on storage.objects for select using (bucket_id = 'product-covers');
+create policy "public_previews_read" on storage.objects for select using (bucket_id = 'product-previews');
+create policy "admin_storage_all" on storage.objects for all using (is_admin());
+create policy "admin_files_read" on storage.objects for select using (bucket_id = 'product-files' and is_admin());

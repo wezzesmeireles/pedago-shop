@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { supabase } from '@/lib/supabase';
-import api, { setAccessToken } from '@/services/api';
 
 interface User {
   id: string;
@@ -20,17 +19,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      setAccessToken(session.access_token);
-      await fetchMe();
-    }
+    if (session) await fetchMe();
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        setAccessToken(session.access_token);
         if (!user.value) await fetchMe();
       } else {
-        setAccessToken(null);
         user.value = null;
       }
     });
@@ -38,18 +32,28 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchMe() {
     try {
-      const [profileRes, { data: { user: authUser } }] = await Promise.all([
-        api.get('/users/me'),
-        supabase.auth.getUser(),
-      ]);
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) { user.value = null; return; }
+
+      // Role from app_metadata (set by admin SQL or edge functions)
+      const metaRole = authUser.app_metadata?.role as string | undefined;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, name, role, avatar_url')
+        .eq('id', authUser.id)
+        .single();
+
+      const role = (profile?.role ?? metaRole ?? 'CUSTOMER') as 'ADMIN' | 'CUSTOMER';
+
       user.value = {
-        id: profileRes.data.id,
-        name: profileRes.data.name,
-        email: authUser?.email ?? '',
-        role: profileRes.data.role,
-        avatarUrl: profileRes.data.avatar_url,
+        id: authUser.id,
+        name: profile?.name ?? authUser.user_metadata?.name ?? authUser.email ?? '',
+        email: authUser.email ?? '',
+        role,
+        avatarUrl: profile?.avatar_url,
       };
-    } catch {
+    } catch (e) {
       user.value = null;
     }
   }
@@ -58,9 +62,11 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw { response: { data: { message: error.message } } };
-      setAccessToken(data.session!.access_token);
-      await fetchMe();
+      if (error) {
+        console.error('[login error]', error);
+        throw new Error(error.message);
+      }
+      await fetchMe().catch(() => {});
     } finally {
       loading.value = false;
     }
@@ -69,11 +75,25 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(name: string, email: string, password: string, phone?: string) {
     loading.value = true;
     try {
-      // Backend uses admin.createUser with email_confirm:true — no email confirmation needed
-      const res = await api.post('/auth/register', { name, email, password, phone });
-      setAccessToken(res.data.accessToken);
-      // Sync Supabase session on the client
-      await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+      if (error) throw new Error(error.message);
+
+      // If session exists, email confirmation is disabled — login immediately
+      if (data.session) {
+        if (phone && data.user) {
+          await supabase.from('profiles').update({ phone, name }).eq('id', data.user.id);
+        }
+        await fetchMe();
+        return;
+      }
+
+      // Email confirmation is enabled — try to sign in anyway (self-hosted often allows it)
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw new Error('Cadastro realizado! Verifique seu email para confirmar a conta.');
       await fetchMe();
     } finally {
       loading.value = false;
@@ -82,13 +102,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     await supabase.auth.signOut();
-    await api.post('/auth/logout').catch(() => {});
-    setAccessToken(null);
     user.value = null;
   }
 
   function clearUser() {
-    setAccessToken(null);
     user.value = null;
   }
 

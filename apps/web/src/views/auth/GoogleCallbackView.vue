@@ -7,24 +7,19 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { setAccessToken } from '@/services/api';
+import { useRouter } from 'vue-router';
+import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
 
-const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 
 onMounted(async () => {
-  const token = route.query.token as string;
-  if (token) {
-    setAccessToken(token);
-    try {
-      await auth.fetchMe();
-      router.push('/');
-    } catch {
-      router.push('/auth/login');
-    }
+  // Supabase automatically handles the OAuth callback via the URL hash/query
+  const { data } = await supabase.auth.getSession();
+  if (data.session) {
+    await auth.fetchMe();
+    router.push('/');
   } else {
     router.push('/auth/login');
   }

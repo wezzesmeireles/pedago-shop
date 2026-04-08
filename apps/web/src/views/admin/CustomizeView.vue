@@ -165,7 +165,7 @@ import { useSiteConfigStore } from '@/stores/site-config.store';
 import type { SiteConfigData } from '@pedago/shared';
 import AppInput from '@/components/ui/AppInput.vue';
 import AppButton from '@/components/ui/AppButton.vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 
 const siteConfigStore = useSiteConfigStore();
 const saving = ref(false);
@@ -207,10 +207,12 @@ function applyLiveColors() {
 async function uploadAsset(event: Event, field: keyof SiteConfigData) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  const fd = new FormData();
-  fd.append('file', file);
-  const res = await api.post('/admin/uploads/public', fd);
-  (form as any)[field] = res.data.url;
+  const ext = file.name.split('.').pop();
+  const path = `site/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from('product-covers').upload(path, file, { upsert: true });
+  if (error) { alert('Erro ao enviar imagem.'); return; }
+  const { data: urlData } = supabase.storage.from('product-covers').getPublicUrl(path);
+  (form as any)[field] = urlData.publicUrl;
 }
 
 async function saveConfig() {
@@ -221,7 +223,7 @@ async function saveConfig() {
     saved.value = true;
     setTimeout(() => (saved.value = false), 2500);
   } catch (err: any) {
-    alert(err?.response?.data?.message || 'Erro ao salvar.');
+    alert('Erro ao salvar.');
   } finally {
     saving.value = false;
   }

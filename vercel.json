@@ -3,17 +3,7 @@
   "installCommand": "pnpm install --no-frozen-lockfile",
   "buildCommand": "pnpm --filter @pedago/shared build && pnpm --filter web build",
   "outputDirectory": "apps/web/dist",
-  "functions": {
-    "apps/api/src/vercel.ts": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/apps/api/src/vercel.ts"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

@@ -100,7 +100,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import api from '@/services/api';
+import { supabase } from '@/lib/supabase';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 
 const loading = ref(true);
@@ -164,8 +164,40 @@ const stats = computed(() => {
 
 onMounted(async () => {
   try {
-    const res = await api.get('/admin/dashboard');
-    data.value = res.data;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+
+    const [
+      { data: totalRev },
+      { data: monthRev },
+      { data: lastMonthRev },
+      { count: totalOrders },
+      { count: monthOrders },
+      { count: pendingOrders },
+      { count: totalUsers },
+      { data: topProducts },
+      { data: recentOrders },
+    ] = await Promise.all([
+      supabase.from('orders').select('total_amount').eq('status', 'PAID'),
+      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfMonth),
+      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfLastMonth).lt('paid_at', startOfMonth),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID'),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID').gte('created_at', startOfMonth),
+      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'AWAITING_PAYMENT'),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'CUSTOMER'),
+      supabase.from('products').select('id, name, sales_count, cover_image_url, price').is('deleted_at', null).order('sales_count', { ascending: false }).limit(5),
+      supabase.from('orders').select('*, profiles(name), order_items(product_name)').eq('status', 'PAID').order('paid_at', { ascending: false }).limit(10),
+    ]);
+
+    const sumRev = (rows: any[]) => (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_amount), 0);
+    data.value = {
+      revenue: { total: sumRev(totalRev ?? []), month: sumRev(monthRev ?? []), lastMonth: sumRev(lastMonthRev ?? []) },
+      orders: { total: totalOrders ?? 0, month: monthOrders ?? 0, pending: pendingOrders ?? 0 },
+      users: { total: totalUsers ?? 0 },
+      topProducts: (topProducts ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, salesCount: p.sales_count })),
+      recentOrders: (recentOrders ?? []).map((o: any) => ({ ...o, orderNumber: o.order_number, totalAmount: o.total_amount, paidAt: o.paid_at, customerName: o.customer_name })),
+    };
   } finally {
     loading.value = false;
   }
