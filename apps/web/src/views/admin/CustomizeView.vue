@@ -61,39 +61,58 @@
 
     <!-- Tab: Banner & Anúncio -->
     <div v-show="activeTab === 'banner'" class="space-y-4">
-      <div class="bg-white rounded-2xl p-6 shadow-sm space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="font-semibold text-gray-900">Banner Principal</h2>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" v-model="form.bannerEnabled" class="rounded" />
-            <span class="text-gray-600">Ativo</span>
-          </label>
+      <!-- 3 rotating banners -->
+      <div
+        v-for="(slide, idx) in form.banners"
+        :key="idx"
+        class="bg-white rounded-2xl p-6 shadow-sm space-y-4"
+      >
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+               :style="{ background: bannerGradients[idx % bannerGradients.length] }">
+            {{ idx + 1 }}
+          </div>
+          <h2 class="font-semibold text-gray-900">Banner {{ idx + 1 }}</h2>
         </div>
 
-        <div v-if="form.bannerEnabled" class="space-y-4">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AppInput v-model="form.bannerTitle" label="Título" />
-            <AppInput v-model="form.bannerSubtitle" label="Subtítulo" />
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AppInput v-model="form.bannerCtaText" label="Texto do Botão" placeholder="Ver Produtos" />
-            <AppInput v-model="form.bannerCtaLink" label="Link do Botão" placeholder="/catalogo" />
-          </div>
-          <div>
-            <label class="text-sm font-medium text-gray-700 block mb-2">Imagem de fundo (opcional)</label>
-            <div class="flex items-center gap-3">
-              <img v-if="form.bannerImageUrl" :src="form.bannerImageUrl" class="h-14 w-24 rounded-xl object-cover" />
-              <input type="file" accept="image/*" @change="(e) => uploadAsset(e, 'bannerImageUrl')" class="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AppInput v-model="slide.title" label="Título" />
+          <AppInput v-model="slide.subtitle" label="Subtítulo" />
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AppInput v-model="slide.ctaText" label="Texto do Botão" placeholder="Ver Produtos" />
+          <AppInput v-model="slide.ctaLink" label="Link do Botão" placeholder="/catalogo" />
+        </div>
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-2">Imagem de fundo (opcional)</label>
+          <div class="flex items-center gap-3">
+            <img v-if="slide.imageUrl" :src="slide.imageUrl" class="h-14 w-24 rounded-xl object-cover border border-gray-200" />
+            <div v-else class="h-14 w-24 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 text-gray-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <div class="flex flex-col gap-1">
+              <input type="file" accept="image/*" @change="(e) => uploadBannerImage(e, idx)"
+                class="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+              <button v-if="slide.imageUrl" type="button" @click="slide.imageUrl = ''"
+                class="text-xs text-red-500 hover:underline text-left">Remover imagem</button>
             </div>
           </div>
+        </div>
 
-          <!-- Preview -->
-          <div class="rounded-2xl overflow-hidden">
-            <div class="p-6 text-white" :style="{ background: `linear-gradient(135deg, ${form.primaryColor}, ${form.secondaryColor})` }">
-              <p class="font-bold text-lg">{{ form.bannerTitle || 'Título do Banner' }}</p>
-              <p class="text-sm opacity-80 mt-1">{{ form.bannerSubtitle || 'Subtítulo' }}</p>
-              <span class="mt-3 inline-block bg-white text-xs font-bold px-4 py-2 rounded-xl" :style="{ color: form.primaryColor }">
-                {{ form.bannerCtaText || 'Ver Produtos' }}
+        <!-- Mini preview -->
+        <div class="rounded-xl overflow-hidden border border-gray-100">
+          <div
+            class="p-4 text-white relative"
+            :style="slide.imageUrl
+              ? { backgroundImage: `url(${slide.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : { background: bannerGradients[idx % bannerGradients.length] }"
+          >
+            <div v-if="slide.imageUrl" class="absolute inset-0 bg-black/40 rounded-xl"></div>
+            <div class="relative z-10">
+              <p class="font-bold text-base">{{ slide.title || 'Título do Banner' }}</p>
+              <p class="text-xs opacity-80 mt-0.5">{{ slide.subtitle || 'Subtítulo' }}</p>
+              <span class="mt-2 inline-block bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-lg">
+                {{ slide.ctaText || 'Ver Produtos' }}
               </span>
             </div>
           </div>
@@ -179,6 +198,12 @@ const tabs = [
   { id: 'seo', label: 'SEO' },
 ];
 
+const bannerGradients = [
+  'linear-gradient(135deg, #7C3AED, #EC4899)',
+  'linear-gradient(135deg, #0EA5E9, #6366F1)',
+  'linear-gradient(135deg, #10B981, #3B82F6)',
+];
+
 const colorFields = [
   { key: 'primaryColor', label: 'Cor Principal' },
   { key: 'secondaryColor', label: 'Cor Secundária' },
@@ -213,6 +238,17 @@ async function uploadAsset(event: Event, field: keyof SiteConfigData) {
   if (error) { alert('Erro ao enviar imagem.'); return; }
   const { data: urlData } = supabase.storage.from('product-covers').getPublicUrl(path);
   (form as any)[field] = urlData.publicUrl;
+}
+
+async function uploadBannerImage(event: Event, idx: number) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop();
+  const path = `site/banner-${idx + 1}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('product-covers').upload(path, file, { upsert: true });
+  if (error) { alert('Erro ao enviar imagem.'); return; }
+  const { data: urlData } = supabase.storage.from('product-covers').getPublicUrl(path);
+  form.banners[idx].imageUrl = urlData.publicUrl;
 }
 
 async function saveConfig() {

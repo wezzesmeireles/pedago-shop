@@ -5,7 +5,16 @@ export interface SocialLinks {
   youtube?: string;
 }
 
+export interface BannerSlide {
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  ctaText: string;
+  ctaLink: string;
+}
+
 export interface SiteConfigData {
+  banners: BannerSlide[];
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
@@ -48,6 +57,29 @@ export const DEFAULT_SITE_CONFIG: SiteConfigData = {
   bannerSubtitle: 'Downloads digitais para educadores e pais',
   bannerCtaText: 'Ver Produtos',
   bannerCtaLink: '/catalogo',
+  banners: [
+    {
+      title: 'FAÇA SUA COMPRA!',
+      subtitle: 'Receba pelo email e no WhatsApp imediatamente',
+      imageUrl: '',
+      ctaText: 'Ver Atividades',
+      ctaLink: '/catalogo',
+    },
+    {
+      title: 'Atividades Pedagógicas Incríveis!',
+      subtitle: 'Downloads digitais para educadores e pais',
+      imageUrl: '',
+      ctaText: 'Explorar Catálogo',
+      ctaLink: '/catalogo',
+    },
+    {
+      title: 'Entrega Automática!',
+      subtitle: 'Pague via PIX e receba o PDF na hora',
+      imageUrl: '',
+      ctaText: 'Comprar Agora',
+      ctaLink: '/catalogo',
+    },
+  ],
   highlightedProductIds: [],
   highlightedCategoryIds: [],
   announcementBarText: null,
