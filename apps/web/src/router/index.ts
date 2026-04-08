@@ -30,6 +30,8 @@ const router = createRouter({
         { path: 'google-callback', name: 'google-callback', component: () => import('@/views/auth/GoogleCallbackView.vue') },
       ],
     },
+    // Admin login (standalone, no layout)
+    { path: '/admin/login', name: 'admin-login', component: () => import('@/views/auth/AdminLoginView.vue') },
     // Customer area
     {
       path: '/minha-conta',
@@ -75,7 +77,7 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') {
-    return { name: 'home' };
+    return { name: 'admin-login' };
   }
 });
 

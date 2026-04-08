@@ -61,6 +61,18 @@ export class AuthController {
     res.clearCookie('refresh_token');
   }
 
+  @Get('admin-status')
+  async adminStatus() {
+    return this.authService.getAdminStatus();
+  }
+
+  @Post('create-admin')
+  async createAdmin(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const tokens = await this.authService.createFirstAdmin(dto);
+    this.setRefreshCookie(res, tokens.refreshToken);
+    return { accessToken: tokens.accessToken };
+  }
+
   @Get('google')
   googleAuth(@Res() res: Response) {
     const supabaseUrl = this.config.get<string>('SUPABASE_URL');
