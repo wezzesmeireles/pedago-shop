@@ -4,7 +4,7 @@ import { MercadoPagoConfig, Payment, Preference } from 'https://esm.sh/mercadopa
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 async function getSiteConfig(supabase: any) {
