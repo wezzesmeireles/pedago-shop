@@ -49,7 +49,7 @@
                   <div class="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center">
                     <svg class="w-3.5 h-3.5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
                   </div>
-                  <span class="text-sm font-semibold text-slate-700">{{ user._count?.orders ?? 0 }}</span>
+                  <span class="text-sm font-semibold text-slate-700">{{ user.ordersCount ?? 0 }}</span>
                 </div>
               </td>
               <td class="px-4 py-3.5 hidden md:table-cell">
@@ -132,7 +132,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { supabase } from '@/lib/supabase';
-import { invokeFunction } from '@/services/api';
 import AppModal from '@/components/ui/AppModal.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 
@@ -169,9 +168,6 @@ function debouncedLoad() {
 }
 
 async function loadUsers(page = 1) {
-  // Use Edge Function to get emails from auth.users
-  const res = await invokeFunction('admin-users', null).catch(() => null);
-  // invokeFunction uses POST, but we need GET with params — call via fetch
   const { data: { session } } = await supabase.auth.getSession();
   const params = new URLSearchParams({ page: String(page), limit: '20' });
   if (search.value) params.set('search', search.value);
@@ -179,13 +175,19 @@ async function loadUsers(page = 1) {
     headers: { Authorization: `Bearer ${session?.access_token}` },
   });
   const data = await resp.json();
-  users.value = data.items ?? [];
+  users.value = (data.items ?? []).map((u: any) => ({
+    ...u,
+    avatarUrl: u.avatar_url,
+    isActive: u.is_active,
+    createdAt: u.created_at,
+    ordersCount: u.orders?.[0]?.count ?? 0,
+  }));
   totalPages.value = Math.ceil((data.total ?? 0) / 20);
   currentPage.value = page;
 }
 
 async function toggleActive(user: any) {
-  await supabase.from('profiles').update({ is_active: !user.is_active, updated_at: new Date().toISOString() }).eq('id', user.id);
+  await supabase.from('profiles').update({ is_active: !user.isActive, updated_at: new Date().toISOString() }).eq('id', user.id);
   await loadUsers(currentPage.value);
 }
 
@@ -200,7 +202,13 @@ async function openOrders(user: any) {
       headers: { Authorization: `Bearer ${session?.access_token}` },
     });
     const data = await resp.json();
-    userOrders.value = data.orders ?? [];
+    userOrders.value = (data.orders ?? []).map((o: any) => ({
+      ...o,
+      orderNumber: o.order_number,
+      createdAt: o.created_at,
+      totalAmount: o.total_amount,
+      items: (o.order_items ?? []).map((i: any) => ({ productName: i.product_name })),
+    }));
   } finally {
     loadingOrders.value = false;
   }

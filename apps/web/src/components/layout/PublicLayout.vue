@@ -96,6 +96,19 @@
               </transition>
             </button>
 
+            <!-- Meus Pedidos (desktop, logged in) -->
+            <RouterLink
+              v-if="auth.isLoggedIn"
+              to="/minha-conta/pedidos"
+              class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-gray-600
+                     hover:text-primary-600 px-3 py-2 rounded-xl hover:bg-primary-50 transition-all"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+              </svg>
+              Meus Pedidos
+            </RouterLink>
+
             <!-- User menu -->
             <template v-if="auth.isLoggedIn">
               <div class="relative" ref="userMenuRef">
@@ -217,6 +230,18 @@
               @click="mobileMenuOpen = false"
             >
               {{ link.label }}
+            </RouterLink>
+            <RouterLink
+              v-if="auth.isLoggedIn"
+              to="/minha-conta/pedidos"
+              class="flex items-center gap-2 py-2.5 px-3 text-primary-600 font-medium text-sm
+                     rounded-xl hover:bg-primary-50 transition-colors"
+              @click="mobileMenuOpen = false"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+              </svg>
+              Meus Pedidos
             </RouterLink>
           </div>
         </transition>

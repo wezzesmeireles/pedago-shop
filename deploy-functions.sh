@@ -34,6 +34,9 @@ npx supabase functions deploy download \
   --project-ref "$PROJECT_REF" \
   --no-verify-jwt
 
+npx supabase functions deploy admin-users \
+  --project-ref "$PROJECT_REF"
+
 echo ""
 echo "✅ Edge functions deployadas com sucesso!"
 echo ""
