@@ -342,6 +342,7 @@ async function createOrder() {
       cardInitPoint.value = url;
       step.value = 'card';
       setTimeout(() => { window.open(url, '_blank'); }, 1000);
+      startCardPolling(funcData.order.id);
       return;
     }
 
@@ -355,6 +356,20 @@ async function createOrder() {
   } finally {
     creating.value = false;
   }
+}
+
+function startCardPolling(id: string) {
+  pollingTimer = setInterval(async () => {
+    try {
+      await supabase.functions.invoke('reconcile-orders', { body: { orderId: id } });
+      const { data } = await supabase.from('orders').select('status').eq('id', id).single();
+      if (data?.status === 'PAID') {
+        clearInterval(pollingTimer!);
+        cart.clear();
+        router.push(`/checkout/success/${id}`);
+      }
+    } catch {}
+  }, 5000);
 }
 
 async function checkCardPayment() {
