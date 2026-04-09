@@ -305,12 +305,14 @@ async function createOrder() {
     });
 
     if (funcErr) {
-      // funcErr.message may contain the raw response — try to extract JSON error
-      let msg = funcErr.message || 'Erro ao processar pagamento.';
+      let msg = 'Erro ao processar pagamento.';
       try {
-        const parsed = JSON.parse(msg);
-        msg = parsed.error || parsed.message || msg;
-      } catch {}
+        // FunctionsHttpError exposes the response body via context
+        const errBody = await (funcErr as any).context?.json?.();
+        msg = errBody?.error ?? errBody?.message ?? funcErr.message ?? msg;
+      } catch {
+        msg = funcErr.message ?? msg;
+      }
       throw new Error(msg);
     }
 
