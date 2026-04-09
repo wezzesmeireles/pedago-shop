@@ -114,9 +114,8 @@ function formatExpiry(dateStr: string): string {
 
 function downloadFile(d: DownloadEntry) {
   if (d.expired) return;
-  // Edge function sets Content-Disposition: attachment — works on iOS Safari
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download?token=${d.token}`;
-  window.location.href = url;
+  window.open(url, '_blank');
   d.downloadCount++;
 }
 

@@ -101,7 +101,7 @@ let realtimeChannel: RealtimeChannel | null = null;
 
 function downloadFile(_item: any, token: any) {
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download?token=${token.token}`;
-  window.location.href = url;
+  window.open(url, '_blank');
   token.download_count++;
 }
 
