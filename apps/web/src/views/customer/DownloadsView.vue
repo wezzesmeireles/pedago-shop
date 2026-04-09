@@ -126,29 +126,31 @@ async function downloadFile(d: DownloadEntry) {
 
 onMounted(async () => {
   try {
-    // Query download_tokens directly — avoids nested RLS issues with PostgREST joins
-    const { data: tokens } = await supabase
-      .from('download_tokens')
-      .select('*, order_items(product_name, products(cover_image_url, file_key), orders(order_number))')
-      .is('revoked_at', null)
+    // Query from orders down — RLS filters by auth.uid() automatically
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('order_number, order_items(id, product_name, products(cover_image_url, file_key), download_tokens(*))')
+      .eq('status', 'PAID')
       .order('created_at', { ascending: false });
 
     const downloads: DownloadEntry[] = [];
-    for (const t of tokens ?? []) {
-      const item = (t as any).order_items;
-      const product = item?.products;
-      const order = item?.orders;
-      downloads.push({
-        token: t.token,
-        fileKey: product?.file_key ?? '',
-        productName: item?.product_name ?? '',
-        orderNumber: order?.order_number ?? '',
-        coverImageUrl: product?.cover_image_url,
-        downloadCount: t.download_count,
-        maxDownloads: t.max_downloads,
-        expiresAt: t.expires_at,
-        expired: new Date(t.expires_at) < new Date(),
-      });
+    for (const order of orders ?? []) {
+      for (const item of (order as any).order_items ?? []) {
+        for (const token of item.download_tokens ?? []) {
+          if (token.revoked_at) continue;
+          downloads.push({
+            token: token.token,
+            fileKey: item.products?.file_key ?? '',
+            productName: item.product_name,
+            orderNumber: (order as any).order_number,
+            coverImageUrl: item.products?.cover_image_url,
+            downloadCount: token.download_count,
+            maxDownloads: token.max_downloads,
+            expiresAt: token.expires_at,
+            expired: new Date(token.expires_at) < new Date(),
+          });
+        }
+      }
     }
     allDownloads.value = downloads;
   } finally {
