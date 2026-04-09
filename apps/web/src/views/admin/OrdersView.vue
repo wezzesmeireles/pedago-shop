@@ -220,7 +220,14 @@ async function loadOrders(page = 1) {
   if (statusFilter.value) q = q.eq('status', statusFilter.value);
   if (search.value) q = q.or(`order_number.ilike.%${search.value}%,customer_email.ilike.%${search.value}%,customer_name.ilike.%${search.value}%`);
   const { data, count } = await q;
-  orders.value = (data ?? []).map((o: any) => ({ ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at }));
+  orders.value = (data ?? []).map((o: any) => ({
+    ...o,
+    orderNumber: o.order_number,
+    totalAmount: o.total_amount,
+    customerName: o.customer_name,
+    createdAt: o.created_at,
+    items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
+  }));
   totalPages.value = Math.ceil((count ?? 0) / limit);
   currentPage.value = page;
 }
@@ -231,7 +238,21 @@ async function openDetails(id: string) {
   selectedOrder.value = null;
   try {
     const { data } = await supabase.from('orders').select('*, profiles(*), order_items(*, products(id, name, cover_image_url), download_tokens(*))').eq('id', id).single();
-    selectedOrder.value = data ? { ...data, orderNumber: data.order_number, totalAmount: data.total_amount, customerName: data.customer_name } : null;
+    selectedOrder.value = data ? {
+      ...data,
+      orderNumber: data.order_number,
+      totalAmount: data.total_amount,
+      customerName: data.customer_name,
+      customerEmail: data.customer_email,
+      createdAt: data.created_at,
+      items: (data.order_items ?? []).map((i: any) => ({
+        ...i,
+        productName: i.product_name,
+        unitPrice: i.unit_price,
+        product: i.products ? { coverImageUrl: i.products.cover_image_url } : null,
+        downloadTokens: (i.download_tokens ?? []).map((t: any) => ({ ...t, downloadCount: t.download_count, maxDownloads: t.max_downloads })),
+      })),
+    } : null;
   } finally {
     loadingDetail.value = false;
   }

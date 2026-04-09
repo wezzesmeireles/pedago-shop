@@ -129,9 +129,9 @@ onMounted(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     const { data: orders } = await supabase
       .from('orders')
-      .select('order_number, order_items(product_name, products(cover_image_url, file_key), download_tokens(*))')
-      .eq('user_id', user!.id)
-      .eq('status', 'PAID');
+      .select('id, order_number, order_items(id, product_name, products(cover_image_url, file_key), download_tokens(*))')
+      .eq('status', 'PAID')
+      .order('created_at', { ascending: false });
 
     const downloads: DownloadEntry[] = [];
     for (const order of orders ?? []) {
