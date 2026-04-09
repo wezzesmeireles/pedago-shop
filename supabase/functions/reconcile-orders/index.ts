@@ -76,13 +76,20 @@ async function processCardOrder(order: any, accessToken: string) {
   }
 }
 
-Deno.serve(async () => {
-  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const { data: pending } = await supabase
+Deno.serve(async (req) => {
+  const body = await req.json().catch(() => ({}));
+  const specificOrderId = body?.orderId as string | undefined;
+
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  let query = supabase
     .from('orders')
     .select('id, mp_payment_id, mp_preference_id, payment_method, order_items(*)')
     .eq('status', 'AWAITING_PAYMENT')
     .gte('created_at', cutoff);
+
+  if (specificOrderId) query = query.eq('id', specificOrderId);
+
+  const { data: pending } = await query;
 
   if (!pending?.length) return new Response('nothing to do', { status: 200 });
 

@@ -140,8 +140,8 @@ function startWaiting(orderId: string) {
   pollInterval = setInterval(async () => {
     attempts++;
     try {
-      // Force server-side MP status check
-      await supabase.functions.invoke('reconcile-orders', { body: {} });
+      // Force server-side MP status check for this specific order
+      await supabase.functions.invoke('reconcile-orders', { body: { orderId } });
       const { data } = await supabase.from('orders').select('status').eq('id', orderId).single();
       if (data?.status === 'PAID') {
         clearInterval(pollInterval);
@@ -158,13 +158,14 @@ function startWaiting(orderId: string) {
 
 onMounted(async () => {
   cart.clear();
+  const orderId = route.params.orderId as string;
   try {
-    // Immediately trigger reconcile in case MP just redirected back
-    await supabase.functions.invoke('reconcile-orders', { body: {} }).catch(() => {});
+    // Immediately reconcile this specific order (MP may have just redirected back)
+    await supabase.functions.invoke('reconcile-orders', { body: { orderId } }).catch(() => {});
     const status = await loadOrder();
     loading.value = false;
     if (status === 'AWAITING_PAYMENT') {
-      startWaiting(route.params.orderId as string);
+      startWaiting(orderId);
     }
   } catch {
     loading.value = false;
