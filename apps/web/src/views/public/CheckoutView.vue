@@ -318,16 +318,22 @@ async function createOrder() {
   creating.value = true;
   errorMessage.value = '';
   try {
-    // Try edge function (deployed + MP token configured)
-    const { data: funcData, error: funcErr } = await supabase.functions.invoke('create-order', {
-      body: {
-        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        paymentMethod: selectedMethod.value,
-      },
-    });
+    // 1. Try edge function (needs to be deployed on Supabase)
+    let funcData: any = null;
+    try {
+      const { data, error } = await supabase.functions.invoke('create-order', {
+        body: {
+          items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          paymentMethod: selectedMethod.value,
+        },
+      });
+      if (!error && data?.order) funcData = data;
+    } catch {
+      // Function not deployed or network error — fall through to DB fallback
+    }
 
-    if (!funcErr && funcData?.order) {
-      // Edge function succeeded
+    if (funcData) {
+      // Edge function OK → real MP payment
       orderId.value = funcData.order.id;
 
       if (selectedMethod.value === 'PIX') {
@@ -338,7 +344,7 @@ async function createOrder() {
         startPolling();
       } else {
         const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
-        if (!url) throw new Error('Erro ao obter link de pagamento.');
+        if (!url) throw new Error('Erro ao obter link de pagamento. Verifique as credenciais do Mercado Pago.');
         cardInitPoint.value = url;
         step.value = 'card';
         setTimeout(() => { window.location.href = url; }, 2000);
@@ -346,20 +352,20 @@ async function createOrder() {
       return;
     }
 
-    // Fallback: create order directly in DB
+    // 2. Fallback: create order in DB + show manual PIX key
     const order = await createOrderInDB(selectedMethod.value);
     orderId.value = order.id;
 
-    if (selectedMethod.value === 'PIX') {
-      // Show manual PIX key from site config
-      manualPixKey.value = (siteConfig.config as any).mercadoPagoPixKey ?? '';
-      step.value = 'pix';
-      startCountdown();
-      startPolling();
-    } else {
-      // No Checkout Pro without edge function
-      throw new Error('Pagamento com cartão requer configuração do Mercado Pago. Use PIX.');
+    if (selectedMethod.value === 'CREDIT_CARD') {
+      throw new Error('Pagamento com cartão indisponível no momento. Por favor use o PIX.');
     }
+
+    // PIX fallback: show store PIX key configured in Integrações
+    manualPixKey.value = (siteConfig.config as any).mercadoPagoPixKey ?? '';
+    step.value = 'pix';
+    startCountdown();
+    startPolling();
+
   } catch (err: any) {
     errorMessage.value = err?.message || 'Erro ao criar pedido. Tente novamente.';
   } finally {
