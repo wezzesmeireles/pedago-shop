@@ -104,6 +104,8 @@ Deno.serve(async (req) => {
   if (!accessToken) return json({ error: 'Token do Mercado Pago não configurado.' }, 500);
 
   const frontendUrl = Deno.env.get('FRONTEND_URL') || '';
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const webhookUrl = `${supabaseUrl}/functions/v1/mp-webhook`;
 
   try {
     if (paymentMethod === 'PIX') {
@@ -127,6 +129,7 @@ Deno.serve(async (req) => {
         },
         external_reference: order.id,
         date_of_expiration: expiresAt,
+        notification_url: webhookUrl,
       }, accessToken, `pix-${order.id}`);
 
       const qrCode = result.point_of_interaction?.transaction_data?.qr_code ?? '';
@@ -164,6 +167,7 @@ Deno.serve(async (req) => {
           auto_return: 'approved',
         }),
         external_reference: order.id,
+        notification_url: webhookUrl,
       }, accessToken);
 
       await supabase.from('orders').update({ mp_preference_id: result.id }).eq('id', order.id);
