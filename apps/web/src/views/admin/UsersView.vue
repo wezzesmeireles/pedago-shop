@@ -180,7 +180,7 @@ async function loadUsers(page = 1) {
     avatarUrl: u.avatar_url,
     isActive: u.is_active,
     createdAt: u.created_at,
-    ordersCount: u.orders?.[0]?.count ?? 0,
+    ordersCount: u.ordersCount ?? 0,
   }));
   totalPages.value = Math.ceil((data.total ?? 0) / 20);
   currentPage.value = page;
