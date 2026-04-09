@@ -26,6 +26,10 @@ npx supabase functions deploy mp-webhook \
   --project-ref "$PROJECT_REF" \
   --no-verify-jwt
 
+npx supabase functions deploy reconcile-orders \
+  --project-ref "$PROJECT_REF" \
+  --no-verify-jwt
+
 echo ""
 echo "✅ Edge functions deployadas com sucesso!"
 echo ""

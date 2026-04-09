@@ -27,3 +27,7 @@ jobs:
           supabase functions deploy mp-webhook \
             --project-ref hdldxgbvkjcoesmfoglm \
             --no-verify-jwt
+
+          supabase functions deploy reconcile-orders \
+            --project-ref hdldxgbvkjcoesmfoglm \
+            --no-verify-jwt
