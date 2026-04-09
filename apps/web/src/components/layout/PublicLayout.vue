@@ -397,7 +397,7 @@
     <!-- WhatsApp floating button -->
     <a
       v-if="config.socialLinks?.whatsapp"
-      :href="`https://wa.me/${config.socialLinks.whatsapp}?text=${encodeURIComponent('Olá! Vim pelo site e preciso de ajuda. 😊')}`"
+      :href="`https://wa.me/${config.socialLinks.whatsapp}?text=${encodeURIComponent('Olá, *Site Pedagógico*! 👋\n\nVim pelo site e gostaria de ajuda.\n\nPoderia me atender? 😊')}`"
       target="_blank"
       rel="noopener"
       class="fixed bottom-20 right-6 flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20c05c]
