@@ -112,33 +112,11 @@ function formatExpiry(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-async function downloadFile(d: DownloadEntry) {
+function downloadFile(d: DownloadEntry) {
   if (d.expired) return;
-  const { data } = await supabase.storage.from('product-files').createSignedUrl(d.fileKey, 120);
-  if (!data?.signedUrl) return;
-
-  const filename = d.productName.replace(/[^a-z0-9]/gi, '_') + '.pdf';
-
-  try {
-    // Fetch as blob so iOS Safari treats it as a download, not inline view
-    const resp = await fetch(data.signedUrl);
-    const blob = await resp.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-  } catch {
-    // Fallback: open in new tab
-    window.open(data.signedUrl, '_blank');
-  }
-
-  await supabase.from('download_tokens')
-    .update({ download_count: d.downloadCount + 1, last_download_at: new Date().toISOString() })
-    .eq('token', d.token);
+  // Edge function sets Content-Disposition: attachment — works on iOS Safari
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download?token=${d.token}`;
+  window.location.href = url;
   d.downloadCount++;
 }
 
