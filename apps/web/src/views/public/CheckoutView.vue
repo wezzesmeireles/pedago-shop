@@ -112,12 +112,20 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
           </svg>
         </div>
-        <h2 class="text-xl font-bold text-gray-900 mb-2">Redirecionando para o pagamento...</h2>
-        <p class="text-gray-500 text-sm mb-6">Você será levado para o ambiente seguro do Mercado Pago.</p>
-        <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-6"></div>
-        <a :href="cardInitPoint" class="btn-primary w-full block text-center py-3.5 font-bold">
-          Ir para o pagamento →
+        <h2 class="text-xl font-bold text-gray-900 mb-2">Complete o pagamento no Mercado Pago</h2>
+        <p class="text-gray-500 text-sm mb-5">Uma nova aba foi aberta. Após pagar, clique em "Já paguei" abaixo.</p>
+        <a :href="cardInitPoint" target="_blank" class="btn-primary w-full block text-center py-3.5 font-bold mb-3">
+          Abrir Mercado Pago →
         </a>
+        <button @click="checkCardPayment" :disabled="checkingCard"
+          class="w-full border-2 border-primary-600 text-primary-600 font-bold py-3.5 rounded-2xl hover:bg-primary-50 transition-all flex items-center justify-center gap-2 disabled:opacity-60">
+          <svg v-if="checkingCard" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+          {{ checkingCard ? 'Verificando...' : 'Já paguei — Verificar pagamento' }}
+        </button>
+        <p v-if="cardCheckMsg" class="mt-3 text-sm" :class="cardCheckMsg.ok ? 'text-green-600' : 'text-red-500'">{{ cardCheckMsg.text }}</p>
         <p class="text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
           <svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
           Ambiente 100% seguro — Mercado Pago
@@ -224,10 +232,12 @@ const errorMessage = ref('');
 const copied = ref(false);
 const timeLeft = ref(30 * 60);
 
-const pixQrCode = ref('');    // copia e cola (MP automático)
-const pixQrBase64 = ref('');  // QR image (MP automático)
-const manualPixKey = ref(''); // fallback: chave da loja
-const cardInitPoint = ref(''); // Checkout Pro URL
+const pixQrCode = ref('');
+const pixQrBase64 = ref('');
+const manualPixKey = ref('');
+const cardInitPoint = ref('');
+const checkingCard = ref(false);
+const cardCheckMsg = ref<{ ok: boolean; text: string } | null>(null);
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -331,7 +341,7 @@ async function createOrder() {
       if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
       cardInitPoint.value = url;
       step.value = 'card';
-      setTimeout(() => { window.location.href = url; }, 2000);
+      setTimeout(() => { window.open(url, '_blank'); }, 1000);
       return;
     }
 
@@ -344,6 +354,26 @@ async function createOrder() {
     errorMessage.value = err?.message || 'Erro ao gerar pagamento. Tente novamente.';
   } finally {
     creating.value = false;
+  }
+}
+
+async function checkCardPayment() {
+  if (!orderId.value || checkingCard.value) return;
+  checkingCard.value = true;
+  cardCheckMsg.value = null;
+  try {
+    await supabase.functions.invoke('reconcile-orders', { body: { orderId: orderId.value } });
+    const { data } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
+    if (data?.status === 'PAID') {
+      cart.clear();
+      router.push(`/checkout/success/${orderId.value}`);
+    } else {
+      cardCheckMsg.value = { ok: false, text: 'Pagamento ainda não confirmado. Tente novamente em alguns segundos.' };
+    }
+  } catch {
+    cardCheckMsg.value = { ok: false, text: 'Erro ao verificar. Tente novamente.' };
+  } finally {
+    checkingCard.value = false;
   }
 }
 
