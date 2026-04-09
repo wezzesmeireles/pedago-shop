@@ -1,6 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// @ts-ignore
-import { MercadoPagoConfig, Payment } from 'https://esm.sh/mercadopago@2';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -29,6 +27,14 @@ async function verifySignature(xSignature: string, queryId?: string, xRequestId?
   } catch { return false; }
 }
 
+async function getPayment(paymentId: string, accessToken: string) {
+  const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`MP API error ${res.status}`);
+  return res.json();
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const queryId = url.searchParams.get('id') ?? undefined;
@@ -46,8 +52,10 @@ Deno.serve(async (req) => {
 
   const cfg = await getSiteConfig();
   const webhookSecret = cfg.mercadoPagoWebhookSecret?.trim() || Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET');
-  if (xSignature && !(await verifySignature(xSignature, queryId, xRequestId, webhookSecret))) {
-    return new Response('Invalid signature', { status: 400 });
+
+  if (xSignature && webhookSecret) {
+    const valid = await verifySignature(xSignature, queryId, xRequestId, webhookSecret);
+    if (!valid) return new Response('Invalid signature', { status: 400 });
   }
 
   const eventId = String(paymentId);
@@ -61,9 +69,7 @@ Deno.serve(async (req) => {
 
   try {
     const accessToken = cfg.mercadoPagoAccessToken?.trim() || Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN') || '';
-    const client = new MercadoPagoConfig({ accessToken });
-    const paymentClient = new Payment(client);
-    const payment = await paymentClient.get({ id: paymentId });
+    const payment = await getPayment(eventId, accessToken);
     const mpStatus = payment.status ?? 'unknown';
     const orderId = payment.external_reference;
 
@@ -83,7 +89,6 @@ Deno.serve(async (req) => {
         tokenExpires.setFullYear(tokenExpires.getFullYear() + 30);
 
         for (const item of order.order_items) {
-          // Create download token for each purchased item
           await supabase.from('download_tokens').insert({
             order_id: orderId,
             order_item_id: item.id,
@@ -91,7 +96,6 @@ Deno.serve(async (req) => {
             expires_at: tokenExpires.toISOString(),
           });
 
-          // Increment sales_count (not overwrite)
           const { data: prod } = await supabase.from('products').select('sales_count').eq('id', item.product_id).single();
           const newCount = (prod?.sales_count ?? 0) + item.quantity;
           await supabase.from('products').update({ sales_count: newCount }).eq('id', item.product_id);
