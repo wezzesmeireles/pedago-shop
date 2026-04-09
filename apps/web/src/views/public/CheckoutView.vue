@@ -297,52 +297,47 @@ async function createOrder() {
   creating.value = true;
   errorMessage.value = '';
   try {
-    // Tenta edge function (QR Code real do Mercado Pago)
-    let funcData: any = null;
-    try {
-      const { data, error } = await supabase.functions.invoke('create-order', {
-        body: {
-          items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-          paymentMethod: 'PIX',
-        },
-      });
-      if (!error && data?.order) funcData = data;
-    } catch { /* function não deployada — segue para fallback */ }
+    const { data: funcData, error: funcErr } = await supabase.functions.invoke('create-order', {
+      body: {
+        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        paymentMethod: selectedMethod.value,
+      },
+    });
 
-    if (funcData) {
-      orderId.value = funcData.order.id;
-
-      if (selectedMethod.value === 'CREDIT_CARD') {
-        const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
-        if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
-        cardInitPoint.value = url;
-        step.value = 'card';
-        setTimeout(() => { window.location.href = url; }, 2000);
-        return;
-      }
-
-      pixQrCode.value = funcData.payment?.qrCode ?? '';
-      pixQrBase64.value = funcData.payment?.qrCodeBase64 ?? '';
-    } else {
-      // Fallback: cria pedido no banco
-      if (selectedMethod.value === 'CREDIT_CARD') {
-        throw new Error('Pagamento com cartão requer a integração com o Mercado Pago configurada. Use o PIX.');
-      }
-
-      const order = await createOrderInDB();
-      orderId.value = order.id;
-      manualPixKey.value = (siteConfig.config as any).mercadoPagoPixKey ?? '';
-
-      if (!manualPixKey.value) {
-        throw new Error('Configure a Chave PIX em Admin → Integrações para receber pagamentos.');
-      }
+    if (funcErr) {
+      // funcErr.message may contain the raw response — try to extract JSON error
+      let msg = funcErr.message || 'Erro ao processar pagamento.';
+      try {
+        const parsed = JSON.parse(msg);
+        msg = parsed.error || parsed.message || msg;
+      } catch {}
+      throw new Error(msg);
     }
 
+    if (funcData?.error || funcData?.message) {
+      throw new Error(funcData.error ?? funcData.message);
+    }
+
+    if (!funcData?.order) throw new Error('Resposta inválida do servidor.');
+
+    orderId.value = funcData.order.id;
+
+    if (selectedMethod.value === 'CREDIT_CARD') {
+      const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
+      if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
+      cardInitPoint.value = url;
+      step.value = 'card';
+      setTimeout(() => { window.location.href = url; }, 2000);
+      return;
+    }
+
+    pixQrCode.value = funcData.payment?.qrCode ?? '';
+    pixQrBase64.value = funcData.payment?.qrCodeBase64 ?? '';
     step.value = 'pix';
     startCountdown();
     startPolling();
   } catch (err: any) {
-    errorMessage.value = err?.message || 'Erro ao gerar PIX. Tente novamente.';
+    errorMessage.value = err?.message || 'Erro ao gerar pagamento. Tente novamente.';
   } finally {
     creating.value = false;
   }

@@ -85,77 +85,88 @@ Deno.serve(async (req) => {
   const frontendUrl = Deno.env.get('FRONTEND_URL') || '';
   const roundAmount = (v: number) => Math.round(Number(v) * 100) / 100;
 
-  if (paymentMethod === 'PIX') {
-    const payment = new Payment(client);
-    const [firstName, ...rest] = (profile?.name ?? 'Cliente').trim().split(' ');
-    const expiresAt30 = new Date(Date.now() + 30 * 60_000).toISOString().replace('Z', '-03:00');
+  try {
+    if (paymentMethod === 'PIX') {
+      const payment = new Payment(client);
+      const [firstName, ...rest] = (profile?.name ?? 'Cliente').trim().split(' ');
+      const expiresAt30 = new Date(Date.now() + 30 * 60_000).toISOString().replace('Z', '-03:00');
 
-    const result = await payment.create({
-      requestOptions: { idempotencyKey: `pix-${order.id}` },
-      body: {
-        transaction_amount: roundAmount(totalAmount),
-        description: `Pedido ${orderNumber}`,
-        payment_method_id: 'pix',
-        binary_mode: false,
-        payer: { email: user.email, first_name: firstName, last_name: rest.join(' ') || firstName },
-        additional_info: {
-          items: (orderItems ?? []).map((item: any) => ({
-            id: item.product_id, title: item.product_name, description: item.product_name,
-            category_id: 'education', quantity: item.quantity, unit_price: roundAmount(item.unit_price),
-          })),
-        },
-        metadata: { order_id: order.id, order_number: orderNumber },
-        external_reference: order.id,
-        date_of_expiration: expiresAt30,
-      },
-    });
-
-    const qrCode = result.point_of_interaction?.transaction_data?.qr_code ?? '';
-    const qrCodeBase64 = result.point_of_interaction?.transaction_data?.qr_code_base64 ?? '';
-
-    await supabase.from('orders').update({
-      mp_payment_id: String(result.id),
-      metadata: { qr_code: qrCode, qr_code_base64: qrCodeBase64 },
-    }).eq('id', order.id);
-
-    return new Response(JSON.stringify({
-      order: fullOrder,
-      payment: { type: 'PIX', qrCode, qrCodeBase64 },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
-  } else {
-    const preference = new Preference(client);
-    const pref = await preference.create({
-      body: {
-        items: (orderItems ?? []).map((item: any) => ({
-          id: item.product_id, title: item.product_name,
-          description: `Produto digital — ${item.product_name}`,
-          category_id: 'education', quantity: item.quantity,
-          unit_price: roundAmount(item.unit_price), currency_id: 'BRL',
-        })),
-        payer: { name: profile?.name ?? '', email: user.email },
-        payment_methods: {
-          excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }, { id: 'digital_currency' }],
-          installments: 12,
-        },
-        ...(frontendUrl && {
-          back_urls: {
-            success: `${frontendUrl}/checkout/success/${order.id}`,
-            failure: `${frontendUrl}/checkout/failure/${order.id}`,
-            pending: `${frontendUrl}/checkout/success/${order.id}`,
+      const result = await payment.create({
+        requestOptions: { idempotencyKey: `pix-${order.id}` },
+        body: {
+          transaction_amount: roundAmount(totalAmount),
+          description: `Pedido ${orderNumber}`,
+          payment_method_id: 'pix',
+          binary_mode: false,
+          payer: { email: user.email, first_name: firstName, last_name: rest.join(' ') || firstName },
+          additional_info: {
+            items: (orderItems ?? []).map((item: any) => ({
+              id: item.product_id, title: item.product_name, description: item.product_name,
+              category_id: 'education', quantity: item.quantity, unit_price: roundAmount(item.unit_price),
+            })),
           },
-          auto_return: 'approved',
-        }),
-        external_reference: order.id,
-        metadata: { order_id: order.id, order_number: orderNumber },
-      },
-    });
+          metadata: { order_id: order.id, order_number: orderNumber },
+          external_reference: order.id,
+          date_of_expiration: expiresAt30,
+        },
+      });
 
-    await supabase.from('orders').update({ mp_preference_id: pref.id }).eq('id', order.id);
+      const qrCode = result.point_of_interaction?.transaction_data?.qr_code ?? '';
+      const qrCodeBase64 = result.point_of_interaction?.transaction_data?.qr_code_base64 ?? '';
 
+      await supabase.from('orders').update({
+        mp_payment_id: String(result.id),
+        metadata: { qr_code: qrCode, qr_code_base64: qrCodeBase64 },
+      }).eq('id', order.id);
+
+      return new Response(JSON.stringify({
+        order: fullOrder,
+        payment: { type: 'PIX', qrCode, qrCodeBase64 },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+    } else {
+      const preference = new Preference(client);
+      const pref = await preference.create({
+        body: {
+          items: (orderItems ?? []).map((item: any) => ({
+            id: item.product_id, title: item.product_name,
+            description: `Produto digital — ${item.product_name}`,
+            category_id: 'education', quantity: item.quantity,
+            unit_price: roundAmount(item.unit_price), currency_id: 'BRL',
+          })),
+          payer: { name: profile?.name ?? '', email: user.email },
+          payment_methods: {
+            excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }, { id: 'digital_currency' }],
+            installments: 12,
+          },
+          ...(frontendUrl && {
+            back_urls: {
+              success: `${frontendUrl}/checkout/success/${order.id}`,
+              failure: `${frontendUrl}/checkout/failure/${order.id}`,
+              pending: `${frontendUrl}/checkout/success/${order.id}`,
+            },
+            auto_return: 'approved',
+          }),
+          external_reference: order.id,
+          metadata: { order_id: order.id, order_number: orderNumber },
+        },
+      });
+
+      await supabase.from('orders').update({ mp_preference_id: pref.id }).eq('id', order.id);
+
+      return new Response(JSON.stringify({
+        order: fullOrder,
+        payment: { type: 'CARD', initPoint: pref.init_point, sandboxInitPoint: pref.sandbox_init_point },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+  } catch (mpErr: any) {
+    // Cancel the order since payment creation failed
+    await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', order.id);
+
+    const cause = mpErr?.cause ?? mpErr;
+    const detail = cause?.message ?? String(mpErr);
     return new Response(JSON.stringify({
-      order: fullOrder,
-      payment: { type: 'CARD', initPoint: pref.init_point, sandboxInitPoint: pref.sandbox_init_point },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      error: `Erro ao processar pagamento: ${detail}`,
+    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
