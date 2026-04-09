@@ -199,11 +199,12 @@
 import { ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { supabase } from '@/lib/supabase';
-import { invokeFunction } from '@/services/api';
 import { useCartStore } from '@/stores/cart.store';
+import { useSiteConfigStore } from '@/stores/site-config.store';
 
 const router = useRouter();
 const cart = useCartStore();
+const siteConfig = useSiteConfigStore();
 
 type Step = 'select' | 'pix' | 'card' | 'done';
 
@@ -211,6 +212,7 @@ const step = ref<Step>('select');
 const selectedMethod = ref('PIX');
 const creating = ref(false);
 const pixData = ref<{ qrCode: string; qrCodeBase64: string } | null>(null);
+const manualPixKey = ref('');
 const cardInitPoint = ref('');
 const orderId = ref<string | null>(null);
 const copied = ref(false);
@@ -242,39 +244,89 @@ function formatTime(seconds: number) {
   return `${m}:${s}`;
 }
 
+async function createOrderInDB(paymentMethod: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Não autenticado.');
+
+  const productIds = cart.items.map((i) => i.productId);
+  const { data: products } = await supabase
+    .from('products').select('id, name, price')
+    .in('id', productIds).eq('is_active', true).is('deleted_at', null);
+  if (!products || products.length === 0) throw new Error('Produto não disponível.');
+
+  const productMap = new Map((products as any[]).map((p) => [p.id, p]));
+  const totalAmount = cart.items.reduce((sum, item) => {
+    return sum + Number(productMap.get(item.productId)?.price ?? 0) * item.quantity;
+  }, 0);
+
+  const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+  const orderNumber = `ORD-${new Date().getFullYear()}-${String((count ?? 0) + 1).padStart(6, '0')}`;
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+  const { data: profile } = await supabase.from('profiles').select('name').eq('id', user.id).single();
+
+  const { data: order, error: orderErr } = await supabase.from('orders').insert({
+    order_number: orderNumber,
+    user_id: user.id,
+    status: 'AWAITING_PAYMENT',
+    total_amount: totalAmount,
+    payment_method: paymentMethod,
+    customer_email: user.email,
+    customer_name: (profile as any)?.name ?? user.email,
+    expires_at: expiresAt,
+  }).select().single();
+  if (orderErr || !order) throw new Error('Erro ao criar pedido.');
+
+  const itemsData = cart.items.map((item) => {
+    const p = productMap.get(item.productId) as any;
+    return { order_id: (order as any).id, product_id: item.productId, product_name: p.name, unit_price: p.price, quantity: item.quantity };
+  });
+  await supabase.from('order_items').insert(itemsData);
+
+  return order as any;
+}
+
 async function createOrder() {
   creating.value = true;
   errorMessage.value = '';
   try {
-    const res = await invokeFunction('create-order', {
-      items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-      paymentMethod: selectedMethod.value,
-    });
+    // Try edge function first (if deployed)
+    const hasMpToken = !!(siteConfig.config as any).mercadoPagoAccessToken;
 
-    orderId.value = res.data.order.id;
-
-    if (selectedMethod.value === 'PIX') {
-      pixData.value = {
-        qrCode: res.data.payment?.qrCode ?? '',
-        qrCodeBase64: res.data.payment?.qrCodeBase64 ?? '',
-      };
-      step.value = 'pix';
-      startCountdown();
-      startPolling();
-    } else {
-      // Card: Checkout Pro redirect
-      const url = res.data.payment?.initPoint ?? res.data.payment?.sandboxInitPoint ?? '';
-      if (!url) {
-        errorMessage.value = 'Erro ao obter link de pagamento. Tente novamente.';
-        return;
-      }
-      cardInitPoint.value = url;
-      step.value = 'card';
-      // Auto-redirect after 2s
-      setTimeout(() => { window.location.href = url; }, 2000);
+    if (hasMpToken) {
+      try {
+        const { data, error } = await supabase.functions.invoke('create-order', {
+          body: {
+            items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+            paymentMethod: selectedMethod.value,
+          },
+        });
+        if (!error && data?.order) {
+          orderId.value = data.order.id;
+          if (selectedMethod.value === 'PIX') {
+            pixData.value = { qrCode: data.payment?.qrCode ?? '', qrCodeBase64: data.payment?.qrCodeBase64 ?? '' };
+            step.value = 'pix';
+            startCountdown();
+            startPolling();
+          } else {
+            const url = data.payment?.initPoint ?? data.payment?.sandboxInitPoint ?? '';
+            if (url) { cardInitPoint.value = url; step.value = 'card'; setTimeout(() => { window.location.href = url; }, 2000); }
+          }
+          return;
+        }
+      } catch { /* fall through to manual */ }
     }
+
+    // Fallback: create order directly + show manual PIX key
+    const order = await createOrderInDB(selectedMethod.value);
+    orderId.value = order.id;
+    const pixKey = (siteConfig.config as any).mercadoPagoPixKey || '';
+    manualPixKey.value = pixKey;
+    step.value = 'pix';
+    startCountdown();
+    startPolling();
   } catch (err: any) {
-    errorMessage.value = err?.response?.data?.message || 'Erro ao criar pedido. Tente novamente.';
+    errorMessage.value = err?.message || 'Erro ao criar pedido. Tente novamente.';
   } finally {
     creating.value = false;
   }

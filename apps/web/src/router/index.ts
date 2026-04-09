@@ -18,6 +18,9 @@ const router = createRouter({
         { path: 'checkout', name: 'checkout', component: () => import('@/views/public/CheckoutView.vue'), meta: { requiresAuth: true } },
         { path: 'checkout/success/:orderId', name: 'checkout-success', component: () => import('@/views/public/CheckoutSuccessView.vue'), meta: { requiresAuth: true } },
         { path: 'checkout/failure/:orderId', name: 'checkout-failure', component: () => import('@/views/public/CheckoutFailureView.vue') },
+        { path: 'contato', name: 'contact', component: () => import('@/views/public/ContactView.vue') },
+        { path: 'quem-somos', name: 'about', component: () => import('@/views/public/AboutView.vue') },
+        { path: 'politica-privacidade', name: 'privacy', component: () => import('@/views/public/PrivacyView.vue') },
       ],
     },
     // Auth

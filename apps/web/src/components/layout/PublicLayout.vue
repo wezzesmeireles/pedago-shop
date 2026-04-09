@@ -319,6 +319,9 @@
                 </a>
               </li>
               <li>
+                <RouterLink to="/contato" class="text-purple-300 hover:text-white text-sm transition-colors">Fale Conosco</RouterLink>
+              </li>
+              <li>
                 <RouterLink to="/politica-privacidade" class="text-purple-300 hover:text-white text-sm transition-colors">Política de Privacidade</RouterLink>
               </li>
               <li>

@@ -207,12 +207,28 @@ function formatPrice(p: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p));
 }
 
+function toSlug(name: string) {
+  return name.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim().replace(/\s+/g, '-');
+}
+
 function autoSlug() {
   if (!editingProduct.value && form.name && !form.slug) {
-    form.slug = form.name.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim().replace(/\s+/g, '-');
+    form.slug = toSlug(form.name);
+  }
+}
+
+async function ensureUniqueSlug(base: string, excludeId?: string): Promise<string> {
+  let slug = base;
+  let suffix = 2;
+  while (true) {
+    let query = supabase.from('products').select('id').eq('slug', slug).is('deleted_at', null);
+    if (excludeId) query = query.neq('id', excludeId);
+    const { data } = await query.maybeSingle();
+    if (!data) return slug;
+    slug = `${base}-${suffix++}`;
   }
 }
 
@@ -265,8 +281,13 @@ async function saveProduct() {
       fileSize = pdfFile.value.size;
     }
 
+    const uniqueSlug = await ensureUniqueSlug(
+      toSlug(form.slug || form.name),
+      editingProduct.value?.id,
+    );
+
     const payload: any = {
-      name: form.name, slug: form.slug, description: form.description,
+      name: form.name, slug: uniqueSlug, description: form.description,
       price: parseFloat(form.price), category_id: form.categoryId || null,
       is_active: form.isActive, is_featured: form.isFeatured,
       cover_image_url: coverUrl, file_key: fileKey, file_size: fileSize,
