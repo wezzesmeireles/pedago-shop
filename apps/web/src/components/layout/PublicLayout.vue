@@ -400,7 +400,7 @@
       :href="`https://wa.me/${config.socialLinks.whatsapp}`"
       target="_blank"
       rel="noopener"
-      class="fixed bottom-6 left-6 flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20c05c]
+      class="fixed bottom-20 right-6 flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20c05c]
              text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200
              active:scale-95 z-40 group px-4 py-3"
       aria-label="Falar no WhatsApp"
