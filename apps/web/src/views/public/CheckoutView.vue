@@ -44,13 +44,35 @@
           </div>
         </div>
 
-        <!-- PIX badge -->
-        <div class="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 mb-5">
-          <span class="text-2xl">⚡</span>
-          <div>
-            <p class="font-semibold text-green-800 text-sm">Pagamento via PIX</p>
-            <p class="text-xs text-green-600">Aprovação imediata • Download automático após pagamento</p>
-          </div>
+        <!-- Payment method selector -->
+        <div class="grid grid-cols-2 gap-3 mb-5">
+          <button
+            @click="selectedMethod = 'PIX'"
+            :class="['p-4 rounded-2xl border-2 text-left transition-all relative', selectedMethod === 'PIX' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300 bg-white']"
+          >
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xl">⚡</span>
+              <span class="font-bold text-gray-900 text-sm">PIX</span>
+            </div>
+            <p class="text-xs text-gray-500">Aprovação imediata, 24h por dia</p>
+            <span class="absolute top-2 right-2 text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">Recomendado</span>
+            <div v-if="selectedMethod === 'PIX'" class="absolute top-2 left-2 w-3.5 h-3.5 bg-green-500 rounded-full flex items-center justify-center">
+              <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+          </button>
+          <button
+            @click="selectedMethod = 'CREDIT_CARD'"
+            :class="['p-4 rounded-2xl border-2 text-left transition-all relative', selectedMethod === 'CREDIT_CARD' ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300 bg-white']"
+          >
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xl">💳</span>
+              <span class="font-bold text-gray-900 text-sm">Cartão</span>
+            </div>
+            <p class="text-xs text-gray-500">Crédito em até 12x</p>
+            <div v-if="selectedMethod === 'CREDIT_CARD'" class="absolute top-2 left-2 w-3.5 h-3.5 bg-primary-600 rounded-full flex items-center justify-center">
+              <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+          </button>
         </div>
 
         <div v-if="errorMessage" class="mb-4 flex items-start gap-2 bg-red-50 text-red-700 text-sm px-4 py-3 rounded-xl">
@@ -58,14 +80,16 @@
           {{ errorMessage }}
         </div>
 
-        <button @click="createOrder" :disabled="creating" class="w-full bg-green-500 hover:bg-green-600 active:scale-[0.99] text-white font-bold py-4 rounded-2xl transition-all duration-200 shadow text-base flex items-center justify-center gap-2">
+        <button @click="createOrder" :disabled="creating"
+          :class="['w-full font-bold py-4 rounded-2xl transition-all duration-200 shadow text-base flex items-center justify-center gap-2 active:scale-[0.99]',
+            selectedMethod === 'PIX' ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-primary-600 hover:bg-primary-700 text-white']">
           <svg v-if="creating" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
-          <span v-if="creating">Gerando PIX...</span>
-          <span v-else class="flex items-center gap-2">
-            <span>⚡</span> Gerar PIX — {{ fmt(cart.total) }}
+          <span v-if="creating">{{ selectedMethod === 'PIX' ? 'Gerando PIX...' : 'Processando...' }}</span>
+          <span v-else>
+            {{ selectedMethod === 'PIX' ? `⚡ Gerar PIX — ${fmt(cart.total)}` : `💳 Pagar com Cartão — ${fmt(cart.total)}` }}
           </span>
         </button>
 
@@ -79,6 +103,25 @@
             Download imediato
           </span>
         </div>
+      </div>
+
+      <!-- ── STEP: Cartão (Checkout Pro redirect) ── -->
+      <div v-if="step === 'card'" class="text-center py-8">
+        <div class="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 mb-2">Redirecionando para o pagamento...</h2>
+        <p class="text-gray-500 text-sm mb-6">Você será levado para o ambiente seguro do Mercado Pago.</p>
+        <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-6"></div>
+        <a :href="cardInitPoint" class="btn-primary w-full block text-center py-3.5 font-bold">
+          Ir para o pagamento →
+        </a>
+        <p class="text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
+          <svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Ambiente 100% seguro — Mercado Pago
+        </p>
       </div>
 
       <!-- ── STEP: PIX ── -->
@@ -170,9 +213,10 @@ const router = useRouter();
 const cart = useCartStore();
 const siteConfig = useSiteConfigStore();
 
-type Step = 'confirm' | 'pix';
+type Step = 'confirm' | 'pix' | 'card';
 
 const step = ref<Step>('confirm');
+const selectedMethod = ref('PIX');
 const creating = ref(false);
 const orderId = ref<string | null>(null);
 const errorMessage = ref('');
@@ -182,6 +226,7 @@ const timeLeft = ref(30 * 60);
 const pixQrCode = ref('');    // copia e cola (MP automático)
 const pixQrBase64 = ref('');  // QR image (MP automático)
 const manualPixKey = ref(''); // fallback: chave da loja
+const cardInitPoint = ref(''); // Checkout Pro URL
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -266,10 +311,24 @@ async function createOrder() {
 
     if (funcData) {
       orderId.value = funcData.order.id;
+
+      if (selectedMethod.value === 'CREDIT_CARD') {
+        const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
+        if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
+        cardInitPoint.value = url;
+        step.value = 'card';
+        setTimeout(() => { window.location.href = url; }, 2000);
+        return;
+      }
+
       pixQrCode.value = funcData.payment?.qrCode ?? '';
       pixQrBase64.value = funcData.payment?.qrCodeBase64 ?? '';
     } else {
-      // Fallback: cria pedido no banco e exibe chave PIX manual
+      // Fallback: cria pedido no banco
+      if (selectedMethod.value === 'CREDIT_CARD') {
+        throw new Error('Pagamento com cartão requer a integração com o Mercado Pago configurada. Use o PIX.');
+      }
+
       const order = await createOrderInDB();
       orderId.value = order.id;
       manualPixKey.value = (siteConfig.config as any).mercadoPagoPixKey ?? '';
