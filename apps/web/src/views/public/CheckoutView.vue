@@ -378,10 +378,13 @@ function startPolling() {
     )
     .subscribe();
 
-  // Polling as fallback every 5s in case realtime misses
+  // Every 5s: call reconcile (forces MP status check) then read order status
   pollingTimer = setInterval(async () => {
     if (!orderId.value) return;
     try {
+      // Trigger reconcile so MP is checked server-side
+      await supabase.functions.invoke('reconcile-orders', { body: {} });
+      // Then read the updated status
       const { data } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
       if (data?.status === 'PAID') {
         clearInterval(pollingTimer!);
