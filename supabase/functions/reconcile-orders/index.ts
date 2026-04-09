@@ -69,6 +69,11 @@ async function processCardOrder(order: any, accessToken: string) {
   const payment = result.results?.[0];
   if (!payment) return;
 
+  // Save mp_payment_id even if pending, so webhook can confirm later
+  if (!order.mp_payment_id && payment.id) {
+    await supabase.from('orders').update({ mp_payment_id: String(payment.id), mp_status: payment.status }).eq('id', order.id);
+  }
+
   if (payment.status === 'approved') {
     await markPaid(order, payment);
   } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
@@ -98,7 +103,7 @@ Deno.serve(async (req) => {
   if (!accessToken) return new Response('no access token', { status: 500 });
 
   await Promise.all(pending.map((o: any) => {
-    if (o.mp_payment_id) return processPixOrder(o, accessToken);
+    if (o.mp_payment_id) return processPixOrder(o, accessToken); // works for both PIX and card with known payment_id
     if (o.mp_preference_id || o.payment_method === 'CREDIT_CARD') return processCardOrder(o, accessToken);
     return Promise.resolve();
   }));
