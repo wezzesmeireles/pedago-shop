@@ -339,10 +339,10 @@ async function createOrder() {
     if (selectedMethod.value === 'CREDIT_CARD') {
       const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
       if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
-      cardInitPoint.value = url;
-      step.value = 'card';
-      setTimeout(() => { window.open(url, '_blank'); }, 1000);
-      startCardPolling(funcData.order.id);
+      // Save orderId so success page can reconcile when MP redirects back
+      sessionStorage.setItem('pending_order_id', funcData.order.id);
+      // Redirect in same tab — MP will redirect back to /checkout/success/:orderId
+      window.location.href = url;
       return;
     }
 
@@ -358,19 +358,6 @@ async function createOrder() {
   }
 }
 
-function startCardPolling(id: string) {
-  pollingTimer = setInterval(async () => {
-    try {
-      await supabase.functions.invoke('reconcile-orders', { body: { orderId: id } });
-      const { data } = await supabase.from('orders').select('status').eq('id', id).single();
-      if (data?.status === 'PAID') {
-        clearInterval(pollingTimer!);
-        cart.clear();
-        router.push(`/checkout/success/${id}`);
-      }
-    } catch {}
-  }, 5000);
-}
 
 async function checkCardPayment() {
   if (!orderId.value || checkingCard.value) return;
