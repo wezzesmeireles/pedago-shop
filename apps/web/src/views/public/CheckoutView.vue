@@ -208,6 +208,7 @@ import { useRouter } from 'vue-router';
 import { supabase } from '@/lib/supabase';
 import { useCartStore } from '@/stores/cart.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const router = useRouter();
 const cart = useCartStore();
@@ -230,6 +231,7 @@ const cardInitPoint = ref(''); // Checkout Pro URL
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
+let realtimeChannel: RealtimeChannel | null = null;
 
 const howToPay = [
   'Abra o app do seu banco',
@@ -353,6 +355,30 @@ function startCountdown() {
 }
 
 function startPolling() {
+  if (!orderId.value) return;
+
+  // Realtime subscription — reacts instantly when order status changes
+  realtimeChannel = supabase
+    .channel(`order-${orderId.value}`)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId.value}` },
+      (payload) => {
+        const status = payload.new?.status;
+        if (status === 'PAID') {
+          clearInterval(countdownTimer!);
+          cart.clear();
+          router.push(`/checkout/success/${orderId.value}`);
+        } else if (['CANCELLED', 'EXPIRED'].includes(status ?? '')) {
+          clearInterval(countdownTimer!);
+          errorMessage.value = 'Pagamento cancelado ou expirado.';
+          step.value = 'confirm';
+        }
+      },
+    )
+    .subscribe();
+
+  // Polling as fallback every 5s in case realtime misses
   pollingTimer = setInterval(async () => {
     if (!orderId.value) return;
     try {
@@ -372,5 +398,6 @@ function startPolling() {
 onUnmounted(() => {
   if (countdownTimer) clearInterval(countdownTimer);
   if (pollingTimer) clearInterval(pollingTimer);
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
 </script>
