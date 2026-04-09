@@ -126,30 +126,29 @@ async function downloadFile(d: DownloadEntry) {
 
 onMounted(async () => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('id, order_number, order_items(id, product_name, products(cover_image_url, file_key), download_tokens(*))')
-      .eq('status', 'PAID')
+    // Query download_tokens directly — avoids nested RLS issues with PostgREST joins
+    const { data: tokens } = await supabase
+      .from('download_tokens')
+      .select('*, order_items(product_name, products(cover_image_url, file_key), orders(order_number))')
+      .is('revoked_at', null)
       .order('created_at', { ascending: false });
 
     const downloads: DownloadEntry[] = [];
-    for (const order of orders ?? []) {
-      for (const item of (order as any).order_items ?? []) {
-        for (const token of item.download_tokens ?? []) {
-          downloads.push({
-            token: token.token,
-            fileKey: item.products?.file_key ?? '',
-            productName: item.product_name,
-            orderNumber: (order as any).order_number,
-            coverImageUrl: item.products?.cover_image_url,
-            downloadCount: token.download_count,
-            maxDownloads: token.max_downloads,
-            expiresAt: token.expires_at,
-            expired: new Date(token.expires_at) < new Date() || !!token.revoked_at,
-          });
-        }
-      }
+    for (const t of tokens ?? []) {
+      const item = (t as any).order_items;
+      const product = item?.products;
+      const order = item?.orders;
+      downloads.push({
+        token: t.token,
+        fileKey: product?.file_key ?? '',
+        productName: item?.product_name ?? '',
+        orderNumber: order?.order_number ?? '',
+        coverImageUrl: product?.cover_image_url,
+        downloadCount: t.download_count,
+        maxDownloads: t.max_downloads,
+        expiresAt: t.expires_at,
+        expired: new Date(t.expires_at) < new Date(),
+      });
     }
     allDownloads.value = downloads;
   } finally {
