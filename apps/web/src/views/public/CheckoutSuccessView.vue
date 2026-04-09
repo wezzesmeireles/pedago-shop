@@ -140,6 +140,8 @@ function startWaiting(orderId: string) {
   pollInterval = setInterval(async () => {
     attempts++;
     try {
+      // Force server-side MP status check
+      await supabase.functions.invoke('reconcile-orders', { body: {} });
       const { data } = await supabase.from('orders').select('status').eq('id', orderId).single();
       if (data?.status === 'PAID') {
         clearInterval(pollInterval);
