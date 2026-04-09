@@ -159,6 +159,8 @@ function startWaiting(orderId: string) {
 onMounted(async () => {
   cart.clear();
   try {
+    // Immediately trigger reconcile in case MP just redirected back
+    await supabase.functions.invoke('reconcile-orders', { body: {} }).catch(() => {});
     const status = await loadOrder();
     loading.value = false;
     if (status === 'AWAITING_PAYMENT') {
