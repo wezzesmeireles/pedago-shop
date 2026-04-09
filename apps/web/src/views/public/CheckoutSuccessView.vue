@@ -104,7 +104,24 @@ async function downloadFile(item: any, token: any) {
   if (!fileKey) return;
 
   const { data } = await supabase.storage.from('product-files').createSignedUrl(fileKey, 120);
-  if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+  if (!data?.signedUrl) return;
+
+  const filename = (item.product_name ?? 'arquivo').replace(/[^a-z0-9]/gi, '_') + '.pdf';
+
+  try {
+    const resp = await fetch(data.signedUrl);
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  } catch {
+    window.open(data.signedUrl, '_blank');
+  }
 
   await supabase.from('download_tokens')
     .update({ download_count: token.download_count + 1, last_download_at: new Date().toISOString() })
