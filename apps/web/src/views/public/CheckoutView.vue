@@ -19,10 +19,12 @@
         <div class="flex items-center gap-2">
           <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
             :class="step === 'done' ? 'bg-green-500 text-white' : 'bg-primary-600 text-white'">
-            <svg v-if="step === 'done'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            <svg v-if="step === 'done'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
             <span v-else>1</span>
           </div>
-          <span class="text-sm font-medium" :class="step === 'done' ? 'text-gray-500' : 'text-gray-900'">Pagamento</span>
+          <span class="text-sm font-medium" :class="step === 'done' ? 'text-gray-400' : 'text-gray-900'">Pagamento</span>
         </div>
         <div class="flex-1 h-px bg-gray-200 max-w-[60px]"></div>
         <div class="flex items-center gap-2">
@@ -45,18 +47,18 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="font-medium text-gray-900 text-sm truncate">{{ item.name }}</p>
-              <p class="text-xs text-gray-400">Formato PDF • Entrega imediata</p>
+              <p class="text-xs text-gray-400">PDF • Entrega imediata</p>
             </div>
-            <p class="font-bold text-gray-900 text-sm flex-shrink-0">{{ formatPrice(item.price) }}</p>
+            <p class="font-bold text-gray-900 text-sm flex-shrink-0">{{ fmt(item.price * item.quantity) }}</p>
           </div>
         </div>
         <div class="flex justify-between items-center pt-3 mt-3 border-t">
           <span class="text-sm text-gray-500">Total</span>
-          <span class="text-xl font-bold text-primary-600">{{ formatPrice(cart.total) }}</span>
+          <span class="text-xl font-bold text-primary-600">{{ fmt(cart.total) }}</span>
         </div>
       </div>
 
-      <!-- ── STEP: select method ── -->
+      <!-- ── STEP: select ── -->
       <div v-if="step === 'select'" class="card p-5 mb-5">
         <h2 class="font-semibold text-gray-900 mb-4 text-sm uppercase tracking-wide">Forma de Pagamento</h2>
 
@@ -84,8 +86,8 @@
           {{ errorMessage }}
         </div>
 
-        <button @click="createOrder" :disabled="creating" class="w-full btn-primary py-3.5 text-base font-semibold">
-          <svg v-if="creating" class="animate-spin mr-2 h-5 w-5 inline" fill="none" viewBox="0 0 24 24">
+        <button @click="createOrder" :disabled="creating" class="w-full btn-primary py-3.5 text-base font-semibold flex items-center justify-center gap-2">
+          <svg v-if="creating" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
@@ -93,53 +95,85 @@
         </button>
 
         <div class="flex items-center justify-center gap-5 mt-4 pt-4 border-t">
-          <div class="flex items-center gap-1 text-xs text-gray-400">
+          <span class="flex items-center gap-1 text-xs text-gray-400">
             <svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             Pagamento seguro
-          </div>
-          <div class="flex items-center gap-1 text-xs text-gray-400">
+          </span>
+          <span class="flex items-center gap-1 text-xs text-gray-400">
             <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             Download imediato
-          </div>
-          <div class="flex items-center gap-1 text-xs text-gray-400">
+          </span>
+          <span class="flex items-center gap-1 text-xs text-gray-400">
             <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
             Dados protegidos
-          </div>
+          </span>
         </div>
       </div>
 
-      <!-- ── STEP: PIX QR Code ── -->
+      <!-- ── STEP: PIX ── -->
       <div v-if="step === 'pix'" class="card p-6">
         <div class="text-center mb-6">
           <div class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-4">
             <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
             Aguardando pagamento PIX...
           </div>
-          <h2 class="text-xl font-bold text-gray-900">Escaneie o QR Code</h2>
-          <p class="text-gray-500 text-sm mt-1">Abra o app do seu banco e escaneie o código abaixo</p>
+          <h2 class="text-xl font-bold text-gray-900">
+            {{ pixQrBase64 ? 'Escaneie o QR Code' : 'Pague via PIX' }}
+          </h2>
+          <p class="text-gray-500 text-sm mt-1">
+            {{ pixQrBase64 ? 'Abra o app do seu banco e escaneie o código abaixo' : 'Use a chave PIX abaixo para fazer o pagamento' }}
+          </p>
         </div>
 
-        <div class="flex items-center justify-center gap-3 mb-6">
+        <!-- Timer -->
+        <div class="flex items-center justify-center gap-2 mb-6">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span class="text-sm text-gray-500">Expira em:</span>
+          <span class="text-sm text-gray-500">Expira em</span>
           <span class="text-2xl font-mono font-bold tabular-nums" :class="timeLeft < 300 ? 'text-red-500' : 'text-gray-900'">
             {{ formatTime(timeLeft) }}
           </span>
         </div>
 
-        <div class="flex justify-center mb-6">
+        <!-- QR Code (MercadoPago) -->
+        <div v-if="pixQrBase64" class="flex justify-center mb-5">
           <div class="p-4 bg-white border-2 border-gray-100 rounded-3xl shadow-sm inline-block">
-            <img v-if="pixData?.qrCodeBase64" :src="`data:image/png;base64,${pixData.qrCodeBase64}`" alt="QR Code PIX" class="w-52 h-52" />
-            <div v-else class="w-52 h-52 bg-gray-50 flex flex-col items-center justify-center rounded-2xl gap-2">
-              <svg class="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
-              </svg>
-              <p class="text-xs text-gray-400">QR Code não disponível</p>
-            </div>
+            <img :src="`data:image/png;base64,${pixQrBase64}`" alt="QR Code PIX" class="w-52 h-52" />
           </div>
         </div>
 
-        <div class="bg-gray-50 rounded-2xl p-4 mb-5">
+        <!-- Copia e cola (QR Code MP) -->
+        <div v-if="pixQrCode" class="mb-5">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">PIX Copia e Cola</p>
+          <div class="flex gap-2">
+            <input :value="pixQrCode" readonly class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-600 truncate min-w-0" />
+            <button @click="copyText(pixQrCode)" class="flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+              :class="copied ? 'bg-green-500 text-white' : 'bg-primary-600 text-white hover:bg-primary-700'">
+              {{ copied ? 'Copiado!' : 'Copiar' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Chave PIX manual (fallback) -->
+        <div v-if="!pixQrCode && manualPixKey" class="mb-5 bg-green-50 border border-green-200 rounded-2xl p-5">
+          <p class="text-sm font-bold text-green-800 mb-1 flex items-center gap-2">
+            <span>⚡</span> Chave PIX para pagamento
+          </p>
+          <p class="text-xs text-green-600 mb-3">Abra seu banco, selecione PIX → Pagar → Cole a chave abaixo</p>
+          <div class="flex gap-2">
+            <span class="flex-1 bg-white border border-green-200 rounded-xl px-3 py-2.5 text-sm font-mono text-green-900 break-all">{{ manualPixKey }}</span>
+            <button @click="copyText(manualPixKey)" class="flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap"
+              :class="copied ? 'bg-green-500 text-white' : 'bg-green-700 text-white hover:bg-green-800'">
+              {{ copied ? 'Copiado!' : 'Copiar' }}
+            </button>
+          </div>
+          <p class="text-xs text-green-600 mt-3 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Valor: <strong class="ml-1">{{ fmt(cart.total) }}</strong> — Após o pagamento seu pedido é confirmado automaticamente.
+          </p>
+        </div>
+
+        <!-- How to pay -->
+        <div class="bg-gray-50 rounded-2xl p-4 mb-4">
           <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Como pagar:</p>
           <div class="space-y-2">
             <div v-for="(s, i) in pixSteps" :key="i" class="flex items-center gap-3 text-sm text-gray-700">
@@ -152,36 +186,18 @@
           </div>
         </div>
 
-        <div class="mb-4">
-          <p class="text-xs font-medium text-gray-500 mb-2">PIX Copia e Cola:</p>
-          <div class="flex flex-col xs:flex-row gap-2">
-            <input :value="pixData?.qrCode" readonly class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-600 min-w-0 truncate" />
-            <button @click="copyCode" class="flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
-              :class="copied ? 'bg-green-500 text-white' : 'bg-primary-600 text-white hover:bg-primary-700'">
-              <span v-if="copied" class="flex items-center justify-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Copiado!
-              </span>
-              <span v-else class="flex items-center justify-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                Copiar Código
-              </span>
-            </button>
-          </div>
-        </div>
-
         <p class="text-center text-xs text-gray-400">Página atualizada automaticamente após confirmação do pagamento</p>
       </div>
 
-      <!-- ── STEP: Card (Checkout Pro redirect) ── -->
-      <div v-if="step === 'card'" class="card p-6 text-center">
+      <!-- ── STEP: Cartão (Checkout Pro) ── -->
+      <div v-if="step === 'card'" class="card p-8 text-center">
         <div class="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg class="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
           </svg>
         </div>
         <h2 class="text-xl font-bold text-gray-900 mb-2">Redirecionando para o pagamento...</h2>
-        <p class="text-gray-500 text-sm mb-6">Você será levado para o ambiente seguro do Mercado Pago para inserir os dados do cartão.</p>
+        <p class="text-gray-500 text-sm mb-6">Você será levado para o ambiente seguro do Mercado Pago.</p>
         <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-6"></div>
         <a :href="cardInitPoint" class="btn-primary w-full block text-center py-3.5">
           Ir para o pagamento →
@@ -211,16 +227,21 @@ type Step = 'select' | 'pix' | 'card' | 'done';
 const step = ref<Step>('select');
 const selectedMethod = ref('PIX');
 const creating = ref(false);
-const pixData = ref<{ qrCode: string; qrCodeBase64: string } | null>(null);
-const manualPixKey = ref('');
-const cardInitPoint = ref('');
 const orderId = ref<string | null>(null);
+const errorMessage = ref('');
 const copied = ref(false);
 const timeLeft = ref(30 * 60);
-const errorMessage = ref('');
 
-let countdownInterval: ReturnType<typeof setInterval>;
-let pollingInterval: ReturnType<typeof setInterval>;
+// PIX data
+const pixQrCode = ref('');       // copia e cola string
+const pixQrBase64 = ref('');     // base64 QR image
+const manualPixKey = ref('');    // fallback: chave PIX da loja
+
+// Card
+const cardInitPoint = ref('');
+
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
+let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
 const paymentMethods = [
   { value: 'PIX', emoji: '⚡', label: 'PIX', description: 'Aprovação imediata, 24h por dia', badge: 'Recomendado' },
@@ -229,12 +250,12 @@ const paymentMethods = [
 
 const pixSteps = [
   'Abra o app do seu banco',
-  'Escolha pagar via PIX → QR Code',
-  'Escaneie o código acima ou use Copia e Cola',
-  'Seu download ficará disponível automaticamente!',
+  'Escolha pagar via PIX',
+  'Escaneie o QR Code ou cole a chave/código',
+  'Seu download fica disponível automaticamente!',
 ];
 
-function formatPrice(price: number) {
+function fmt(price: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
 }
 
@@ -244,6 +265,13 @@ function formatTime(seconds: number) {
   return `${m}:${s}`;
 }
 
+async function copyText(text: string) {
+  await navigator.clipboard.writeText(text);
+  copied.value = true;
+  setTimeout(() => (copied.value = false), 2000);
+}
+
+// ── Build order in DB directly (no edge function needed) ──────────────
 async function createOrderInDB(paymentMethod: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Não autenticado.');
@@ -252,16 +280,15 @@ async function createOrderInDB(paymentMethod: string) {
   const { data: products } = await supabase
     .from('products').select('id, name, price')
     .in('id', productIds).eq('is_active', true).is('deleted_at', null);
-  if (!products || products.length === 0) throw new Error('Produto não disponível.');
+  if (!products?.length) throw new Error('Produto não disponível.');
 
   const productMap = new Map((products as any[]).map((p) => [p.id, p]));
-  const totalAmount = cart.items.reduce((sum, item) => {
-    return sum + Number(productMap.get(item.productId)?.price ?? 0) * item.quantity;
-  }, 0);
+  const totalAmount = cart.items.reduce(
+    (sum, item) => sum + Number(productMap.get(item.productId)?.price ?? 0) * item.quantity, 0,
+  );
 
   const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
   const orderNumber = `ORD-${new Date().getFullYear()}-${String((count ?? 0) + 1).padStart(6, '0')}`;
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
   const { data: profile } = await supabase.from('profiles').select('name').eq('id', user.id).single();
 
@@ -273,7 +300,7 @@ async function createOrderInDB(paymentMethod: string) {
     payment_method: paymentMethod,
     customer_email: user.email,
     customer_name: (profile as any)?.name ?? user.email,
-    expires_at: expiresAt,
+    expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
   }).select().single();
   if (orderErr || !order) throw new Error('Erro ao criar pedido.');
 
@@ -286,45 +313,53 @@ async function createOrderInDB(paymentMethod: string) {
   return order as any;
 }
 
+// ── Main flow ─────────────────────────────────────────────────────────
 async function createOrder() {
   creating.value = true;
   errorMessage.value = '';
   try {
-    // Try edge function first (if deployed)
-    const hasMpToken = !!(siteConfig.config as any).mercadoPagoAccessToken;
+    // Try edge function (deployed + MP token configured)
+    const { data: funcData, error: funcErr } = await supabase.functions.invoke('create-order', {
+      body: {
+        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        paymentMethod: selectedMethod.value,
+      },
+    });
 
-    if (hasMpToken) {
-      try {
-        const { data, error } = await supabase.functions.invoke('create-order', {
-          body: {
-            items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-            paymentMethod: selectedMethod.value,
-          },
-        });
-        if (!error && data?.order) {
-          orderId.value = data.order.id;
-          if (selectedMethod.value === 'PIX') {
-            pixData.value = { qrCode: data.payment?.qrCode ?? '', qrCodeBase64: data.payment?.qrCodeBase64 ?? '' };
-            step.value = 'pix';
-            startCountdown();
-            startPolling();
-          } else {
-            const url = data.payment?.initPoint ?? data.payment?.sandboxInitPoint ?? '';
-            if (url) { cardInitPoint.value = url; step.value = 'card'; setTimeout(() => { window.location.href = url; }, 2000); }
-          }
-          return;
-        }
-      } catch { /* fall through to manual */ }
+    if (!funcErr && funcData?.order) {
+      // Edge function succeeded
+      orderId.value = funcData.order.id;
+
+      if (selectedMethod.value === 'PIX') {
+        pixQrCode.value = funcData.payment?.qrCode ?? '';
+        pixQrBase64.value = funcData.payment?.qrCodeBase64 ?? '';
+        step.value = 'pix';
+        startCountdown();
+        startPolling();
+      } else {
+        const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
+        if (!url) throw new Error('Erro ao obter link de pagamento.');
+        cardInitPoint.value = url;
+        step.value = 'card';
+        setTimeout(() => { window.location.href = url; }, 2000);
+      }
+      return;
     }
 
-    // Fallback: create order directly + show manual PIX key
+    // Fallback: create order directly in DB
     const order = await createOrderInDB(selectedMethod.value);
     orderId.value = order.id;
-    const pixKey = (siteConfig.config as any).mercadoPagoPixKey || '';
-    manualPixKey.value = pixKey;
-    step.value = 'pix';
-    startCountdown();
-    startPolling();
+
+    if (selectedMethod.value === 'PIX') {
+      // Show manual PIX key from site config
+      manualPixKey.value = (siteConfig.config as any).mercadoPagoPixKey ?? '';
+      step.value = 'pix';
+      startCountdown();
+      startPolling();
+    } else {
+      // No Checkout Pro without edge function
+      throw new Error('Pagamento com cartão requer configuração do Mercado Pago. Use PIX.');
+    }
   } catch (err: any) {
     errorMessage.value = err?.message || 'Erro ao criar pedido. Tente novamente.';
   } finally {
@@ -333,40 +368,32 @@ async function createOrder() {
 }
 
 function startCountdown() {
-  countdownInterval = setInterval(() => {
+  timeLeft.value = 30 * 60;
+  countdownTimer = setInterval(() => {
     timeLeft.value--;
-    if (timeLeft.value <= 0) clearInterval(countdownInterval);
+    if (timeLeft.value <= 0) clearInterval(countdownTimer!);
   }, 1000);
 }
 
 function startPolling() {
-  pollingInterval = setInterval(async () => {
+  pollingTimer = setInterval(async () => {
     if (!orderId.value) return;
     try {
-      const { data: orderStatus } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
-      const res = { data: orderStatus };
-      if (res.data?.status === 'PAID') {
-        clearInterval(pollingInterval);
-        clearInterval(countdownInterval);
-        step.value = 'done';
+      const { data } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
+      if (data?.status === 'PAID') {
+        clearInterval(pollingTimer!);
+        clearInterval(countdownTimer!);
         cart.clear();
         router.push(`/checkout/success/${orderId.value}`);
-      } else if (['CANCELLED', 'EXPIRED'].includes(res.data?.status)) {
-        clearInterval(pollingInterval);
+      } else if (['CANCELLED', 'EXPIRED'].includes(data?.status)) {
+        clearInterval(pollingTimer!);
       }
     } catch {}
   }, 5000);
 }
 
-async function copyCode() {
-  if (!pixData.value?.qrCode) return;
-  await navigator.clipboard.writeText(pixData.value.qrCode);
-  copied.value = true;
-  setTimeout(() => (copied.value = false), 2000);
-}
-
 onUnmounted(() => {
-  clearInterval(countdownInterval);
-  clearInterval(pollingInterval);
+  if (countdownTimer) clearInterval(countdownTimer);
+  if (pollingTimer) clearInterval(pollingTimer);
 });
 </script>

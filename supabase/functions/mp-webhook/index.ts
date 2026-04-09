@@ -71,7 +71,9 @@ Deno.serve(async (req) => {
       const { data: order } = await supabase.from('orders').select('*, order_items(*)').eq('id', orderId).single();
       if (order && order.status !== 'PAID') {
         await supabase.from('orders').update({
-          status: 'PAID', mp_payment_id: String(payment.id), mp_status: mpStatus,
+          status: 'PAID',
+          mp_payment_id: String(payment.id),
+          mp_status: mpStatus,
           paid_at: new Date().toISOString(),
           payment_method: payment.payment_type_id === 'pix' ? 'PIX' : 'CREDIT_CARD',
           updated_at: new Date().toISOString(),
@@ -81,11 +83,18 @@ Deno.serve(async (req) => {
         tokenExpires.setFullYear(tokenExpires.getFullYear() + 30);
 
         for (const item of order.order_items) {
+          // Create download token for each purchased item
           await supabase.from('download_tokens').insert({
-            order_id: orderId, order_item_id: item.id,
-            max_downloads: 99999, expires_at: tokenExpires.toISOString(),
+            order_id: orderId,
+            order_item_id: item.id,
+            max_downloads: 99999,
+            expires_at: tokenExpires.toISOString(),
           });
-          await supabase.from('products').update({ sales_count: item.quantity }).eq('id', item.product_id);
+
+          // Increment sales_count (not overwrite)
+          const { data: prod } = await supabase.from('products').select('sales_count').eq('id', item.product_id).single();
+          const newCount = (prod?.sales_count ?? 0) + item.quantity;
+          await supabase.from('products').update({ sales_count: newCount }).eq('id', item.product_id);
         }
       }
     } else if (orderId && (mpStatus === 'rejected' || mpStatus === 'cancelled')) {

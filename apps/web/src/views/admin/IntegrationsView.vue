@@ -279,8 +279,14 @@ const form = ref({
 
 onMounted(async () => {
   try {
-    const { data } = await supabase.from('site_config').select('value').eq('key', 'integrations').single();
-    if (data?.value) Object.assign(form.value, data.value);
+    // Credentials live inside the global site_config so edge functions can read them
+    const { data } = await supabase.from('site_config').select('value').eq('key', 'global').single();
+    if (data?.value) {
+      const v = data.value as any;
+      form.value.mercadoPagoAccessToken = v.mercadoPagoAccessToken ?? '';
+      form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';
+      form.value.mercadoPagoWebhookSecret = v.mercadoPagoWebhookSecret ?? '';
+    }
   } catch {
     // use defaults
   } finally {
@@ -293,7 +299,19 @@ async function save() {
   error.value = '';
   savedAt.value = false;
   try {
-    await supabase.from('site_config').upsert({ key: 'integrations', value: form.value, updated_at: new Date().toISOString() });
+    // Read existing global config first to avoid overwriting other fields
+    const { data: existing } = await supabase.from('site_config').select('value').eq('key', 'global').single();
+    const current = (existing?.value as any) ?? {};
+    const merged = {
+      ...current,
+      mercadoPagoAccessToken: form.value.mercadoPagoAccessToken,
+      mercadoPagoPixKey: form.value.mercadoPagoPixKey,
+      mercadoPagoWebhookSecret: form.value.mercadoPagoWebhookSecret,
+    };
+    await supabase.from('site_config').upsert(
+      { key: 'global', value: merged, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    );
     savedAt.value = true;
     setTimeout(() => (savedAt.value = false), 3000);
   } catch (e: any) {
