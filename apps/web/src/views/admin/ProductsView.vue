@@ -124,9 +124,11 @@
         <div class="grid grid-cols-2 gap-4 pt-1">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">PDF do Produto</label>
-            <label class="flex flex-col items-center justify-center gap-2 h-24 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition-colors">
-              <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-              <span class="text-xs text-slate-500">{{ pdfFile ? pdfFile.name : 'Clique para enviar' }}</span>
+            <label :class="['flex flex-col items-center justify-center gap-2 h-24 border-2 border-dashed rounded-xl cursor-pointer transition-colors', pdfFile || existingFileKey ? 'border-violet-400 bg-violet-50 hover:bg-violet-100' : 'border-slate-200 hover:border-violet-400 hover:bg-violet-50']">
+              <svg class="w-6 h-6" :class="pdfFile || existingFileKey ? 'text-violet-500' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+              <span class="text-xs font-medium text-center px-2" :class="pdfFile || existingFileKey ? 'text-violet-600' : 'text-slate-500'">
+                {{ pdfFile ? pdfFile.name : existingFileKey ? '✓ PDF cadastrado — clique para trocar' : 'Clique para enviar' }}
+              </span>
               <input type="file" accept=".pdf" @change="onPdfSelected" class="hidden" />
             </label>
           </div>
@@ -194,6 +196,7 @@ const editingProduct = ref<any>(null);
 const pdfFile = ref<File | null>(null);
 const coverFile = ref<File | null>(null);
 const coverPreview = ref('');
+const existingFileKey = ref('');
 
 const form = reactive({
   name: '', slug: '', description: '', price: '',
@@ -238,14 +241,14 @@ async function ensureUniqueSlug(base: string, excludeId?: string): Promise<strin
 function openCreate() {
   editingProduct.value = null;
   Object.assign(form, { name: '', slug: '', description: '', price: '', categoryId: '', isActive: true, isFeatured: false });
-  pdfFile.value = null; coverFile.value = null; coverPreview.value = ''; errorMsg.value = '';
+  pdfFile.value = null; coverFile.value = null; coverPreview.value = ''; existingFileKey.value = ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 
 function openEdit(product: any) {
   editingProduct.value = product;
   Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured });
-  pdfFile.value = null; coverFile.value = null; coverPreview.value = product.cover_image_url || ''; errorMsg.value = '';
+  pdfFile.value = null; coverFile.value = null; coverPreview.value = product.cover_image_url || ''; existingFileKey.value = product.file_key || ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 
