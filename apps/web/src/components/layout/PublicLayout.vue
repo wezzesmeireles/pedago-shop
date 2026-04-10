@@ -437,6 +437,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, h } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -448,7 +449,7 @@ const siteConfigStore = useSiteConfigStore();
 const cart = useCartStore();
 const router = useRouter();
 
-const config = siteConfigStore.config;
+const { config } = storeToRefs(siteConfigStore);
 const userMenuOpen = ref(false);
 const mobileMenuOpen = ref(false);
 const searchQuery = ref('');
