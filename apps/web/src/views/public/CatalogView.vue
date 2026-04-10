@@ -154,22 +154,30 @@ function debouncedFetch() {
 async function fetchProducts(page = 1) {
   loading.value = true;
   try {
-    const params: Record<string, any> = { page, limit: 12, sort: filters.sort };
-    if (filters.search) params.search = filters.search;
-    if (filters.category) params.category = filters.category;
     const limit = 12;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
+
+    // Resolve category slug → id
+    let categoryId: string | null = null;
+    if (filters.category) {
+      const { data: cat } = await supabase.from('categories').select('id').eq('slug', filters.category).single();
+      categoryId = cat?.id ?? null;
+    }
+
     let q = supabase
       .from('products')
       .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, tags, categories(id, name, slug)', { count: 'exact' })
       .eq('is_active', true).is('deleted_at', null).range(from, to);
-    if (filters.search) q = q.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
-    if (filters.category) q = q.eq('categories.slug', filters.category);
+
+    if (filters.search) q = q.ilike('name', `%${filters.search}%`);
+    if (categoryId) q = q.eq('category_id', categoryId);
+
     if (filters.sort === 'price_asc') q = q.order('price', { ascending: true });
     else if (filters.sort === 'price_desc') q = q.order('price', { ascending: false });
     else if (filters.sort === 'popular') q = q.order('sales_count', { ascending: false });
     else q = q.order('created_at', { ascending: false });
+
     const { data, count } = await q;
     products.value = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price, isFeatured: p.is_featured, salesCount: p.sales_count }));
     const total = count ?? 0;
