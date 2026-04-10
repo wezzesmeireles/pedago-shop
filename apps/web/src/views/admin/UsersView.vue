@@ -168,26 +168,29 @@ function debouncedLoad() {
 }
 
 async function loadUsers(page = 1) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const params = new URLSearchParams({ page: String(page), limit: '20' });
-  if (search.value) params.set('search', search.value);
-  const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?${params}`, {
-    headers: {
-      Authorization: `Bearer ${session?.access_token}`,
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-    },
-  });
-  const data = await resp.json();
-  if (data.message || data.error) { console.error('admin-users error:', data); return; }
-  users.value = (data.items ?? []).map((u: any) => ({
+  const { data, error } = await supabase.rpc('get_all_users_for_admin');
+  if (error) { console.error('loadUsers error:', error); return; }
+
+  let filtered = data ?? [];
+  if (search.value) {
+    const q = search.value.toLowerCase();
+    filtered = filtered.filter((u: any) =>
+      u.email?.toLowerCase().includes(q) || u.name?.toLowerCase().includes(q),
+    );
+  }
+
+  const limit = 20;
+  const from = (page - 1) * limit;
+  totalPages.value = Math.ceil(filtered.length / limit);
+  currentPage.value = page;
+
+  users.value = filtered.slice(from, from + limit).map((u: any) => ({
     ...u,
     avatarUrl: u.avatar_url,
     isActive: u.is_active,
     createdAt: u.created_at,
-    ordersCount: u.ordersCount ?? 0,
+    ordersCount: Number(u.orders_count ?? 0),
   }));
-  totalPages.value = Math.ceil((data.total ?? 0) / 20);
-  currentPage.value = page;
 }
 
 async function toggleActive(user: any) {
