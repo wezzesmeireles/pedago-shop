@@ -172,9 +172,13 @@ async function loadUsers(page = 1) {
   const params = new URLSearchParams({ page: String(page), limit: '20' });
   if (search.value) params.set('search', search.value);
   const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?${params}`, {
-    headers: { Authorization: `Bearer ${session?.access_token}` },
+    headers: {
+      Authorization: `Bearer ${session?.access_token}`,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
   });
   const data = await resp.json();
+  if (data.message || data.error) { console.error('admin-users error:', data); return; }
   users.value = (data.items ?? []).map((u: any) => ({
     ...u,
     avatarUrl: u.avatar_url,
@@ -199,7 +203,10 @@ async function openOrders(user: any) {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?userId=${user.id}`, {
-      headers: { Authorization: `Bearer ${session?.access_token}` },
+      headers: {
+        Authorization: `Bearer ${session?.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
     });
     const data = await resp.json();
     userOrders.value = (data.orders ?? []).map((o: any) => ({
