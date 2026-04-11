@@ -142,7 +142,7 @@ async function save() {
     } else {
       const { data: existing } = await supabase.from('categories').select('id').eq('slug', form.slug).single();
       if (existing) throw new Error('Slug já existe.');
-      const { error } = await supabase.from('categories').insert(payload);
+      const { error } = await supabase.from('categories').insert({ ...payload, is_active: true });
       if (error) throw new Error(error.message);
     }
     await loadCategories();
