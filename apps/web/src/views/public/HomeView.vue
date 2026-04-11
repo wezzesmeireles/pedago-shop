@@ -93,6 +93,31 @@
       </div>
     </section>
 
+    <!-- ── Categorias ───────────────────────────────────── -->
+    <section v-if="categories.length > 0" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2 mb-5">
+        <span class="w-1 h-7 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 inline-block"></span>
+        Categorias
+      </h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <RouterLink
+          v-for="cat in categories"
+          :key="cat.id"
+          :to="`/catalogo?categoria=${cat.slug}`"
+          class="group flex flex-col items-center justify-center gap-2 p-4 bg-white rounded-2xl border border-gray-100
+                 hover:border-primary-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-center"
+        >
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-100 to-secondary-100
+                      flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            </svg>
+          </div>
+          <span class="text-xs font-semibold text-gray-700 group-hover:text-primary-600 transition-colors leading-tight">{{ cat.name }}</span>
+        </RouterLink>
+      </div>
+    </section>
+
     <!-- ── Destaques ─────────────────────────────────────── -->
     <section ref="destaquesSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 reveal">
       <div class="flex items-center justify-between mb-6">
@@ -383,6 +408,8 @@ const siteConfigStore = useSiteConfigStore();
 const cart = useCartStore();
 const config = siteConfigStore.config;
 
+const categories = ref<any[]>([]);
+
 // ── Banner carousel ──────────────────────────────────
 const bannerIndex = ref(0);
 let bannerTimer: ReturnType<typeof setInterval> | null = null;
@@ -519,6 +546,10 @@ onMounted(async () => {
   setupReveal();
 
   await Promise.allSettled([
+    (async () => {
+      const { data } = await supabase.from('categories').select('id, name, slug').eq('is_active', true).order('sort_order');
+      categories.value = data ?? [];
+    })(),
     (async () => {
       try {
         const { data } = await supabase.from('products').select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, categories(id, name, slug)').eq('is_featured', true).eq('is_active', true).is('deleted_at', null).order('sort_order').limit(8);
