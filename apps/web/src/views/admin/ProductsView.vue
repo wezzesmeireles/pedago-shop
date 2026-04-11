@@ -80,6 +80,9 @@
                     <svg v-if="p.isActive" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                     <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   </button>
+                  <button @click="confirmDelete(p)" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Apagar produto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -90,6 +93,26 @@
         </table>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <AppModal v-model="deleteModalOpen" title="Apagar Produto">
+      <div class="space-y-4">
+        <div class="flex items-start gap-3 p-4 bg-red-50 rounded-xl">
+          <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          <div>
+            <p class="text-sm font-semibold text-red-700">Esta ação não pode ser desfeita</p>
+            <p class="text-sm text-red-600 mt-0.5">O produto <strong>"{{ productToDelete?.name }}"</strong> será apagado permanentemente do banco de dados.</p>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button @click="deleteProduct" :disabled="deleting" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+            <svg v-if="deleting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            {{ deleting ? 'Apagando...' : 'Sim, apagar' }}
+          </button>
+          <button @click="deleteModalOpen = false" class="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancelar</button>
+        </div>
+      </div>
+    </AppModal>
 
     <!-- Modal -->
     <AppModal v-model="modalOpen" :title="editingProduct ? 'Editar Produto' : 'Novo Produto'">
@@ -193,6 +216,9 @@ const modalOpen = ref(false);
 const saving = ref(false);
 const errorMsg = ref('');
 const editingProduct = ref<any>(null);
+const deleteModalOpen = ref(false);
+const productToDelete = ref<any>(null);
+const deleting = ref(false);
 const pdfFile = ref<File | null>(null);
 const coverFile = ref<File | null>(null);
 const coverPreview = ref('');
@@ -322,6 +348,25 @@ async function saveProduct() {
 async function toggleActive(product: any) {
   await supabase.from('products').update({ is_active: !product.is_active, updated_at: new Date().toISOString() }).eq('id', product.id);
   await loadData();
+}
+
+function confirmDelete(product: any) {
+  productToDelete.value = product;
+  deleteModalOpen.value = true;
+}
+
+async function deleteProduct() {
+  if (!productToDelete.value) return;
+  deleting.value = true;
+  try {
+    await supabase.from('order_items').delete().eq('product_id', productToDelete.value.id);
+    await supabase.from('products').delete().eq('id', productToDelete.value.id);
+    deleteModalOpen.value = false;
+    productToDelete.value = null;
+    await loadData();
+  } finally {
+    deleting.value = false;
+  }
 }
 
 async function toggleFeatured(product: any) {
