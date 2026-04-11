@@ -85,15 +85,33 @@
         </div>
         <div>
           <label class="text-sm font-medium text-gray-700 block mb-2">Imagem de fundo (opcional)</label>
+          <!-- Size guide -->
+          <div class="flex items-center gap-2 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl">
+            <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <div class="text-xs text-blue-700 leading-snug">
+              <span class="font-semibold">Tamanho recomendado: 1440 × 420 px</span>
+              <span class="text-blue-500 mx-1">·</span>
+              Proporção 16:5
+              <span class="text-blue-500 mx-1">·</span>
+              Formato: JPG ou PNG
+              <span class="text-blue-500 mx-1">·</span>
+              Máx. 2 MB
+            </div>
+          </div>
           <div class="flex items-center gap-3">
-            <img v-if="slide.imageUrl" :src="slide.imageUrl" class="h-14 w-24 rounded-xl object-cover border border-gray-200" />
-            <div v-else class="h-14 w-24 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 text-gray-300">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <div class="relative flex-shrink-0">
+              <img v-if="slide.imageUrl" :src="slide.imageUrl" class="h-14 w-24 rounded-xl object-cover border border-gray-200" />
+              <div v-else class="h-14 w-24 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gray-50 text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              </div>
+              <span v-if="slide.imageUrl && bannerSizes[idx]" class="absolute -bottom-5 left-0 text-[10px] text-gray-400 whitespace-nowrap">
+                {{ bannerSizes[idx] }}
+              </span>
             </div>
             <div class="flex flex-col gap-1">
               <input type="file" accept="image/*" @change="(e) => uploadBannerImage(e, idx)"
                 class="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
-              <button v-if="slide.imageUrl" type="button" @click="slide.imageUrl = ''"
+              <button v-if="slide.imageUrl" type="button" @click="slide.imageUrl = ''; bannerSizes[idx] = ''"
                 class="text-xs text-red-500 hover:underline text-left">Remover imagem</button>
             </div>
           </div>
@@ -198,6 +216,8 @@ const tabs = [
   { id: 'seo', label: 'SEO' },
 ];
 
+const bannerSizes = ref<string[]>(['', '', '']);
+
 const bannerGradients = [
   'linear-gradient(135deg, #7C3AED, #EC4899)',
   'linear-gradient(135deg, #0EA5E9, #6366F1)',
@@ -243,6 +263,18 @@ async function uploadAsset(event: Event, field: keyof SiteConfigData) {
 async function uploadBannerImage(event: Event, idx: number) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
+
+  // Read dimensions before upload
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = () => {
+    const kb = Math.round(file.size / 1024);
+    const size = kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
+    bannerSizes.value[idx] = `${img.width} × ${img.height} px · ${size}`;
+    URL.revokeObjectURL(objectUrl);
+  };
+  img.src = objectUrl;
+
   const ext = file.name.split('.').pop();
   const path = `site/banner-${idx + 1}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from('product-covers').upload(path, file, { upsert: true });
