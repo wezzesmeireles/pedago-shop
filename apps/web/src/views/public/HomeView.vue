@@ -547,17 +547,26 @@ onMounted(async () => {
 
   await Promise.allSettled([
     (async () => {
-      const { data: cats } = await supabase.from('categories').select('id, name, slug').eq('is_active', true).order('sort_order');
-      categories.value = cats ?? [];
-      const withProducts = await Promise.all((cats ?? []).map(async (cat: any) => {
-        const { data: prods } = await supabase
+      try {
+        // Fetch all active products with their category in one query, then group
+        const { data: prods, error } = await supabase
           .from('products')
-          .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, categories(id, name, slug)')
-          .eq('category_id', cat.id).eq('is_active', true).is('deleted_at', null)
-          .order('created_at', { ascending: false }).limit(6);
-        return { ...cat, products: (prods ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price })) };
-      }));
-      categoriesWithProducts.value = withProducts.filter((c) => c.products.length > 0);
+          .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, category_id, categories(id, name, slug, is_active)')
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false });
+        if (error) { console.error('categories fetch error:', error); return; }
+        const catMap = new Map<string, any>();
+        for (const p of prods ?? []) {
+          const cat = (p as any).categories;
+          if (!cat || !cat.is_active) continue;
+          if (!catMap.has(cat.id)) catMap.set(cat.id, { ...cat, products: [] });
+          if (catMap.get(cat.id).products.length < 6) {
+            catMap.get(cat.id).products.push({ ...p, coverImageUrl: (p as any).cover_image_url, comparePrice: (p as any).compare_price });
+          }
+        }
+        categoriesWithProducts.value = Array.from(catMap.values());
+      } catch (e) { console.error('categories section error:', e); }
     })(),
     (async () => {
       try {
