@@ -91,6 +91,25 @@
       </div>
     </div>
 
+    <!-- YouTube Video -->
+    <div v-if="product?.youtubeEmbedId" class="mt-12">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <svg class="w-7 h-7 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+        Como fazer esta atividade
+      </h2>
+      <div class="rounded-2xl overflow-hidden shadow-lg aspect-video">
+        <iframe
+          :src="`https://www.youtube.com/embed/${product.youtubeEmbedId}?rel=0&modestbranding=1`"
+          class="w-full h-full"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    </div>
+
     <!-- Description -->
     <div v-if="product?.richContent" class="mt-12">
       <h2 class="text-2xl font-bold text-gray-900 mb-4">Descrição Completa</h2>
@@ -121,6 +140,12 @@ const product = ref<any>(null);
 const loading = ref(true);
 const activeImage = ref('');
 
+function extractYoutubeId(url: string | null): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return match?.[1] ?? null;
+}
+
 function formatPrice(price: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(price));
 }
@@ -149,12 +174,26 @@ onMounted(async () => {
   try {
     const { data } = await supabase
       .from('products')
-      .select('id, name, slug, description, rich_content, price, compare_price, cover_image_url, preview_images, page_count, file_size, tags, is_featured, sales_count, categories(id, name, slug)')
+      .select('id, name, slug, description, rich_content, price, compare_price, cover_image_url, preview_images, page_count, file_size, tags, is_featured, sales_count, youtube_url, categories(id, name, slug)')
       .eq('slug', route.params.slug as string)
       .eq('is_active', true)
       .is('deleted_at', null)
       .single();
-    product.value = data ? { ...data, coverImageUrl: data.cover_image_url, comparePrice: data.compare_price, richContent: data.rich_content, pageCount: data.page_count, fileSize: data.file_size, isFeatured: data.is_featured, salesCount: data.sales_count } : null;
+    if (data) {
+      product.value = {
+        ...data,
+        coverImageUrl: data.cover_image_url,
+        comparePrice: data.compare_price,
+        richContent: data.rich_content,
+        pageCount: data.page_count,
+        fileSize: data.file_size,
+        isFeatured: data.is_featured,
+        salesCount: data.sales_count,
+        youtubeEmbedId: extractYoutubeId(data.youtube_url),
+      };
+    } else {
+      product.value = null;
+    }
     activeImage.value = data?.cover_image_url ?? '';
   } catch {
     //

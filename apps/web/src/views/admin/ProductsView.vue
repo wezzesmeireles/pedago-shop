@@ -141,6 +141,14 @@
             <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Descrição</label>
             <textarea v-model="form.description" rows="3" placeholder="Descreva o conteúdo do produto..." class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"></textarea>
           </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Vídeo YouTube (como fazer a atividade)</label>
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+              <input v-model="form.youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=..." class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" />
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Cole o link do YouTube — aparece na página do produto.</p>
+          </div>
         </div>
 
         <!-- Delivery type toggle -->
@@ -266,7 +274,7 @@ const existingFileKey = ref('');
 const form = reactive({
   name: '', slug: '', description: '', price: '',
   categoryId: '', isActive: true, isFeatured: false,
-  deliveryType: 'pdf' as 'pdf' | 'link', deliveryLink: '',
+  deliveryType: 'pdf' as 'pdf' | 'link', deliveryLink: '', youtubeUrl: '',
 });
 
 const filteredProducts = computed(() =>
@@ -306,14 +314,14 @@ async function ensureUniqueSlug(base: string, excludeId?: string): Promise<strin
 
 function openCreate() {
   editingProduct.value = null;
-  Object.assign(form, { name: '', slug: '', description: '', price: '', categoryId: '', isActive: true, isFeatured: false, deliveryType: 'pdf', deliveryLink: '' });
+  Object.assign(form, { name: '', slug: '', description: '', price: '', categoryId: '', isActive: true, isFeatured: false, deliveryType: 'pdf', deliveryLink: '', youtubeUrl: '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = ''; existingFileKey.value = ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 
 function openEdit(product: any) {
   editingProduct.value = product;
-  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured, deliveryType: product.delivery_type || 'pdf', deliveryLink: product.delivery_link || '' });
+  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured, deliveryType: product.delivery_type || 'pdf', deliveryLink: product.delivery_link || '', youtubeUrl: product.youtube_url || '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = product.cover_image_url || ''; existingFileKey.value = product.file_key || ''; errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -364,6 +372,7 @@ async function saveProduct() {
       is_active: form.isActive, is_featured: form.isFeatured,
       delivery_type: form.deliveryType,
       delivery_link: form.deliveryType === 'link' ? form.deliveryLink : null,
+      youtube_url: form.youtubeUrl || null,
       cover_image_url: coverUrl, file_key: fileKey, file_size: fileSize,
       updated_at: new Date().toISOString(),
     };
