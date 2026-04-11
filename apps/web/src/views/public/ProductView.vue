@@ -126,7 +126,7 @@
           class="instagram-media"
           :data-instgrm-permalink="product.instagramUrl"
           data-instgrm-version="14"
-          style="max-width:540px; width:100%; border:0; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.1);"
+          style="max-width:320px; width:100%; border:0; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.1);"
         ></blockquote>
       </div>
     </div>
