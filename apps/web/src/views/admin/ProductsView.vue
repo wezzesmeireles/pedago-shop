@@ -149,6 +149,19 @@
             </div>
             <p class="text-xs text-slate-400 mt-1">Cole o link do YouTube — aparece na página do produto.</p>
           </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Vídeo Instagram (Reels ou Post)</label>
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs><linearGradient id="ig" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f09433"/><stop offset="25%" stop-color="#e6683c"/><stop offset="50%" stop-color="#dc2743"/><stop offset="75%" stop-color="#cc2366"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs>
+                <rect width="24" height="24" rx="6" fill="url(#ig)"/>
+                <circle cx="12" cy="12" r="4" stroke="white" stroke-width="1.5" fill="none"/>
+                <circle cx="17" cy="7" r="1" fill="white"/>
+              </svg>
+              <input v-model="form.instagramUrl" type="url" placeholder="https://www.instagram.com/reel/..." class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent" />
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Cole o link do Reels ou post do Instagram — aparece na página do produto.</p>
+          </div>
         </div>
 
         <!-- Delivery type toggle -->
@@ -274,7 +287,7 @@ const existingFileKey = ref('');
 const form = reactive({
   name: '', slug: '', description: '', price: '',
   categoryId: '', isActive: true, isFeatured: false,
-  deliveryType: 'pdf' as 'pdf' | 'link', deliveryLink: '', youtubeUrl: '',
+  deliveryType: 'pdf' as 'pdf' | 'link', deliveryLink: '', youtubeUrl: '', instagramUrl: '',
 });
 
 const filteredProducts = computed(() =>
@@ -314,14 +327,14 @@ async function ensureUniqueSlug(base: string, excludeId?: string): Promise<strin
 
 function openCreate() {
   editingProduct.value = null;
-  Object.assign(form, { name: '', slug: '', description: '', price: '', categoryId: '', isActive: true, isFeatured: false, deliveryType: 'pdf', deliveryLink: '', youtubeUrl: '' });
+  Object.assign(form, { name: '', slug: '', description: '', price: '', categoryId: '', isActive: true, isFeatured: false, deliveryType: 'pdf', deliveryLink: '', youtubeUrl: '', instagramUrl: '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = ''; existingFileKey.value = ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 
 function openEdit(product: any) {
   editingProduct.value = product;
-  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured, deliveryType: product.delivery_type || 'pdf', deliveryLink: product.delivery_link || '', youtubeUrl: product.youtube_url || '' });
+  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured, deliveryType: product.delivery_type || 'pdf', deliveryLink: product.delivery_link || '', youtubeUrl: product.youtube_url || '', instagramUrl: product.instagram_url || '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = product.cover_image_url || ''; existingFileKey.value = product.file_key || ''; errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -373,6 +386,7 @@ async function saveProduct() {
       delivery_type: form.deliveryType,
       delivery_link: form.deliveryType === 'link' ? form.deliveryLink : null,
       youtube_url: form.youtubeUrl || null,
+      instagram_url: form.instagramUrl || null,
       cover_image_url: coverUrl, file_key: fileKey, file_size: fileSize,
       updated_at: new Date().toISOString(),
     };

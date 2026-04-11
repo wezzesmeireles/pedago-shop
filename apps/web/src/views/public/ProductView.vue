@@ -110,6 +110,27 @@
       </div>
     </div>
 
+    <!-- Instagram Video -->
+    <div v-if="product?.instagramUrl" class="mt-12">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <svg class="w-7 h-7 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+          <defs><linearGradient id="ig2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f09433"/><stop offset="25%" stop-color="#e6683c"/><stop offset="50%" stop-color="#dc2743"/><stop offset="75%" stop-color="#cc2366"/><stop offset="100%" stop-color="#bc1888"/></linearGradient></defs>
+          <rect width="24" height="24" rx="6" fill="url(#ig2)"/>
+          <circle cx="12" cy="12" r="4" stroke="white" stroke-width="1.5" fill="none"/>
+          <circle cx="17" cy="7" r="1" fill="white"/>
+        </svg>
+        Veja no Instagram
+      </h2>
+      <div class="flex justify-center">
+        <blockquote
+          class="instagram-media"
+          :data-instgrm-permalink="product.instagramUrl"
+          data-instgrm-version="14"
+          style="max-width:540px; width:100%; border:0; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.1);"
+        ></blockquote>
+      </div>
+    </div>
+
     <!-- Description -->
     <div v-if="product?.richContent" class="mt-12">
       <h2 class="text-2xl font-bold text-gray-900 mb-4">Descrição Completa</h2>
@@ -139,6 +160,19 @@ const auth = useAuthStore();
 const product = ref<any>(null);
 const loading = ref(true);
 const activeImage = ref('');
+
+function loadInstagramEmbed() {
+  const win = window as any;
+  if (win.instgrm) {
+    win.instgrm.Embeds.process();
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'https://www.instagram.com/embed.js';
+  script.async = true;
+  script.onload = () => win.instgrm?.Embeds.process();
+  document.body.appendChild(script);
+}
 
 function extractYoutubeId(url: string | null): string | null {
   if (!url) return null;
@@ -174,7 +208,7 @@ onMounted(async () => {
   try {
     const { data } = await supabase
       .from('products')
-      .select('id, name, slug, description, rich_content, price, compare_price, cover_image_url, preview_images, page_count, file_size, tags, is_featured, sales_count, youtube_url, categories(id, name, slug)')
+      .select('id, name, slug, description, rich_content, price, compare_price, cover_image_url, preview_images, page_count, file_size, tags, is_featured, sales_count, youtube_url, instagram_url, categories(id, name, slug)')
       .eq('slug', route.params.slug as string)
       .eq('is_active', true)
       .is('deleted_at', null)
@@ -190,7 +224,9 @@ onMounted(async () => {
         isFeatured: data.is_featured,
         salesCount: data.sales_count,
         youtubeEmbedId: extractYoutubeId(data.youtube_url),
+        instagramUrl: data.instagram_url || null,
       };
+      if (data.instagram_url) loadInstagramEmbed();
     } else {
       product.value = null;
     }
