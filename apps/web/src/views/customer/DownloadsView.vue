@@ -58,6 +58,15 @@
                 <span v-if="download.expired" class="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2.5 py-1.5 rounded-xl font-medium whitespace-nowrap">
                   Expirado
                 </span>
+                <!-- Link delivery -->
+                <a v-else-if="download.deliveryLink" :href="download.deliveryLink" target="_blank" rel="noopener"
+                  class="inline-flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                  </svg>
+                  <span class="hidden xs:inline">Acessar</span>
+                </a>
+                <!-- PDF delivery -->
                 <a v-else href="#" @click.prevent="downloadFile(download)"
                   class="inline-flex items-center gap-1.5 bg-primary-600 text-white px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors whitespace-nowrap">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,6 +107,7 @@ interface DownloadEntry {
   maxDownloads: number;
   expiresAt: string;
   expired: boolean;
+  deliveryLink?: string;
 }
 
 const loading = ref(true);
@@ -124,7 +134,7 @@ onMounted(async () => {
     // Query from orders down — RLS filters by auth.uid() automatically
     const { data: orders } = await supabase
       .from('orders')
-      .select('order_number, order_items(id, product_name, products(cover_image_url, file_key), download_tokens(*))')
+      .select('order_number, order_items(id, product_name, products(cover_image_url, file_key), download_tokens(token, download_count, max_downloads, expires_at, revoked_at, delivery_link))')
       .eq('status', 'PAID')
       .order('created_at', { ascending: false });
 
@@ -143,6 +153,7 @@ onMounted(async () => {
             maxDownloads: token.max_downloads,
             expiresAt: token.expires_at,
             expired: new Date(token.expires_at) < new Date(),
+            deliveryLink: token.delivery_link ?? undefined,
           });
         }
       }

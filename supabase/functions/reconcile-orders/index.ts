@@ -35,6 +35,7 @@ async function markPaid(order: any, payment: any) {
         order_item_id: item.id,
         max_downloads: 99999,
         expires_at: tokenExpires.toISOString(),
+        delivery_link: item.products?.delivery_link ?? null,
       });
     }
     const { data: prod } = await supabase.from('products').select('sales_count').eq('id', item.product_id).single();
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   let query = supabase
     .from('orders')
-    .select('id, mp_payment_id, mp_preference_id, payment_method, order_items(*)')
+    .select('id, mp_payment_id, mp_preference_id, payment_method, order_items(*, products(delivery_type, delivery_link))')
     .eq('status', 'AWAITING_PAYMENT')
     .gte('created_at', cutoff);
 

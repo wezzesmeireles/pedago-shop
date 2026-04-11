@@ -143,8 +143,34 @@
           </div>
         </div>
 
-        <!-- File uploads -->
-        <div class="grid grid-cols-2 gap-4 pt-1">
+        <!-- Delivery type toggle -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Tipo de Entrega *</label>
+          <div class="flex gap-2">
+            <button type="button" @click="form.deliveryType = 'pdf'"
+              :class="['flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all', form.deliveryType === 'pdf' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-slate-200 text-slate-500 hover:border-slate-300']">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+              PDF
+            </button>
+            <button type="button" @click="form.deliveryType = 'link'"
+              :class="['flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all', form.deliveryType === 'link' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:border-slate-300']">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+              Link
+            </button>
+          </div>
+        </div>
+
+        <!-- Link input (only when delivery_type = link) -->
+        <div v-if="form.deliveryType === 'link'">
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Link de Entrega *</label>
+          <input v-model="form.deliveryLink" :required="form.deliveryType === 'link'" type="url"
+            placeholder="https://drive.google.com/..."
+            class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          <p class="text-xs text-slate-400 mt-1">O cliente receberá esse link após o pagamento.</p>
+        </div>
+
+        <!-- File uploads (only when delivery_type = pdf) -->
+        <div v-if="form.deliveryType === 'pdf'" class="grid grid-cols-2 gap-4 pt-1">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">PDF do Produto</label>
             <label :class="['flex flex-col items-center justify-center gap-2 h-24 border-2 border-dashed rounded-xl cursor-pointer transition-colors', pdfFile || existingFileKey ? 'border-violet-400 bg-violet-50 hover:bg-violet-100' : 'border-slate-200 hover:border-violet-400 hover:bg-violet-50']">
@@ -166,6 +192,19 @@
               <input type="file" accept="image/*" @change="onCoverSelected" class="hidden" />
             </label>
           </div>
+        </div>
+
+        <!-- Capa para produto tipo link -->
+        <div v-if="form.deliveryType === 'link'">
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Imagem de Capa</label>
+          <label class="flex flex-col items-center justify-center gap-2 h-24 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition-colors overflow-hidden relative">
+            <img v-if="coverPreview" :src="coverPreview" class="absolute inset-0 w-full h-full object-cover rounded-xl" />
+            <template v-else>
+              <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01"/></svg>
+              <span class="text-xs text-slate-500">Clique para enviar</span>
+            </template>
+            <input type="file" accept="image/*" @change="onCoverSelected" class="hidden" />
+          </label>
         </div>
 
         <!-- Flags -->
@@ -227,6 +266,7 @@ const existingFileKey = ref('');
 const form = reactive({
   name: '', slug: '', description: '', price: '',
   categoryId: '', isActive: true, isFeatured: false,
+  deliveryType: 'pdf' as 'pdf' | 'link', deliveryLink: '',
 });
 
 const filteredProducts = computed(() =>
@@ -266,14 +306,14 @@ async function ensureUniqueSlug(base: string, excludeId?: string): Promise<strin
 
 function openCreate() {
   editingProduct.value = null;
-  Object.assign(form, { name: '', slug: '', description: '', price: '', categoryId: '', isActive: true, isFeatured: false });
+  Object.assign(form, { name: '', slug: '', description: '', price: '', categoryId: '', isActive: true, isFeatured: false, deliveryType: 'pdf', deliveryLink: '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = ''; existingFileKey.value = ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 
 function openEdit(product: any) {
   editingProduct.value = product;
-  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured });
+  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured, deliveryType: product.delivery_type || 'pdf', deliveryLink: product.delivery_link || '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = product.cover_image_url || ''; existingFileKey.value = product.file_key || ''; errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -322,6 +362,8 @@ async function saveProduct() {
       name: form.name, slug: uniqueSlug, description: form.description,
       price: parseFloat(form.price), category_id: form.categoryId || null,
       is_active: form.isActive, is_featured: form.isFeatured,
+      delivery_type: form.deliveryType,
+      delivery_link: form.deliveryType === 'link' ? form.deliveryLink : null,
       cover_image_url: coverUrl, file_key: fileKey, file_size: fileSize,
       updated_at: new Date().toISOString(),
     };

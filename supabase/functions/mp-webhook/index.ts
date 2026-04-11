@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     const orderId = payment.external_reference;
 
     if (orderId && mpStatus === 'approved') {
-      const { data: order } = await supabase.from('orders').select('*, order_items(*)').eq('id', orderId).single();
+      const { data: order } = await supabase.from('orders').select('*, order_items(*, products(delivery_type, delivery_link))').eq('id', orderId).single();
       if (order && order.status !== 'PAID') {
         await supabase.from('orders').update({
           status: 'PAID',
@@ -94,6 +94,7 @@ Deno.serve(async (req) => {
             order_item_id: item.id,
             max_downloads: 99999,
             expires_at: tokenExpires.toISOString(),
+            delivery_link: item.products?.delivery_link ?? null,
           });
 
           const { data: prod } = await supabase.from('products').select('sales_count').eq('id', item.product_id).single();
