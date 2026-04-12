@@ -30,18 +30,6 @@
               :style="slideBg(slide, idx)"
             ></div>
 
-            <!-- Gradiente + botão na base -->
-            <div class="absolute bottom-0 left-0 right-0"
-                 style="background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%); padding: 28px 16px 14px">
-              <div class="flex items-center justify-center gap-2 w-full
-                          bg-white/95 text-slate-900 font-bold text-sm
-                          px-5 py-2.5 rounded-xl shadow-md">
-                {{ slide.ctaText || 'Ver Produtos' }}
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                </svg>
-              </div>
-            </div>
           </RouterLink>
 
           <!-- Desktop: imagem normal (sem link — o overlay tem o botão) -->
