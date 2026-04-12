@@ -3,11 +3,6 @@
 
     <!-- ── Hero Banner Carousel ────────────────────────── -->
     <section class="relative overflow-hidden">
-      <!-- Colorful top stripe -->
-      <div class="absolute top-0 left-0 right-0 h-2.5 flex overflow-hidden z-10">
-        <span v-for="c in stripeColors" :key="c" class="flex-1" :style="{ background: c }"></span>
-      </div>
-
       <!-- Slides -->
       <div class="relative">
         <div
@@ -66,10 +61,6 @@
         </div>
       </div>
 
-      <!-- Bottom stripe -->
-      <div class="absolute bottom-0 left-0 right-0 h-2.5 flex overflow-hidden z-10">
-        <span v-for="c in [...stripeColors].reverse()" :key="c" class="flex-1" :style="{ background: c }"></span>
-      </div>
     </section>
 
     <!-- ── Seções por Categoria ─────────────────────────── -->
@@ -402,7 +393,6 @@ const newsletterSection = ref<HTMLElement | null>(null);
 
 const ATIVIDADES_PER_PAGE = 6;
 
-const stripeColors = ['#facc15', '#f87171', '#60a5fa', '#4ade80', '#c084fc', '#fb923c'];
 
 const pagedAtividades = computed(() =>
   atividades.value.slice(atividadesPage.value * ATIVIDADES_PER_PAGE, (atividadesPage.value + 1) * ATIVIDADES_PER_PAGE)
