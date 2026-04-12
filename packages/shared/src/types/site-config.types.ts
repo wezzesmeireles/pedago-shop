@@ -3,6 +3,7 @@ export interface SocialLinks {
   whatsapp?: string;
   facebook?: string;
   youtube?: string;
+  tiktok?: string;
 }
 
 export interface BannerSlide {
