@@ -16,8 +16,8 @@
           :key="idx"
           class="relative w-full"
         >
-          <!-- Mobile: imagem inteira clicável -->
-          <RouterLink :to="slide.ctaLink || '/catalogo'" class="block sm:hidden">
+          <!-- Banner clicável em todas as telas — sem overlay, sem botão -->
+          <RouterLink :to="slide.ctaLink || '/catalogo'" class="block cursor-pointer">
             <img
               v-if="slide.imageUrl"
               :src="slide.imageUrl"
@@ -26,58 +26,10 @@
             />
             <div
               v-else
-              class="w-full min-h-[200px]"
+              class="w-full min-h-[200px] sm:min-h-[320px] md:min-h-[420px]"
               :style="slideBg(slide, idx)"
             ></div>
-
           </RouterLink>
-
-          <!-- Desktop: imagem normal (sem link — o overlay tem o botão) -->
-          <img
-            v-if="slide.imageUrl"
-            :src="slide.imageUrl"
-            :alt="slide.title || 'Banner'"
-            class="w-full h-auto hidden sm:block"
-          />
-          <div
-            v-else
-            class="w-full min-h-[320px] md:min-h-[420px] hidden sm:block"
-            :style="slideBg(slide, idx)"
-          ></div>
-
-          <!-- Tablet/Desktop: overlay completo com título e botão -->
-          <div class="absolute inset-0 hidden sm:flex items-center bg-black/20">
-            <div class="absolute top-6 right-16 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
-            <div class="absolute bottom-6 left-10 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
-
-            <div class="max-w-7xl mx-auto px-6 lg:px-8 py-8 md:py-14 relative z-10 w-full">
-              <div class="text-center md:text-left max-w-2xl mx-auto md:mx-0">
-                <h1 class="font-black leading-tight text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white drop-shadow-lg mb-2 sm:mb-3">
-                  {{ slide.title }}
-                </h1>
-                <p class="text-white/80 text-sm sm:text-base md:text-lg mb-5 sm:mb-7 drop-shadow">
-                  {{ slide.subtitle }}
-                </p>
-                <!-- Botão: cresce de sm → md → lg -->
-                <RouterLink
-                  :to="slide.ctaLink || '/catalogo'"
-                  class="inline-flex items-center gap-2
-                         bg-white/95 hover:bg-white active:scale-95
-                         text-slate-900 font-bold
-                         px-5 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-4
-                         text-sm sm:text-sm md:text-base
-                         rounded-xl sm:rounded-2xl
-                         shadow-lg hover:shadow-xl
-                         transition-all duration-200 backdrop-blur-sm"
-                >
-                  {{ slide.ctaText || 'Ver Produtos' }}
-                  <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                  </svg>
-                </RouterLink>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- Prev/Next arrows -->
