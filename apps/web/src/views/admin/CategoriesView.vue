@@ -42,6 +42,15 @@
             <span class="font-semibold text-slate-700">{{ cat._count?.products ?? 0 }}</span> produto{{ cat._count?.products !== 1 ? 's' : '' }}
           </div>
           <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <!-- Reorder -->
+            <button @click="reorder(cat, 'up')" :disabled="categories.indexOf(cat) === 0"
+              class="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Mover para cima">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+            </button>
+            <button @click="reorder(cat, 'down')" :disabled="categories.indexOf(cat) === categories.length - 1"
+              class="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Mover para baixo">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
             <button @click="openEdit(cat)" class="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Editar">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </button>
@@ -160,8 +169,21 @@ async function toggleActive(cat: any) {
 }
 
 async function loadCategories() {
-  const { data } = await supabase.from('categories').select('*, products(count)').order('sort_order');
+  const { data } = await supabase.from('categories').select('*, products(count)').order('sort_order').order('created_at');
   categories.value = (data ?? []).map((c: any) => ({ ...c, isActive: c.is_active, imageUrl: c.image_url }));
+}
+
+async function reorder(cat: any, direction: 'up' | 'down') {
+  const idx = categories.value.findIndex(c => c.id === cat.id);
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= categories.value.length) return;
+  const a = categories.value[idx];
+  const b = categories.value[swapIdx];
+  await Promise.all([
+    supabase.from('categories').update({ sort_order: swapIdx }).eq('id', a.id),
+    supabase.from('categories').update({ sort_order: idx }).eq('id', b.id),
+  ]);
+  await loadCategories();
 }
 
 onMounted(loadCategories);

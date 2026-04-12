@@ -557,7 +557,7 @@ onMounted(async () => {
         // Fetch all active products with their category in one query, then group
         const { data: prods, error } = await supabase
           .from('products')
-          .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, category_id, categories(id, name, slug, is_active)')
+          .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, category_id, categories(id, name, slug, is_active, sort_order)')
           .eq('is_active', true)
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
@@ -571,7 +571,8 @@ onMounted(async () => {
             catMap.get(cat.id).products.push({ ...p, coverImageUrl: (p as any).cover_image_url, comparePrice: (p as any).compare_price });
           }
         }
-        categoriesWithProducts.value = Array.from(catMap.values());
+        categoriesWithProducts.value = Array.from(catMap.values())
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
       } catch (e) { console.error('categories section error:', e); }
     })(),
     (async () => {
