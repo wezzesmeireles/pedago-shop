@@ -122,6 +122,83 @@
       </div>
     </div>
 
+    <!-- ── Armazenamento Supabase ───────────────────────────── -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+          </div>
+          <div>
+            <h2 class="font-bold text-slate-900">Armazenamento Supabase</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Limite do plano gratuito: 1 GB</p>
+          </div>
+        </div>
+        <button @click="loadStorage" :disabled="storageLoading"
+          class="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-40">
+          <svg :class="['w-4 h-4', storageLoading && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </button>
+      </div>
+
+      <div v-if="storageLoading" class="space-y-4 animate-pulse">
+        <div class="h-4 bg-slate-100 rounded-full"></div>
+        <div v-for="i in 3" :key="i" class="flex items-center gap-3">
+          <div class="w-24 h-3 bg-slate-100 rounded"></div>
+          <div class="flex-1 h-3 bg-slate-100 rounded-full"></div>
+          <div class="w-16 h-3 bg-slate-100 rounded"></div>
+        </div>
+      </div>
+
+      <div v-else class="space-y-4">
+        <!-- Total bar -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-sm font-semibold text-slate-700">Total usado</span>
+            <span class="text-sm font-bold" :class="storagePct >= 90 ? 'text-red-600' : storagePct >= 70 ? 'text-amber-600' : 'text-slate-900'">
+              {{ formatBytes(storageTotalBytes) }}
+              <span class="text-xs font-normal text-slate-400"> / 1 GB</span>
+            </span>
+          </div>
+          <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-700"
+              :style="{ width: `${Math.min(storagePct, 100)}%` }"
+              :class="storagePct >= 90 ? 'bg-red-500' : storagePct >= 70 ? 'bg-amber-400' : 'bg-indigo-500'">
+            </div>
+          </div>
+          <div class="flex items-center justify-between mt-1">
+            <span class="text-xs text-slate-400">{{ storagePct.toFixed(1) }}% utilizado</span>
+            <span class="text-xs text-slate-400">{{ formatBytes(1073741824 - storageTotalBytes) }} livres</span>
+          </div>
+        </div>
+
+        <!-- Per-bucket breakdown -->
+        <div class="border-t border-slate-100 pt-4 space-y-3">
+          <div v-for="bucket in storageBuckets" :key="bucket.name" class="flex items-center gap-3">
+            <div class="w-28 flex-shrink-0">
+              <p class="text-xs font-semibold text-slate-600 truncate">{{ bucket.label }}</p>
+              <p class="text-[10px] text-slate-400">{{ bucket.count }} arquivo{{ bucket.count !== 1 ? 's' : '' }}</p>
+            </div>
+            <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-700"
+                :style="{ width: `${storageTotalBytes > 0 ? (bucket.bytes / storageTotalBytes) * 100 : 0}%` }"
+                :class="bucket.color">
+              </div>
+            </div>
+            <span class="w-16 text-right text-xs font-semibold text-slate-600 flex-shrink-0">{{ formatBytes(bucket.bytes) }}</span>
+          </div>
+        </div>
+
+        <!-- Warning -->
+        <div v-if="storagePct >= 70" :class="['flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium',
+          storagePct >= 90 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700']">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          {{ storagePct >= 90 ? 'Armazenamento crítico! Faça upgrade do plano Supabase.' : 'Armazenamento acima de 70%. Considere fazer upgrade em breve.' }}
+        </div>
+      </div>
+    </div>
+
     <!-- ── Últimos Pedidos + Mais Vendidos ────────────────────── -->
     <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
       <!-- Últimos Pedidos -->
@@ -254,6 +331,60 @@ function formatPriceShort(p: number) {
 
 const sum = (rows: any[]) => (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_amount), 0);
 
+// ── Storage monitoring ──────────────────────────────────────
+const PLAN_LIMIT_BYTES = 1073741824; // 1 GB free tier
+
+interface BucketStat { name: string; label: string; color: string; bytes: number; count: number }
+const storageLoading = ref(true);
+const storageBuckets = ref<BucketStat[]>([
+  { name: 'product-covers', label: 'Capas / Banners', color: 'bg-violet-500', bytes: 0, count: 0 },
+  { name: 'product-previews', label: 'Pré-visualizações', color: 'bg-sky-500', bytes: 0, count: 0 },
+  { name: 'product-files', label: 'Arquivos PDF', color: 'bg-emerald-500', bytes: 0, count: 0 },
+]);
+
+const storageTotalBytes = computed(() => storageBuckets.value.reduce((s, b) => s + b.bytes, 0));
+const storagePct = computed(() => (storageTotalBytes.value / PLAN_LIMIT_BYTES) * 100);
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} MB`;
+  return `${(bytes / 1073741824).toFixed(2)} GB`;
+}
+
+async function listFolderSize(bucket: string, prefix: string): Promise<{ bytes: number; count: number }> {
+  const { data } = await supabase.storage.from(bucket).list(prefix || undefined, { limit: 1000 });
+  if (!data) return { bytes: 0, count: 0 };
+  let bytes = 0, count = 0;
+  await Promise.all(data.map(async item => {
+    if (item.id) {
+      bytes += (item.metadata as any)?.size ?? 0;
+      count += 1;
+    } else {
+      const sub = await listFolderSize(bucket, prefix ? `${prefix}/${item.name}` : item.name);
+      bytes += sub.bytes;
+      count += sub.count;
+    }
+  }));
+  return { bytes, count };
+}
+
+async function loadStorage() {
+  storageLoading.value = true;
+  try {
+    await Promise.all(storageBuckets.value.map(async bucket => {
+      const { bytes, count } = await listFolderSize(bucket.name, '');
+      bucket.bytes = bytes;
+      bucket.count = count;
+    }));
+  } catch (e) {
+    console.error('Storage load error', e);
+  } finally {
+    storageLoading.value = false;
+  }
+}
+
 onMounted(async () => {
   try {
     const now = new Date();
@@ -288,5 +419,8 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+
+  // Load storage independently so it doesn't block the main stats
+  loadStorage();
 });
 </script>
