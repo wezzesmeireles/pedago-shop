@@ -16,17 +16,13 @@
           :key="idx"
           class="relative w-full"
         >
-          <!-- Image — container com altura mínima + object-cover para não distorcer -->
-          <div
+          <!-- Image — largura 100%, altura automática = imagem completa sem corte -->
+          <img
             v-if="slide.imageUrl"
-            class="w-full relative min-h-[280px] sm:min-h-[360px] md:min-h-0 md:aspect-[16/5]"
-          >
-            <img
-              :src="slide.imageUrl"
-              :alt="slide.title || 'Banner'"
-              class="absolute inset-0 w-full h-full object-cover object-center"
-            />
-          </div>
+            :src="slide.imageUrl"
+            :alt="slide.title || 'Banner'"
+            class="w-full h-auto block"
+          />
           <!-- Fallback gradient quando não há imagem -->
           <div
             v-else
@@ -34,25 +30,24 @@
             :style="slideBg(slide, idx)"
           ></div>
 
-          <!-- Overlay escuro + conteúdo -->
-          <div class="absolute inset-0 bg-black/20 flex items-center">
-            <!-- Decorative blobs -->
+          <!-- Overlay leve + conteúdo (oculto no mobile para não cobrir a imagem) -->
+          <div class="absolute inset-0 hidden sm:flex items-center bg-black/20">
             <div class="absolute top-6 right-16 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
             <div class="absolute bottom-6 left-10 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
 
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 md:py-16 relative z-10 w-full">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8 py-10 md:py-16 relative z-10 w-full">
               <div class="text-center md:text-left max-w-2xl mx-auto md:mx-0">
-                <h1 class="font-black leading-tight text-xl sm:text-4xl md:text-5xl lg:text-6xl text-white drop-shadow-lg mb-2 sm:mb-3">
+                <h1 class="font-black leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white drop-shadow-lg mb-3">
                   {{ slide.title }}
                 </h1>
-                <p class="text-white/80 text-sm sm:text-lg mb-4 sm:mb-8 drop-shadow hidden sm:block">
+                <p class="text-white/80 text-base sm:text-lg mb-8 drop-shadow">
                   {{ slide.subtitle }}
                 </p>
                 <RouterLink
                   :to="slide.ctaLink || '/catalogo'"
                   class="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300
-                         active:scale-95 text-yellow-900 font-bold px-4 py-2.5 sm:px-7 sm:py-3.5 rounded-2xl
-                         shadow-lg hover:shadow-xl transition-all duration-200 text-xs sm:text-sm"
+                         active:scale-95 text-yellow-900 font-bold px-7 py-3.5 rounded-2xl
+                         shadow-lg hover:shadow-xl transition-all duration-200 text-sm"
                 >
                   {{ slide.ctaText || 'Ver Produtos' }}
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
