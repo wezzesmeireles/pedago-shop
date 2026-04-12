@@ -42,9 +42,10 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     root.style.setProperty('--color-primary', cfg.primaryColor);
     root.style.setProperty('--color-secondary', cfg.secondaryColor);
     root.style.setProperty('--color-accent', cfg.accentColor);
-    if (cfg.faviconUrl) {
+    const faviconHref = cfg.faviconUrl || cfg.logoUrl;
+    if (faviconHref) {
       const favicon = document.getElementById('favicon') as HTMLLinkElement;
-      if (favicon) favicon.href = cfg.faviconUrl;
+      if (favicon) favicon.href = faviconHref;
     }
     if (cfg.storeName) document.title = cfg.storeName;
   }
