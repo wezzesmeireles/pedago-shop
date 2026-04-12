@@ -34,7 +34,7 @@
               Tudo começou com uma necessidade real: professoras que passavam horas procurando atividades pedagógicas de qualidade na internet, sem encontrar o que precisavam.
             </p>
             <p>
-              Decidimos criar uma plataforma onde educadores pudessem encontrar materiais bem elaborados, prontos para imprimir, a preços acessíveis e com entrega imediata por e-mail.
+              Decidimos criar uma plataforma onde educadores pudessem encontrar materiais bem elaborados, prontos para imprimir, a preços acessíveis e com acesso imediato após o pagamento.
             </p>
             <p>
               Cada atividade é desenvolvida por pedagogos experientes, pensada para engajar os alunos e facilitar o dia a dia em sala de aula.
