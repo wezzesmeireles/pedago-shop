@@ -170,7 +170,12 @@ async function toggleActive(cat: any) {
 
 async function loadCategories() {
   const { data } = await supabase.from('categories').select('*, products(count)').order('sort_order').order('created_at');
-  categories.value = (data ?? []).map((c: any) => ({ ...c, isActive: c.is_active, imageUrl: c.image_url }));
+  categories.value = (data ?? []).map((c: any) => ({
+    ...c,
+    isActive: c.is_active,
+    imageUrl: c.image_url,
+    _count: { products: c.products?.[0]?.count ?? 0 },
+  }));
 }
 
 async function reorder(cat: any, direction: 'up' | 'down') {
