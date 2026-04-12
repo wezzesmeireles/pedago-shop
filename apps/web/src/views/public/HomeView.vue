@@ -81,7 +81,7 @@
             {{ cat.name }}
           </h2>
           <RouterLink
-            :to="cat.id === '__destaques__' ? '/catalogo' : `/catalogo?categoria=${cat.slug}`"
+            :to="`/catalogo?categoria=${cat.slug}`"
             class="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors flex items-center gap-1 group"
           >
             Ver todos
@@ -485,14 +485,9 @@ onMounted(async () => {
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
         if (error) { console.error('categories fetch error:', error); return; }
-        console.log('[Home] produtos carregados:', prods?.length ?? 0);
         const catMap = new Map<string, any>();
-        const featuredList: any[] = [];
-        const allMapped: any[] = [];
         for (const p of prods ?? []) {
           const mapped = { ...p, coverImageUrl: (p as any).cover_image_url, comparePrice: (p as any).compare_price };
-          allMapped.push(mapped);
-          if ((p as any).is_featured && featuredList.length < 8) featuredList.push(mapped);
           const cat = (p as any).categories;
           if (!cat || !cat.is_active) continue;
           if (!catMap.has(cat.id)) catMap.set(cat.id, { ...cat, products: [] });
@@ -500,16 +495,8 @@ onMounted(async () => {
             catMap.get(cat.id)!.products.push(mapped);
           }
         }
-        console.log('[Home] categorias encontradas:', catMap.size, '| destaques:', featuredList.length);
-        // Se nenhum produto tiver is_featured, usa os primeiros do resultado como destaques
-        const destaques = featuredList.length > 0 ? featuredList : allMapped.slice(0, 8);
-        const result = Array.from(catMap.values())
+        categoriesWithProducts.value = Array.from(catMap.values())
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-        if (destaques.length > 0) {
-          result.unshift({ id: '__destaques__', name: 'Destaques', slug: 'catalogo', products: destaques });
-        }
-        categoriesWithProducts.value = result;
-        console.log('[Home] categoriesWithProducts:', categoriesWithProducts.value.map((c: any) => `${c.name}(${c.products.length})`));
       } catch (e) { console.error('categories section error:', e); }
     })(),
     (async () => {
