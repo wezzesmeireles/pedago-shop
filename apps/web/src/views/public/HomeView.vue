@@ -16,39 +16,46 @@
           :key="idx"
           class="relative w-full"
         >
-          <!-- Image — largura 100%, altura automática = imagem completa sem corte -->
+          <!-- Mobile: imagem inteira clicável -->
+          <RouterLink :to="slide.ctaLink || '/catalogo'" class="block sm:hidden">
+            <img
+              v-if="slide.imageUrl"
+              :src="slide.imageUrl"
+              :alt="slide.title || 'Banner'"
+              class="w-full h-auto block"
+            />
+            <div
+              v-else
+              class="w-full min-h-[200px]"
+              :style="slideBg(slide, idx)"
+            ></div>
+
+            <!-- Gradiente + botão na base -->
+            <div class="absolute bottom-0 left-0 right-0"
+                 style="background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%); padding: 28px 16px 14px">
+              <div class="flex items-center justify-center gap-2 w-full
+                          bg-white/95 text-slate-900 font-bold text-sm
+                          px-5 py-2.5 rounded-xl shadow-md">
+                {{ slide.ctaText || 'Ver Produtos' }}
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                </svg>
+              </div>
+            </div>
+          </RouterLink>
+
+          <!-- Desktop: imagem normal (sem link — o overlay tem o botão) -->
           <img
             v-if="slide.imageUrl"
             :src="slide.imageUrl"
             :alt="slide.title || 'Banner'"
-            class="w-full h-auto block"
+            class="w-full h-auto hidden sm:block"
           />
-          <!-- Fallback gradient quando não há imagem -->
           <div
             v-else
-            class="w-full min-h-[200px] sm:min-h-[320px] md:min-h-[420px]"
+            class="w-full min-h-[320px] md:min-h-[420px] hidden sm:block"
             :style="slideBg(slide, idx)"
           ></div>
-
-          <!-- Overlay unificado — mobile: barra inferior · sm+: overlay completo -->
-
-          <!-- Mobile: gradiente + botão centrado na base da imagem -->
-          <div class="absolute bottom-0 left-0 right-0 sm:hidden"
-               style="background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%); padding: 28px 16px 14px">
-            <RouterLink
-              :to="slide.ctaLink || '/catalogo'"
-              class="flex items-center justify-center gap-2 w-full
-                     bg-white/95 hover:bg-white active:scale-95
-                     text-slate-900 font-bold text-sm
-                     px-5 py-2.5 rounded-xl shadow-md
-                     transition-all duration-200"
-            >
-              {{ slide.ctaText || 'Ver Produtos' }}
-              <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-              </svg>
-            </RouterLink>
-          </div>
 
           <!-- Tablet/Desktop: overlay completo com título e botão -->
           <div class="absolute inset-0 hidden sm:flex items-center bg-black/20">
