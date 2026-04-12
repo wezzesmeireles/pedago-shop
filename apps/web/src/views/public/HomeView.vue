@@ -81,7 +81,7 @@
             {{ cat.name }}
           </h2>
           <RouterLink
-            :to="`/catalogo?categoria=${cat.slug}`"
+            :to="cat.id === '__destaques__' ? '/catalogo' : `/catalogo?categoria=${cat.slug}`"
             class="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors flex items-center gap-1 group"
           >
             Ver todos
@@ -96,53 +96,6 @@
       </section>
     </template>
 
-    <!-- ── Destaques — só aparece se houver produtos fora das categorias ── -->
-    <section v-if="loadingFeatured || dedupedFeatured.length > 0" ref="destaquesSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 reveal">
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <span class="w-1 h-7 rounded-full bg-gradient-to-b from-primary-500 to-secondary-500 inline-block"></span>
-          Destaques
-        </h2>
-        <RouterLink to="/catalogo" class="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors flex items-center gap-1 group">
-          Ver todos
-          <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-          </svg>
-        </RouterLink>
-      </div>
-
-      <!-- Skeleton -->
-      <div v-if="loadingFeatured" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <div v-for="i in 12" :key="i" class="rounded-xl overflow-hidden">
-          <div class="aspect-square shimmer"></div>
-          <div class="p-2.5 space-y-1.5">
-            <div class="h-2.5 shimmer rounded w-4/5"></div>
-            <div class="h-2.5 shimmer rounded w-3/5"></div>
-            <div class="h-6 shimmer rounded-lg mt-2"></div>
-          </div>
-        </div>
-      </div>
-
-      <transition-group
-        v-else
-        tag="div"
-        name="stagger"
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"
-        appear
-      >
-        <ProductCard
-          v-for="(product, i) in dedupedFeatured"
-          :key="product.id"
-          :product="product"
-          :style="{ transitionDelay: `${i * 40}ms` }"
-        />
-      </transition-group>
-
-      <div v-if="!loadingFeatured && dedupedFeatured.length === 0" class="text-center py-12">
-        <div class="text-5xl mb-3">📚</div>
-        <p class="text-gray-400">Nenhum produto em destaque no momento.</p>
-      </div>
-    </section>
 
     <!-- ── Atividades ────────────────────────────────────── -->
     <section ref="atividadesSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 reveal">
@@ -433,10 +386,8 @@ function resetBannerTimer() {
   }
 }
 
-const featuredProducts = ref<any[]>([]);
 const atividades = ref<any[]>([]);
 const groupProduct = ref<any>(null);
-const loadingFeatured = ref(true);
 const loadingAtividades = ref(true);
 const atividadesPage = ref(0);
 const groupQty = ref(1);
@@ -444,7 +395,6 @@ const newsletterEmail = ref('');
 const newsletterSent = ref(false);
 
 // Section refs for scroll reveal
-const destaquesSection = ref<HTMLElement | null>(null);
 const atividadesSection = ref<HTMLElement | null>(null);
 const groupSection = ref<HTMLElement | null>(null);
 const testimonialsSection = ref<HTMLElement | null>(null);
@@ -453,15 +403,6 @@ const newsletterSection = ref<HTMLElement | null>(null);
 const ATIVIDADES_PER_PAGE = 6;
 
 const stripeColors = ['#facc15', '#f87171', '#60a5fa', '#4ade80', '#c084fc', '#fb923c'];
-
-// IDs já exibidos nas seções de categoria — evita repetição em Destaques
-const shownInCategories = computed(() =>
-  new Set(categoriesWithProducts.value.flatMap((c: any) => c.products.map((p: any) => p.id)))
-);
-
-const dedupedFeatured = computed(() =>
-  featuredProducts.value.filter((p: any) => !shownInCategories.value.has(p.id))
-);
 
 const pagedAtividades = computed(() =>
   atividades.value.slice(atividadesPage.value * ATIVIDADES_PER_PAGE, (atividadesPage.value + 1) * ATIVIDADES_PER_PAGE)
@@ -523,7 +464,7 @@ function setupReveal() {
     { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
   );
 
-  [destaquesSection, atividadesSection, groupSection, testimonialsSection, newsletterSection]
+  [atividadesSection, groupSection, testimonialsSection, newsletterSection]
     .forEach((ref) => {
       if (ref.value) observer!.observe(ref.value);
     });
@@ -544,24 +485,32 @@ onMounted(async () => {
           .is('deleted_at', null)
           .order('created_at', { ascending: false });
         if (error) { console.error('categories fetch error:', error); return; }
+        console.log('[Home] produtos carregados:', prods?.length ?? 0);
         const catMap = new Map<string, any>();
+        const featuredList: any[] = [];
+        const allMapped: any[] = [];
         for (const p of prods ?? []) {
+          const mapped = { ...p, coverImageUrl: (p as any).cover_image_url, comparePrice: (p as any).compare_price };
+          allMapped.push(mapped);
+          if ((p as any).is_featured && featuredList.length < 8) featuredList.push(mapped);
           const cat = (p as any).categories;
           if (!cat || !cat.is_active) continue;
           if (!catMap.has(cat.id)) catMap.set(cat.id, { ...cat, products: [] });
-          if (catMap.get(cat.id).products.length < 6) {
-            catMap.get(cat.id).products.push({ ...p, coverImageUrl: (p as any).cover_image_url, comparePrice: (p as any).compare_price });
+          if (catMap.get(cat.id)!.products.length < 6) {
+            catMap.get(cat.id)!.products.push(mapped);
           }
         }
-        categoriesWithProducts.value = Array.from(catMap.values())
+        console.log('[Home] categorias encontradas:', catMap.size, '| destaques:', featuredList.length);
+        // Se nenhum produto tiver is_featured, usa os primeiros do resultado como destaques
+        const destaques = featuredList.length > 0 ? featuredList : allMapped.slice(0, 8);
+        const result = Array.from(catMap.values())
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        if (destaques.length > 0) {
+          result.unshift({ id: '__destaques__', name: 'Destaques', slug: 'catalogo', products: destaques });
+        }
+        categoriesWithProducts.value = result;
+        console.log('[Home] categoriesWithProducts:', categoriesWithProducts.value.map((c: any) => `${c.name}(${c.products.length})`));
       } catch (e) { console.error('categories section error:', e); }
-    })(),
-    (async () => {
-      try {
-        const { data } = await supabase.from('products').select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, categories(id, name, slug)').eq('is_featured', true).eq('is_active', true).is('deleted_at', null).order('sort_order').limit(8);
-        featuredProducts.value = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price }));
-      } finally { loadingFeatured.value = false; }
     })(),
     (async () => {
       try {
