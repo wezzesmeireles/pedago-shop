@@ -9,46 +9,54 @@
       </div>
 
       <!-- Slides -->
-      <div class="relative aspect-[16/10] sm:aspect-[16/7] md:aspect-[16/5]">
+      <div class="relative">
         <div
           v-for="(slide, idx) in bannerSlides"
           v-show="bannerIndex === idx"
           :key="idx"
-          class="absolute inset-0 flex items-center"
-          :style="slideBg(slide, idx)"
+          class="relative w-full"
         >
-          <!-- Background image -->
-          <div
+          <!-- Image — mantém proporção natural em qualquer tela -->
+          <img
             v-if="slide.imageUrl"
-            class="absolute inset-0 bg-cover bg-center bg-top"
-            :style="{ backgroundImage: `url(${slide.imageUrl})` }"
-          >
-            <div class="absolute inset-0 bg-black/20"></div>
-          </div>
+            :src="slide.imageUrl"
+            :alt="slide.title || 'Banner'"
+            class="w-full block"
+            style="min-height: 160px; object-fit: cover;"
+          />
+          <!-- Fallback gradient quando não há imagem -->
+          <div
+            v-else
+            class="w-full min-h-[200px] sm:min-h-[320px] md:min-h-[420px]"
+            :style="slideBg(slide, idx)"
+          ></div>
 
-          <!-- Decorative blobs -->
-          <div class="absolute top-6 right-16 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
-          <div class="absolute bottom-6 left-10 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+          <!-- Overlay escuro + conteúdo -->
+          <div class="absolute inset-0 bg-black/20 flex items-center">
+            <!-- Decorative blobs -->
+            <div class="absolute top-6 right-16 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
+            <div class="absolute bottom-6 left-10 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
 
-          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 md:py-16 relative z-10 w-full h-full flex items-center">
-            <div class="text-center md:text-left max-w-2xl mx-auto md:mx-0">
-              <h1 class="font-black leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white drop-shadow-lg mb-3">
-                {{ slide.title }}
-              </h1>
-              <p class="text-white/80 text-base sm:text-lg mb-8 drop-shadow">
-                {{ slide.subtitle }}
-              </p>
-              <RouterLink
-                :to="slide.ctaLink || '/catalogo'"
-                class="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300
-                       active:scale-95 text-yellow-900 font-bold px-7 py-3.5 rounded-2xl
-                       shadow-lg hover:shadow-xl transition-all duration-200 text-sm"
-              >
-                {{ slide.ctaText || 'Ver Produtos' }}
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                </svg>
-              </RouterLink>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 md:py-16 relative z-10 w-full">
+              <div class="text-center md:text-left max-w-2xl mx-auto md:mx-0">
+                <h1 class="font-black leading-tight text-xl sm:text-4xl md:text-5xl lg:text-6xl text-white drop-shadow-lg mb-2 sm:mb-3">
+                  {{ slide.title }}
+                </h1>
+                <p class="text-white/80 text-sm sm:text-lg mb-4 sm:mb-8 drop-shadow hidden sm:block">
+                  {{ slide.subtitle }}
+                </p>
+                <RouterLink
+                  :to="slide.ctaLink || '/catalogo'"
+                  class="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300
+                         active:scale-95 text-yellow-900 font-bold px-4 py-2.5 sm:px-7 sm:py-3.5 rounded-2xl
+                         shadow-lg hover:shadow-xl transition-all duration-200 text-xs sm:text-sm"
+                >
+                  {{ slide.ctaText || 'Ver Produtos' }}
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                  </svg>
+                </RouterLink>
+              </div>
             </div>
           </div>
         </div>
