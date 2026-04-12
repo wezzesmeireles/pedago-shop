@@ -7,7 +7,7 @@
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
         <span class="inline-block bg-white/20 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-widest mb-6">Nossa História</span>
         <h1 class="text-4xl sm:text-5xl font-black text-white mb-5 leading-tight">
-          Feito por educadores,<br>para educadores
+          Simplificando o ensino no dia a dia
         </h1>
         <p class="text-white/80 text-lg max-w-2xl mx-auto leading-relaxed">
           Somos uma plataforma apaixonada por educação, criada para facilitar a vida de professores e pedagogos com materiais digitais de alta qualidade.
