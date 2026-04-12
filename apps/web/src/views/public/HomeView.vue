@@ -16,14 +16,17 @@
           :key="idx"
           class="relative w-full"
         >
-          <!-- Image — mantém proporção natural em qualquer tela -->
-          <img
+          <!-- Image — container com altura mínima + object-cover para não distorcer -->
+          <div
             v-if="slide.imageUrl"
-            :src="slide.imageUrl"
-            :alt="slide.title || 'Banner'"
-            class="w-full block"
-            style="min-height: 160px; object-fit: cover;"
-          />
+            class="w-full relative min-h-[280px] sm:min-h-[360px] md:min-h-0 md:aspect-[16/5]"
+          >
+            <img
+              :src="slide.imageUrl"
+              :alt="slide.title || 'Banner'"
+              class="absolute inset-0 w-full h-full object-cover object-center"
+            />
+          </div>
           <!-- Fallback gradient quando não há imagem -->
           <div
             v-else
