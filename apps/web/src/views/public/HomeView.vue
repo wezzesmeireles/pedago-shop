@@ -30,51 +30,58 @@
             :style="slideBg(slide, idx)"
           ></div>
 
-          <!-- Overlay + conteúdo (desktop/tablet) -->
+          <!-- Overlay unificado — mobile: barra inferior · sm+: overlay completo -->
+
+          <!-- Mobile: gradiente + botão centrado na base da imagem -->
+          <div class="absolute bottom-0 left-0 right-0 sm:hidden"
+               style="background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%); padding: 28px 16px 14px">
+            <RouterLink
+              :to="slide.ctaLink || '/catalogo'"
+              class="flex items-center justify-center gap-2 w-full
+                     bg-white/95 hover:bg-white active:scale-95
+                     text-slate-900 font-bold text-sm
+                     px-5 py-2.5 rounded-xl shadow-md
+                     transition-all duration-200"
+            >
+              {{ slide.ctaText || 'Ver Produtos' }}
+              <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+              </svg>
+            </RouterLink>
+          </div>
+
+          <!-- Tablet/Desktop: overlay completo com título e botão -->
           <div class="absolute inset-0 hidden sm:flex items-center bg-black/20">
             <div class="absolute top-6 right-16 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
             <div class="absolute bottom-6 left-10 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
 
-            <div class="max-w-7xl mx-auto px-6 lg:px-8 py-10 md:py-16 relative z-10 w-full">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8 py-8 md:py-14 relative z-10 w-full">
               <div class="text-center md:text-left max-w-2xl mx-auto md:mx-0">
-                <h1 class="font-black leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white drop-shadow-lg mb-3">
+                <h1 class="font-black leading-tight text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-white drop-shadow-lg mb-2 sm:mb-3">
                   {{ slide.title }}
                 </h1>
-                <p class="text-white/80 text-base sm:text-lg mb-8 drop-shadow">
+                <p class="text-white/80 text-sm sm:text-base md:text-lg mb-5 sm:mb-7 drop-shadow">
                   {{ slide.subtitle }}
                 </p>
+                <!-- Botão: cresce de sm → md → lg -->
                 <RouterLink
                   :to="slide.ctaLink || '/catalogo'"
-                  class="inline-flex items-center gap-2 bg-white/95 hover:bg-white
-                         active:scale-95 text-slate-900 font-bold px-7 py-3.5 rounded-2xl
-                         shadow-lg hover:shadow-xl transition-all duration-200 text-sm backdrop-blur-sm"
+                  class="inline-flex items-center gap-2
+                         bg-white/95 hover:bg-white active:scale-95
+                         text-slate-900 font-bold
+                         px-5 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-4
+                         text-sm sm:text-sm md:text-base
+                         rounded-xl sm:rounded-2xl
+                         shadow-lg hover:shadow-xl
+                         transition-all duration-200 backdrop-blur-sm"
                 >
                   {{ slide.ctaText || 'Ver Produtos' }}
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                   </svg>
                 </RouterLink>
               </div>
             </div>
-          </div>
-
-          <!-- CTA mobile — aparece abaixo da imagem -->
-          <div v-if="slide.ctaText || slide.title" class="sm:hidden bg-white border-b border-slate-100 px-4 py-4 flex items-center justify-between gap-3">
-            <div class="min-w-0">
-              <p v-if="slide.title" class="text-sm font-bold text-slate-900 truncate">{{ slide.title }}</p>
-              <p v-if="slide.subtitle" class="text-xs text-slate-500 truncate mt-0.5">{{ slide.subtitle }}</p>
-            </div>
-            <RouterLink
-              :to="slide.ctaLink || '/catalogo'"
-              class="flex-shrink-0 inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700
-                     active:scale-95 text-white font-bold px-4 py-2 rounded-xl
-                     shadow-sm transition-all duration-200 text-xs whitespace-nowrap"
-            >
-              {{ slide.ctaText || 'Ver Produtos' }}
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-              </svg>
-            </RouterLink>
           </div>
         </div>
 
