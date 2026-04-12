@@ -149,8 +149,8 @@
       </section>
     </template>
 
-    <!-- ── Destaques ─────────────────────────────────────── -->
-    <section ref="destaquesSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 reveal">
+    <!-- ── Destaques — só aparece se houver produtos fora das categorias ── -->
+    <section v-if="loadingFeatured || dedupedFeatured.length > 0" ref="destaquesSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 reveal">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <span class="w-1 h-7 rounded-full bg-gradient-to-b from-primary-500 to-secondary-500 inline-block"></span>
@@ -184,14 +184,14 @@
         appear
       >
         <ProductCard
-          v-for="(product, i) in featuredProducts"
+          v-for="(product, i) in dedupedFeatured"
           :key="product.id"
           :product="product"
           :style="{ transitionDelay: `${i * 40}ms` }"
         />
       </transition-group>
 
-      <div v-if="!loadingFeatured && featuredProducts.length === 0" class="text-center py-12">
+      <div v-if="!loadingFeatured && dedupedFeatured.length === 0" class="text-center py-12">
         <div class="text-5xl mb-3">📚</div>
         <p class="text-gray-400">Nenhum produto em destaque no momento.</p>
       </div>
@@ -506,6 +506,15 @@ const newsletterSection = ref<HTMLElement | null>(null);
 const ATIVIDADES_PER_PAGE = 6;
 
 const stripeColors = ['#facc15', '#f87171', '#60a5fa', '#4ade80', '#c084fc', '#fb923c'];
+
+// IDs já exibidos nas seções de categoria — evita repetição em Destaques
+const shownInCategories = computed(() =>
+  new Set(categoriesWithProducts.value.flatMap((c: any) => c.products.map((p: any) => p.id)))
+);
+
+const dedupedFeatured = computed(() =>
+  featuredProducts.value.filter((p: any) => !shownInCategories.value.has(p.id))
+);
 
 const pagedAtividades = computed(() =>
   atividades.value.slice(atividadesPage.value * ATIVIDADES_PER_PAGE, (atividadesPage.value + 1) * ATIVIDADES_PER_PAGE)
