@@ -9,7 +9,7 @@
       </div>
 
       <!-- Slides -->
-      <div class="relative min-h-[220px] sm:min-h-[320px] md:min-h-[420px]">
+      <div class="relative aspect-[16/10] sm:aspect-[16/7] md:aspect-[16/5]">
         <div
           v-for="(slide, idx) in bannerSlides"
           v-show="bannerIndex === idx"
@@ -30,7 +30,7 @@
           <div class="absolute top-6 right-16 w-48 h-48 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
           <div class="absolute bottom-6 left-10 w-36 h-36 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
 
-          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-14 md:py-20 relative z-10 w-full">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 md:py-16 relative z-10 w-full h-full flex items-center">
             <div class="text-center md:text-left max-w-2xl mx-auto md:mx-0">
               <h1 class="font-black leading-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white drop-shadow-lg mb-3">
                 {{ slide.title }}
