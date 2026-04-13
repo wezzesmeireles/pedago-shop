@@ -14,6 +14,14 @@ async function getSiteConfig() {
 const fmt = (n: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n));
 
+function nowBR() {
+  return new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function buildItemsList(items: any[]) {
+  return (items ?? []).map((i: any) => `    📌 ${i.product_name ?? 'Produto'} x${i.quantity}  —  ${fmt((i.unit_price ?? 0) * i.quantity)}`).join('\n');
+}
+
 async function tg(cfg: Record<string, any>, text: string) {
   const token = cfg.telegramBotToken?.trim();
   const chatId = cfg.telegramChatId?.trim();
@@ -135,15 +143,23 @@ Deno.serve(async (req) => {
         }
 
         // Telegram — venda aprovada
-        const { customerName, orderNumber, items } = orderSummary(order);
+        const { customerName, orderNumber } = orderSummary(order);
         const method = payment.payment_type_id === 'pix' ? 'PIX' : 'Cartao de Credito';
+        const methodEmoji = payment.payment_type_id === 'pix' ? '🟢 PIX' : '💳 Cartao de Credito';
+        const installments = payment.installments && payment.installments > 1 ? ` (${payment.installments}x de ${fmt(payment.transaction_amount / payment.installments)})` : '';
+        const itemsList = buildItemsList(order.order_items ?? []);
+        const customerEmail = order.customer_email ?? '';
         await tg(cfg,
-          `✅ *Nova Venda Aprovada!*\n\n` +
-          `*Pedido:* #${orderNumber}\n` +
-          `*Cliente:* ${customerName}\n` +
-          `*Valor:* ${fmt(order.total_amount)}\n` +
-          `*Forma:* ${method}` +
-          (items ? `\n\n*Itens:*\n${items}` : ''),
+          `🎉 *VENDA APROVADA!*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `📋 *Pedido:* \`#${orderNumber}\`\n` +
+          `👤 *Cliente:* ${customerName}\n` +
+          (customerEmail ? `📧 *Email:* ${customerEmail}\n` : '') +
+          `\n💳 *Pagamento:* ${methodEmoji}${installments}\n` +
+          `✅ *Status:* Pagamento Confirmado\n\n` +
+          `🛍️ *Itens Comprados:*\n${itemsList}\n\n` +
+          `💰 *Total Recebido: ${fmt(order.total_amount)}*\n\n` +
+          `🕐 ${nowBR()}`,
         );
       }
     } else if (orderId && (mpStatus === 'rejected' || mpStatus === 'cancelled')) {
@@ -151,11 +167,16 @@ Deno.serve(async (req) => {
       if (order && order.status !== 'PAID') {
         await supabase.from('orders').update({ status: 'CANCELLED', mp_status: mpStatus, updated_at: new Date().toISOString() }).eq('id', orderId);
         const { customerName, orderNumber } = orderSummary(order);
+        const statusLabel = mpStatus === 'rejected' ? 'RECUSADO' : 'CANCELADO';
+        const statusEmoji = mpStatus === 'rejected' ? '🚫' : '❌';
         await tg(cfg,
-          `❌ *Pagamento ${mpStatus === 'rejected' ? 'Recusado' : 'Cancelado'}*\n\n` +
-          `*Pedido:* #${orderNumber}\n` +
-          `*Cliente:* ${customerName}\n` +
-          `*Valor:* ${fmt(order.total_amount)}`,
+          `${statusEmoji} *PAGAMENTO ${statusLabel}*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `📋 *Pedido:* \`#${orderNumber}\`\n` +
+          `👤 *Cliente:* ${customerName}\n` +
+          `💰 *Valor:* ${fmt(order.total_amount)}\n\n` +
+          `⚠️ *Motivo:* Pagamento ${statusLabel.toLowerCase()} pelo Mercado Pago\n\n` +
+          `🕐 ${nowBR()}`,
         );
       }
     } else if (orderId && (mpStatus === 'refunded' || mpStatus === 'charged_back')) {
@@ -165,10 +186,13 @@ Deno.serve(async (req) => {
       if (order) {
         const { customerName, orderNumber } = orderSummary(order);
         await tg(cfg,
-          `↩️ *Reembolso Processado*\n\n` +
-          `*Pedido:* #${orderNumber}\n` +
-          `*Cliente:* ${customerName}\n` +
-          `*Valor:* ${fmt(order.total_amount)}`,
+          `↩️ *REEMBOLSO PROCESSADO*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+          `📋 *Pedido:* \`#${orderNumber}\`\n` +
+          `👤 *Cliente:* ${customerName}\n` +
+          `💸 *Valor Reembolsado:* ${fmt(order.total_amount)}\n\n` +
+          `ℹ️ Os downloads do cliente foram revogados automaticamente.\n\n` +
+          `🕐 ${nowBR()}`,
         );
       }
     }
