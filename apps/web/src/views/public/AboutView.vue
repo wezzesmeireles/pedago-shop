@@ -102,7 +102,7 @@ const { config } = useSiteConfigStore();
 
 const values = [
   { emoji: '🎯', title: 'Qualidade', text: 'Cada atividade é cuidadosamente desenvolvida por pedagogos experientes para garantir resultados reais em sala de aula.' },
-  { emoji: '⚡', title: 'Praticidade', text: 'Compre, receba no e-mail e imprima. Sem complicações, sem espera. Tudo pensado para economizar o seu tempo.' },
+  { emoji: '⚡', title: 'Praticidade', text: 'Compre, baixe e imprima. Sem complicações, sem espera. Tudo pensado para economizar o seu tempo.' },
   { emoji: '💛', title: 'Acessibilidade', text: 'Preços justos para que todos os educadores possam ter acesso a materiais de qualidade, independente do orçamento.' },
 ];
 
@@ -116,7 +116,7 @@ const stats = [
 const steps = [
   { emoji: '🔍', title: 'Explore', text: 'Navegue pelo catálogo e encontre a atividade ideal para sua turma.', bg: 'bg-violet-100' },
   { emoji: '🛒', title: 'Compre', text: 'Adicione ao carrinho e escolha como pagar: PIX ou cartão.', bg: 'bg-pink-100' },
-  { emoji: '📧', title: 'Receba', text: 'Após o pagamento, o PDF chega no seu e-mail automaticamente.', bg: 'bg-blue-100' },
+  { emoji: '⬇️', title: 'Baixe', text: 'Após o pagamento, o PDF fica disponível para download na sua conta imediatamente.', bg: 'bg-blue-100' },
   { emoji: '🖨️', title: 'Imprima', text: 'Baixe, imprima e aplique em sala de aula. Simples assim!', bg: 'bg-green-100' },
 ];
 </script>

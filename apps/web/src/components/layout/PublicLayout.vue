@@ -520,7 +520,7 @@ const PrintIcon = { render: () => h('svg', { fill: 'none', stroke: 'currentColor
 const trustBadges = [
   { label: 'TIRAR DÚVIDAS!', sub: 'Atendimento via WhatsApp', icon: ChatIcon, bg: 'bg-purple-100', color: 'text-primary-600' },
   { label: 'Pague Como Quiser', sub: 'PIX, cartão e muito mais', icon: CardIcon, bg: 'bg-green-100', color: 'text-green-600' },
-  { label: 'Atividades prontas para imprimir', sub: 'PDF entregue no seu email', icon: PrintIcon, bg: 'bg-blue-100', color: 'text-blue-600' },
+  { label: 'Atividades prontas para imprimir', sub: 'Download disponível na conta', icon: PrintIcon, bg: 'bg-blue-100', color: 'text-blue-600' },
 ];
 
 function openCart() {

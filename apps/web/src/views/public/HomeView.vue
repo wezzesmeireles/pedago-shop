@@ -405,7 +405,7 @@ const maxAtividadesPage = computed(() =>
 
 const testimonials = [
   { name: 'Maria S.', role: 'Professora de Educação Infantil', text: 'Adorei as atividades! Meus alunos ficaram super animados e o material é de excelente qualidade.' },
-  { name: 'Andressa Luzia', role: 'Pedagoga', text: 'Amei! Qualidade incrível, chegou rapidinho pelo email. Recomendo demais para professores!' },
+  { name: 'Andressa Luzia', role: 'Pedagoga', text: 'Amei! Qualidade incrível, baixei rapidinho e já imprimi tudo. Recomendo demais para professores!' },
   { name: 'Fernanda Gabi', role: 'Coordenadora Pedagógica', text: 'Material muito bem elaborado. Já comprei várias vezes e sempre fico satisfeita com o resultado.' },
 ];
 

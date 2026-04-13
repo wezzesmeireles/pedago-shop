@@ -32,7 +32,7 @@
               </div>
               <div class="flex-1 min-w-0">
                 <p class="font-medium text-gray-900 text-sm truncate">{{ item.name }}</p>
-                <p class="text-xs text-gray-400">PDF • Entrega imediata por e-mail</p>
+                <p class="text-xs text-gray-400">PDF • Download imediato na sua conta</p>
               </div>
               <p class="font-bold text-gray-900 text-sm flex-shrink-0">{{ fmt(item.price * item.quantity) }}</p>
             </div>

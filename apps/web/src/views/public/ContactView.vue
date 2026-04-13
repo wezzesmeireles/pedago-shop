@@ -149,7 +149,7 @@ const sent = ref(false);
 const form = reactive({ name: '', email: '', subject: '', message: '' });
 
 const faqs = [
-  { q: 'Como recebo minha compra?', a: 'Após a confirmação do pagamento, o link de download é enviado automaticamente para o seu e-mail e fica disponível na sua conta.' },
+  { q: 'Como recebo minha compra?', a: 'Após a confirmação do pagamento, o arquivo fica disponível imediatamente para download na sua conta, na aba "Downloads".' },
   { q: 'Os arquivos têm prazo de validade?', a: 'Os downloads ficam disponíveis por 30 dias após a compra. Salve o arquivo no seu dispositivo!' },
   { q: 'Posso imprimir os materiais?', a: 'Sim! Todos os materiais são em PDF de alta qualidade, prontos para impressão.' },
   { q: 'Qual o prazo de resposta?', a: 'Respondemos todas as mensagens em até 24 horas nos dias úteis.' },

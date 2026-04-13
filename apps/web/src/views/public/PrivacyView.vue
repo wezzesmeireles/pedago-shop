@@ -71,7 +71,7 @@ const sections = [
     ],
     list: [
       'Processar e confirmar seus pedidos de compra',
-      'Enviar os arquivos digitais adquiridos por e-mail',
+      'Disponibilizar os arquivos digitais adquiridos para download na sua conta',
       'Comunicar atualizações sobre seus pedidos',
       'Enviar promoções e novidades (caso você opte por receber)',
       'Garantir a segurança da sua conta',
