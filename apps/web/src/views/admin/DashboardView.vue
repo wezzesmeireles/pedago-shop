@@ -27,9 +27,17 @@
           <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
-          <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-1">Receita Total</p>
-          <p class="text-xl sm:text-2xl font-black truncate">{{ formatPrice(stats.revenue.total) }}</p>
-          <p class="text-white/60 text-xs mt-1"><span class="text-emerald-300 font-semibold">{{ formatPrice(stats.revenue.month) }}</span> este mês</p>
+          <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-1">Receita</p>
+          <p class="text-xl sm:text-2xl font-black truncate">{{ formatPrice(filteredRevenue) }}</p>
+          <div class="flex items-center gap-1 mt-2">
+            <button
+              v-for="f in [{ key: 'day', label: 'Dia' }, { key: 'month', label: 'Mês' }, { key: 'year', label: 'Ano' }]"
+              :key="f.key"
+              @click.stop="revenueFilter = f.key as any"
+              :class="['text-[10px] font-bold px-2 py-0.5 rounded-full transition-all',
+                revenueFilter === f.key ? 'bg-white text-violet-700' : 'bg-white/20 text-white/70 hover:bg-white/30']"
+            >{{ f.label }}</button>
+          </div>
         </div>
       </div>
 
@@ -293,7 +301,14 @@ import StatusBadge from '@/components/ui/StatusBadge.vue';
 const auth = useAuthStore();
 const loading = ref(true);
 
-const stats = ref({ revenue: { total: 0, month: 0 }, orders: { total: 0, month: 0, pending: 0 }, users: { total: 0 } });
+const revenueFilter = ref<'day' | 'month' | 'year'>('month');
+const stats = ref({ revenue: { total: 0, day: 0, month: 0, year: 0 }, orders: { total: 0, month: 0, pending: 0 }, users: { total: 0 } });
+
+const filteredRevenue = computed(() => {
+  if (revenueFilter.value === 'day') return stats.value.revenue.day;
+  if (revenueFilter.value === 'year') return stats.value.revenue.year;
+  return stats.value.revenue.month;
+});
 const recentOrders = ref<any[]>([]);
 const topProducts = ref<any[]>([]);
 const monthlyRevenue = ref<{ label: string; value: number }[]>([]);
@@ -388,11 +403,15 @@ async function loadStorage() {
 onMounted(async () => {
   try {
     const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
 
-    const [{ data: totalRev }, { data: monthRev }, { count: totalOrders }, { count: monthOrders }, { count: pending }, { count: users }, { data: topProds }, { data: recent }] = await Promise.all([
+    const [{ data: totalRev }, { data: dayRev }, { data: monthRev }, { data: yearRev }, { count: totalOrders }, { count: monthOrders }, { count: pending }, { count: users }, { data: topProds }, { data: recent }] = await Promise.all([
       supabase.from('orders').select('total_amount').eq('status', 'PAID'),
+      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfDay),
       supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfMonth),
+      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfYear),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID'),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID').gte('created_at', startOfMonth),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'AWAITING_PAYMENT'),
@@ -402,7 +421,7 @@ onMounted(async () => {
     ]);
 
     stats.value = {
-      revenue: { total: sum(totalRev ?? []), month: sum(monthRev ?? []) },
+      revenue: { total: sum(totalRev ?? []), day: sum(dayRev ?? []), month: sum(monthRev ?? []), year: sum(yearRev ?? []) },
       orders: { total: totalOrders ?? 0, month: monthOrders ?? 0, pending: pending ?? 0 },
       users: { total: users ?? 0 },
     };
