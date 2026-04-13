@@ -81,18 +81,24 @@ export const useAuthStore = defineStore('auth', () => {
       });
 
       if (fnError) {
-        // Parse actual body from FunctionsHttpError
         let errMsg = '';
-        try { errMsg = (await (fnError as any).context?.json())?.message?.toLowerCase() ?? ''; } catch { /**/ }
+        let errStatus = 0;
+        try {
+          const ctx = (fnError as any).context;
+          errStatus = ctx?.status ?? 0;
+          const body = await ctx?.json();
+          errMsg = (body?.message ?? '').toLowerCase();
+        } catch { /**/ }
         if (!errMsg) errMsg = (fnError.message ?? '').toLowerCase();
-        console.error('[register-user fn error]', errMsg, fnError);
+        console.error('[register-user fn error]', errStatus, errMsg);
 
-        if (errMsg.includes('already') || errMsg.includes('existe') || errMsg.includes('registered')) {
+        // 409 = already exists
+        if (errStatus === 409 || errMsg.includes('already') || errMsg.includes('registered')) {
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (!signInErr) { await fetchMe(); return; }
           throw new Error('Este email já está cadastrado. Tente fazer login.');
         }
-        throw new Error(`Erro ao criar conta: ${errMsg || 'tente novamente.'}`);
+        throw new Error('Erro ao criar conta. Tente novamente.');
       }
 
       // Account created — sign in immediately
