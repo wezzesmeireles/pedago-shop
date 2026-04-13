@@ -75,6 +75,19 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(name: string, email: string, password: string, phone?: string) {
     loading.value = true;
     try {
+      // Before trying to create, check if the account already exists
+      // (avoids unnecessary signUp calls that hit rate limits)
+      const { error: preCheckError } = await supabase.auth.signInWithPassword({ email, password });
+      if (!preCheckError) {
+        // Account already exists and password matches — just log in
+        if (phone) {
+          const { data: me } = await supabase.auth.getUser();
+          if (me.user) await supabase.from('profiles').update({ phone, name }).eq('id', me.user.id);
+        }
+        await fetchMe();
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -82,11 +95,20 @@ export const useAuthStore = defineStore('auth', () => {
       });
 
       if (error) {
+        const code = (error as any)?.code ?? '';
         const msg = error.message.toLowerCase();
-        // Rate limit hit — account may have been created; try signing in directly
-        if (msg.includes('rate limit') || msg.includes('email rate')) {
-          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-          if (!signInError) {
+        console.error('[register error]', code, msg);
+
+        if (msg.includes('already registered') || msg.includes('user already registered') || code === 'user_already_exists') {
+          throw new Error('Este email já está cadastrado. Tente fazer login.');
+        }
+        if (code === 'captcha_failed' || msg.includes('captcha')) {
+          throw new Error('Verificação de segurança falhou. Recarregue a página e tente novamente.');
+        }
+        if (msg.includes('rate limit') || msg.includes('email rate') || code === 'over_request_rate_limit') {
+          // Last attempt: try signing in (account might have been created in a previous attempt)
+          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (!signInErr) {
             if (phone) {
               const { data: me } = await supabase.auth.getUser();
               if (me.user) await supabase.from('profiles').update({ phone, name }).eq('id', me.user.id);
@@ -94,12 +116,12 @@ export const useAuthStore = defineStore('auth', () => {
             await fetchMe();
             return;
           }
-          throw new Error('Muitas tentativas de cadastro. Aguarde alguns minutos e tente novamente.');
+          throw new Error('O serviço está temporariamente sobrecarregado. Aguarde 1 minuto e tente novamente.');
         }
-        if (msg.includes('already registered') || msg.includes('user already registered')) {
-          throw new Error('Este email já está cadastrado. Tente fazer login.');
+        if (msg.includes('password') && (msg.includes('weak') || msg.includes('short'))) {
+          throw new Error('Senha muito fraca. Use pelo menos 8 caracteres com letras e números.');
         }
-        throw new Error(error.message);
+        throw new Error('Erro ao criar conta. Tente novamente.');
       }
 
       // If session exists, email confirmation is disabled — login immediately
@@ -114,6 +136,10 @@ export const useAuthStore = defineStore('auth', () => {
       // Email confirmation is enabled — try to sign in anyway (self-hosted often allows it)
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) throw new Error('Cadastro realizado! Verifique seu email para confirmar a conta.');
+      if (phone) {
+        const { data: me } = await supabase.auth.getUser();
+        if (me.user) await supabase.from('profiles').update({ phone, name }).eq('id', me.user.id);
+      }
       await fetchMe();
     } finally {
       loading.value = false;
