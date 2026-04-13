@@ -23,14 +23,21 @@ const fmt = (n: number) =>
 async function tg(cfg: Record<string, any>, text: string) {
   const token = cfg.telegramBotToken?.trim();
   const chatId = cfg.telegramChatId?.trim();
-  if (!token || !chatId) return;
+  if (!token || !chatId) {
+    console.log('[tg] skipped — token or chatId not configured');
+    return;
+  }
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
     });
-  } catch { /* non-fatal */ }
+    const json = await res.json();
+    if (!json.ok) console.error('[tg] error:', JSON.stringify(json));
+  } catch (e) {
+    console.error('[tg] fetch error:', e);
+  }
 }
 
 async function mpPost(path: string, body: unknown, accessToken: string, idempotencyKey?: string) {
