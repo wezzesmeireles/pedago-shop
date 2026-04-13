@@ -58,14 +58,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(email: string, password: string, captchaToken?: string) {
+  async function login(email: string, password: string) {
     loading.value = true;
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-        options: captchaToken ? { captchaToken } : undefined,
-      });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         console.error('[login error]', error);
         throw new Error(error.message);
@@ -76,13 +72,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(name: string, email: string, password: string, phone?: string, captchaToken?: string) {
+  async function register(name: string, email: string, password: string, phone?: string) {
     loading.value = true;
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { name }, ...(captchaToken ? { captchaToken } : {}) },
+        options: { data: { name } },
       });
 
       if (error) {
