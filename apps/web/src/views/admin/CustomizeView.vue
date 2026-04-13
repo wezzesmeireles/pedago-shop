@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
       <div>
         <h1 class="text-xl font-bold text-slate-900">Customizar Site</h1>
         <p class="text-sm text-slate-500 mt-0.5">Aparência, banners e redes sociais</p>
@@ -14,7 +14,7 @@
           </span>
         </Transition>
         <button @click="saveConfig" :disabled="saving"
-          class="inline-flex items-center gap-2 bg-violet-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-60">
+          class="inline-flex items-center gap-2 bg-violet-600 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-60 flex-1 sm:flex-none justify-center">
           <svg v-if="saving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
           {{ saving ? 'Salvando...' : 'Salvar Alterações' }}
@@ -23,11 +23,13 @@
     </div>
 
     <!-- Tabs -->
-    <div class="flex gap-1 bg-slate-100 p-1 rounded-2xl mb-6 w-fit">
-      <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
-        :class="['px-4 py-2 rounded-xl text-sm font-medium transition-all', activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
-        {{ tab.label }}
-      </button>
+    <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
+      <div class="flex gap-1 bg-slate-100 p-1 rounded-2xl w-max sm:w-fit min-w-full sm:min-w-0">
+        <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
+          :class="['flex-1 sm:flex-none px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap', activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
+          {{ tab.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Tab: Identidade -->
@@ -67,7 +69,7 @@
 
       <div class="bg-white rounded-2xl border border-slate-200 p-6">
         <h2 class="font-semibold text-slate-900 mb-4">Cores</h2>
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div v-for="c in colorFields" :key="c.key">
             <label class="text-xs font-semibold text-slate-600 block mb-2 uppercase tracking-wide">{{ c.label }}</label>
             <div class="flex items-center gap-2">
@@ -116,11 +118,11 @@
 
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Imagem de fundo</label>
-          <div class="flex items-center gap-2 mb-3 px-3 py-2 bg-sky-50 border border-sky-100 rounded-xl">
-            <svg class="w-4 h-4 text-sky-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p class="text-xs text-sky-700 leading-snug">
-              <span class="font-semibold">Tamanho recomendado: 1440 × 420 px</span>
-              <span class="text-sky-400 mx-1">·</span>Proporção 16:5
+          <div class="flex items-start gap-2 mb-3 px-3 py-2 bg-sky-50 border border-sky-100 rounded-xl">
+            <svg class="w-4 h-4 text-sky-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="text-xs text-sky-700 leading-relaxed">
+              <span class="font-semibold">Tamanho recomendado: 1440 × 420 px</span><br class="sm:hidden" />
+              <span class="hidden sm:inline text-sky-400 mx-1">·</span>Proporção 16:5
               <span class="text-sky-400 mx-1">·</span>JPG ou PNG
               <span class="text-sky-400 mx-1">·</span>Máx. 2 MB
             </p>
@@ -171,10 +173,10 @@
         </div>
         <div v-if="form.announcementBarText">
           <label class="block text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Cor de fundo</label>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <input type="color" v-model="form.announcementBarColor" class="w-10 h-10 rounded-xl cursor-pointer border border-slate-200 p-0.5 flex-shrink-0" />
-            <input v-model="form.announcementBarColor" class="w-32 rounded-xl border border-slate-200 px-2 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-violet-500" />
-            <span class="text-xs px-3 py-1.5 rounded-full font-semibold text-white" :style="{ background: form.announcementBarColor }">
+            <input v-model="form.announcementBarColor" class="w-28 rounded-xl border border-slate-200 px-2 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-violet-500" />
+            <span class="text-xs px-3 py-1.5 rounded-full font-semibold text-white truncate max-w-[200px]" :style="{ background: form.announcementBarColor }">
               {{ form.announcementBarText }}
             </span>
           </div>
@@ -185,27 +187,23 @@
     <!-- Tab: Redes Sociais -->
     <div v-show="activeTab === 'social'" class="space-y-3">
       <div v-for="s in socialFields" :key="s.key"
-        class="bg-white rounded-2xl border border-slate-200 p-5 flex items-center gap-4 hover:border-slate-300 transition-colors">
-        <!-- Ícone colorido -->
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" :style="{ background: s.bg }">
-          <span v-html="s.svg" class="w-5 h-5 text-white [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-white"></span>
-        </div>
-        <!-- Campo -->
-        <div class="flex-1 min-w-0">
-          <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">{{ s.label }}</label>
-          <input v-model="(form.socialLinks as any)[s.key]" :placeholder="s.placeholder"
-            class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-slate-50 focus:bg-white transition-colors" />
-        </div>
-        <!-- Indicador ativo/vazio -->
-        <div class="flex-shrink-0">
+        class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 hover:border-slate-300 transition-colors">
+        <div class="flex items-center gap-3 mb-3">
+          <!-- Ícone colorido -->
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" :style="{ background: s.bg }">
+            <span v-html="s.svg" class="w-5 h-5 text-white [&>svg]:w-5 [&>svg]:h-5 [&>svg]:fill-white"></span>
+          </div>
+          <span class="text-sm font-semibold text-slate-800 flex-1">{{ s.label }}</span>
           <span v-if="(form.socialLinks as any)[s.key]"
-            class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+            class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full flex-shrink-0">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Ativo
           </span>
-          <span v-else class="inline-flex items-center text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+          <span v-else class="inline-flex items-center text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full flex-shrink-0 hidden sm:inline-flex">
             Não configurado
           </span>
         </div>
+        <input v-model="(form.socialLinks as any)[s.key]" :placeholder="s.placeholder"
+          class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-slate-50 focus:bg-white transition-colors" />
       </div>
     </div>
 
