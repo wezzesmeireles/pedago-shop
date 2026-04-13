@@ -33,27 +33,6 @@
 
       <AppInput v-model="form.password" label="Senha" type="password" placeholder="Mínimo 8 caracteres" required hint="Use pelo menos 8 caracteres" />
 
-      <!-- Captcha -->
-      <div
-        @click="confirmHuman"
-        :class="['flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer select-none transition-all', humanConfirmed ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white hover:border-gray-300']"
-      >
-        <div :class="['w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-all', humanConfirmed ? 'bg-green-500' : 'border-2 border-gray-300 bg-white']">
-          <svg v-if="humanConfirmed" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-          </svg>
-        </div>
-        <span class="text-sm font-medium text-gray-700">Não sou um robô</span>
-        <div class="ml-auto flex flex-col items-center opacity-60">
-          <svg class="w-8 h-8" viewBox="0 0 64 64" fill="none">
-            <rect x="8" y="8" width="48" height="48" rx="8" fill="#4285f4"/>
-            <path d="M32 16 L16 28 L20 28 L20 48 L28 48 L28 36 L36 36 L36 48 L44 48 L44 28 L48 28 Z" fill="white"/>
-          </svg>
-          <span class="text-[9px] text-gray-400 leading-tight text-center">reCAPTCHA<br/>Privacidade · Termos</span>
-        </div>
-      </div>
-
-      <p v-if="captchaError" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">{{ captchaError }}</p>
       <p v-if="error" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">{{ error }}</p>
 
       <AppButton type="submit" variant="primary" size="lg" :loading="loading" class="w-full">
@@ -97,27 +76,14 @@ const route = useRoute();
 
 const loading = ref(false);
 const error = ref('');
-const captchaError = ref('');
-const humanConfirmed = ref(false);
 const form = reactive({ name: '', email: '', password: '', phone: '' });
 
 async function loginGoogle() {
   await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/auth/google-callback' } });
 }
 
-function confirmHuman() {
-  humanConfirmed.value = true;
-  captchaError.value = '';
-}
-
 async function handleRegister() {
   error.value = '';
-  captchaError.value = '';
-
-  if (!humanConfirmed.value) {
-    captchaError.value = 'Confirme que você não é um robô.';
-    return;
-  }
 
   loading.value = true;
   try {
