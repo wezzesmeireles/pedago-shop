@@ -2,11 +2,22 @@
   <div class="space-y-5">
 
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
       <div>
         <h1 class="text-2xl font-black text-slate-900">Pedidos</h1>
         <p class="text-sm text-slate-500 mt-0.5">Acompanhe e gerencie todos os pedidos</p>
       </div>
+      <button @click="reconcileAll" :disabled="reconciling"
+        :class="['inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all',
+          reconciling ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm hover:shadow-amber-200']">
+        <svg :class="['w-4 h-4', reconciling && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        {{ reconciling ? 'Verificando...' : 'Reconciliar Pagamentos' }}
+      </button>
+    </div>
+    <div v-if="reconcileMsg" :class="['text-sm font-medium px-4 py-3 rounded-xl', reconcileMsg.ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100']">
+      {{ reconcileMsg.text }}
     </div>
 
     <!-- Filters -->
@@ -177,8 +188,20 @@
           </div>
         </div>
 
+        <!-- Reconcile individual order -->
+        <div v-if="selectedOrder.status === 'AWAITING_PAYMENT'" class="bg-amber-50 border border-amber-100 rounded-xl p-4">
+          <p class="text-xs font-bold text-amber-700 mb-2">Pagamento não reconhecido automaticamente?</p>
+          <button @click="reconcileOrder(selectedOrder.id)" :disabled="reconciling"
+            class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all disabled:opacity-50">
+            <svg :class="['w-3.5 h-3.5', reconciling && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            {{ reconciling ? 'Verificando...' : 'Verificar Pagamento Agora' }}
+          </button>
+        </div>
+
         <div>
-          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Alterar Status</p>
+          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Alterar Status Manualmente</p>
           <div class="flex flex-wrap gap-2">
             <button v-for="s in statusOptions" :key="s.value"
               @click="updateStatus(selectedOrder.id, s.value)"
@@ -187,6 +210,7 @@
               {{ s.label }}
             </button>
           </div>
+          <p class="text-xs text-slate-400 mt-2">⚠️ "Marcar Pago" libera downloads e notifica via Telegram.</p>
         </div>
       </div>
     </AppModal>
@@ -208,6 +232,8 @@ const detailsOpen = ref(false);
 const loadingDetail = ref(false);
 const selectedOrder = ref<any>(null);
 const updatingStatus = ref(false);
+const reconciling = ref(false);
+const reconcileMsg = ref<{ ok: boolean; text: string } | null>(null);
 
 const statusFilters = [
   { value: '', label: 'Todos', activeClass: 'bg-slate-800 text-white' },
@@ -269,10 +295,48 @@ async function openDetails(id: string) {
 async function updateStatus(id: string, status: string) {
   updatingStatus.value = true;
   try {
+    if (status === 'PAID') {
+      // Use reconcile-orders to properly process payment (creates download tokens, notifies Telegram)
+      await reconcileOrder(id);
+      return;
+    }
     await supabase.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
     selectedOrder.value = { ...selectedOrder.value, status };
     await loadOrders(currentPage.value);
   } finally { updatingStatus.value = false; }
+}
+
+async function reconcileOrder(orderId: string) {
+  reconciling.value = true;
+  reconcileMsg.value = null;
+  try {
+    const { error } = await supabase.functions.invoke('reconcile-orders', { body: { orderId } });
+    if (error) throw error;
+    await loadOrders(currentPage.value);
+    if (selectedOrder.value) await openDetails(selectedOrder.value.id);
+    reconcileMsg.value = { ok: true, text: 'Verificação concluída. Status atualizado conforme o Mercado Pago.' };
+  } catch (e: any) {
+    reconcileMsg.value = { ok: false, text: 'Erro ao verificar pagamento. Tente novamente.' };
+  } finally {
+    reconciling.value = false;
+    setTimeout(() => { reconcileMsg.value = null; }, 6000);
+  }
+}
+
+async function reconcileAll() {
+  reconciling.value = true;
+  reconcileMsg.value = null;
+  try {
+    const { error } = await supabase.functions.invoke('reconcile-orders', { body: {} });
+    if (error) throw error;
+    await loadOrders(currentPage.value);
+    reconcileMsg.value = { ok: true, text: 'Todos os pedidos pendentes foram verificados junto ao Mercado Pago.' };
+  } catch (e: any) {
+    reconcileMsg.value = { ok: false, text: 'Erro ao reconciliar. Tente novamente.' };
+  } finally {
+    reconciling.value = false;
+    setTimeout(() => { reconcileMsg.value = null; }, 6000);
+  }
 }
 
 onMounted(() => loadOrders());
