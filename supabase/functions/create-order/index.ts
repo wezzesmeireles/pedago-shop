@@ -17,6 +17,22 @@ async function getSiteConfig(supabase: any) {
   return (data?.value as Record<string, any>) ?? {};
 }
 
+const fmt = (n: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n));
+
+async function tg(cfg: Record<string, any>, text: string) {
+  const token = cfg.telegramBotToken?.trim();
+  const chatId = cfg.telegramChatId?.trim();
+  if (!token || !chatId) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
+    });
+  } catch { /* non-fatal */ }
+}
+
 async function mpPost(path: string, body: unknown, accessToken: string, idempotencyKey?: string) {
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${accessToken}`,
@@ -140,6 +156,15 @@ Deno.serve(async (req) => {
         metadata: { qr_code: qrCode, qr_code_base64: qrCodeBase64 },
       }).eq('id', order.id);
 
+      const itemsList = (orderItems ?? []).map((i: any) => `  • ${i.product_name} x${i.quantity}`).join('\n');
+      await tg(cfg,
+        `⏳ *QR Code PIX Gerado*\n\n` +
+        `*Pedido:* #${orderNumber}\n` +
+        `*Cliente:* ${profile?.name ?? user.email}\n` +
+        `*Valor:* ${fmt(totalAmount)}` +
+        (itemsList ? `\n\n*Itens:*\n${itemsList}` : ''),
+      );
+
       return json({ order: fullOrder, payment: { type: 'PIX', qrCode, qrCodeBase64 } });
 
     } else {
@@ -171,6 +196,16 @@ Deno.serve(async (req) => {
       }, accessToken);
 
       await supabase.from('orders').update({ mp_preference_id: result.id }).eq('id', order.id);
+
+      const itemsList = (orderItems ?? []).map((i: any) => `  • ${i.product_name} x${i.quantity}`).join('\n');
+      await tg(cfg,
+        `🛒 *Novo Pedido — Aguardando Pagamento*\n\n` +
+        `*Pedido:* #${orderNumber}\n` +
+        `*Cliente:* ${profile?.name ?? user.email}\n` +
+        `*Valor:* ${fmt(totalAmount)}\n` +
+        `*Forma:* Cartao de Credito` +
+        (itemsList ? `\n\n*Itens:*\n${itemsList}` : ''),
+      );
 
       return json({
         order: fullOrder,

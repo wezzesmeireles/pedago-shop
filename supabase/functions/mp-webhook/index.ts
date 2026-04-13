@@ -11,39 +11,29 @@ async function getSiteConfig() {
   return (data?.value as Record<string, any>) ?? {};
 }
 
-async function sendTelegramNotification(cfg: Record<string, any>, order: any, payment: any) {
+const fmt = (n: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n));
+
+async function tg(cfg: Record<string, any>, text: string) {
   const token = cfg.telegramBotToken?.trim();
   const chatId = cfg.telegramChatId?.trim();
   if (!token || !chatId) return;
-
-  const fmt = (n: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n));
-
-  const method = payment.payment_type_id === 'pix' ? 'PIX' : 'Cartao de Credito';
-  const customerName = order.customer_name ?? order.profiles?.name ?? 'Cliente';
-  const orderNumber = order.order_number ?? order.id.slice(0, 8).toUpperCase();
-
-  const items = (order.order_items ?? [])
-    .map((i: any) => `  • ${i.product_name ?? 'Produto'} x${i.quantity}`)
-    .join('\n');
-
-  const text =
-    `*Nova Venda Aprovada!*\n\n` +
-    `*Pedido:* #${orderNumber}\n` +
-    `*Cliente:* ${customerName}\n` +
-    `*Valor:* ${fmt(order.total_amount)}\n` +
-    `*Forma:* ${method}\n` +
-    (items ? `\n*Itens:*\n${items}` : '');
-
   try {
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
     });
-  } catch {
-    // non-fatal — don't break the webhook flow
-  }
+  } catch { /* non-fatal */ }
+}
+
+function orderSummary(order: any) {
+  const customerName = order.customer_name ?? order.profiles?.name ?? 'Cliente';
+  const orderNumber = order.order_number ?? order.id.slice(0, 8).toUpperCase();
+  const items = (order.order_items ?? [])
+    .map((i: any) => `  • ${i.product_name ?? 'Produto'} x${i.quantity}`)
+    .join('\n');
+  return { customerName, orderNumber, items };
 }
 
 async function verifySignature(xSignature: string, queryId?: string, xRequestId?: string, secret?: string): Promise<boolean> {
@@ -137,17 +127,43 @@ Deno.serve(async (req) => {
           await supabase.from('products').update({ sales_count: newCount }).eq('id', item.product_id);
         }
 
-        // Telegram notification — non-blocking
-        await sendTelegramNotification(cfg, order, payment);
+        // Telegram — venda aprovada
+        const { customerName, orderNumber, items } = orderSummary(order);
+        const method = payment.payment_type_id === 'pix' ? 'PIX' : 'Cartao de Credito';
+        await tg(cfg,
+          `✅ *Nova Venda Aprovada!*\n\n` +
+          `*Pedido:* #${orderNumber}\n` +
+          `*Cliente:* ${customerName}\n` +
+          `*Valor:* ${fmt(order.total_amount)}\n` +
+          `*Forma:* ${method}` +
+          (items ? `\n\n*Itens:*\n${items}` : ''),
+        );
       }
     } else if (orderId && (mpStatus === 'rejected' || mpStatus === 'cancelled')) {
-      const { data: order } = await supabase.from('orders').select('id, status').eq('id', orderId).single();
+      const { data: order } = await supabase.from('orders').select('id, status, order_number, customer_name, total_amount, order_items(product_name, quantity)').eq('id', orderId).single();
       if (order && order.status !== 'PAID') {
         await supabase.from('orders').update({ status: 'CANCELLED', mp_status: mpStatus, updated_at: new Date().toISOString() }).eq('id', orderId);
+        const { customerName, orderNumber } = orderSummary(order);
+        await tg(cfg,
+          `❌ *Pagamento ${mpStatus === 'rejected' ? 'Recusado' : 'Cancelado'}*\n\n` +
+          `*Pedido:* #${orderNumber}\n` +
+          `*Cliente:* ${customerName}\n` +
+          `*Valor:* ${fmt(order.total_amount)}`,
+        );
       }
     } else if (orderId && (mpStatus === 'refunded' || mpStatus === 'charged_back')) {
+      const { data: order } = await supabase.from('orders').select('id, status, order_number, customer_name, total_amount').eq('id', orderId).single();
       await supabase.from('orders').update({ status: 'REFUNDED', mp_status: mpStatus, updated_at: new Date().toISOString() }).eq('id', orderId);
       await supabase.from('download_tokens').update({ revoked_at: new Date().toISOString() }).eq('order_id', orderId).is('revoked_at', null);
+      if (order) {
+        const { customerName, orderNumber } = orderSummary(order);
+        await tg(cfg,
+          `↩️ *Reembolso Processado*\n\n` +
+          `*Pedido:* #${orderNumber}\n` +
+          `*Cliente:* ${customerName}\n` +
+          `*Valor:* ${fmt(order.total_amount)}`,
+        );
+      }
     }
 
     await supabase.from('webhook_events').update({ status: 'processed' }).eq('source', 'mercadopago').eq('event_id', eventId);
