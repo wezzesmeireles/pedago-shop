@@ -84,15 +84,15 @@
     </aside>
 
     <!-- ── Mobile overlay ──────────────────────────────────────── -->
-    <Transition name="fade">
-      <div v-if="mobileMenuOpen" class="fixed inset-0 z-40 md:hidden" @click="mobileMenuOpen = false">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-      </div>
-    </Transition>
+    <div v-show="mobileMenuOpen"
+      class="fixed inset-0 z-40 md:hidden bg-black/60 transition-opacity duration-200"
+      :class="mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+      @click="mobileMenuOpen = false">
+    </div>
 
     <!-- ── Mobile Drawer ──────────────────────────────────────── -->
-    <Transition name="slide">
-      <aside v-if="mobileMenuOpen" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 flex flex-col md:hidden">
+    <aside class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 flex flex-col md:hidden transition-transform duration-200 ease-out"
+      :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'">
         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800/60">
           <RouterLink to="/" class="flex items-center gap-3" @click="mobileMenuOpen = false">
             <div v-if="config.logoUrl" class="h-10 flex items-center">
@@ -124,8 +124,7 @@
             Sair da conta
           </button>
         </div>
-      </aside>
-    </Transition>
+    </aside>
 
     <!-- ── Main ───────────────────────────────────────────────── -->
     <div class="flex-1 flex flex-col md:ml-64">
@@ -147,7 +146,11 @@
       </header>
 
       <main class="flex-1 p-4 md:p-6 pb-20 md:pb-6">
-        <RouterView />
+        <RouterView v-slot="{ Component }">
+          <Transition name="page" mode="out-in">
+            <component :is="Component" :key="$route.path" />
+          </Transition>
+        </RouterView>
       </main>
     </div>
 
@@ -170,7 +173,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -180,6 +183,7 @@ const { config } = useSiteConfigStore();
 const router = useRouter();
 const route = useRoute();
 const mobileMenuOpen = ref(false);
+watch(() => route.path, () => { mobileMenuOpen.value = false; });
 
 const icon = {
   grid: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>',
@@ -229,8 +233,8 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.slide-enter-active, .slide-leave-active { transition: transform 0.25s ease; }
-.slide-enter-from, .slide-leave-to { transform: translateX(-100%); }
+.page-enter-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.page-leave-active { transition: opacity 0.1s ease; }
+.page-enter-from { opacity: 0; transform: translateY(6px); }
+.page-leave-to { opacity: 0; }
 </style>
