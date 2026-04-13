@@ -36,23 +36,29 @@ function esc(s: string) {
 
 async function tg(cfg: Record<string, any>, html: string) {
   const token = cfg.telegramBotToken?.trim();
-  const chatId = cfg.telegramChatId?.trim();
-  if (!token || !chatId) {
-    console.log('[tg] skipped — token or chatId not configured');
-    return;
-  }
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML' }),
-    });
-    const json = await res.json();
-    if (!json.ok) console.error('[tg] error:', JSON.stringify(json));
-    else console.log('[tg] sent ok');
-  } catch (e) {
-    console.error('[tg] fetch error:', e);
-  }
+  if (!token) { console.log('[tg] skipped — token not configured'); return; }
+
+  const recipients: { chatId: string }[] =
+    cfg.telegramRecipients?.length
+      ? cfg.telegramRecipients.filter((r: any) => r.chatId?.trim())
+      : cfg.telegramChatId ? [{ chatId: cfg.telegramChatId }] : [];
+
+  if (!recipients.length) { console.log('[tg] skipped — no recipients'); return; }
+
+  await Promise.all(recipients.map(async (r) => {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: r.chatId.trim(), text: html, parse_mode: 'HTML' }),
+      });
+      const json = await res.json();
+      if (!json.ok) console.error(`[tg] error ${r.chatId}:`, JSON.stringify(json));
+      else console.log(`[tg] sent ok → ${r.chatId}`);
+    } catch (e) {
+      console.error(`[tg] fetch error ${r.chatId}:`, e);
+    }
+  }));
 }
 
 async function mpPost(path: string, body: unknown, accessToken: string, idempotencyKey?: string) {

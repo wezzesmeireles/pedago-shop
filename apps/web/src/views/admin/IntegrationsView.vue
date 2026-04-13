@@ -187,8 +187,8 @@
             <p class="text-xs text-slate-500">Notificações de vendas pelo bot</p>
           </div>
           <div class="ml-auto">
-            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', form.telegramBotToken && form.telegramChatId ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
-              {{ form.telegramBotToken && form.telegramChatId ? 'Configurado' : 'Não configurado' }}
+            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', form.telegramBotToken && form.telegramRecipients.length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
+              {{ form.telegramBotToken && form.telegramRecipients.length ? `${form.telegramRecipients.length} destinatário${form.telegramRecipients.length > 1 ? 's' : ''}` : 'Não configurado' }}
             </span>
           </div>
         </div>
@@ -209,40 +209,68 @@
             </ol>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Bot Token</label>
-              <div class="relative">
-                <input v-model="form.telegramBotToken" :type="showTgToken ? 'text' : 'password'"
-                  placeholder="123456789:AAF..."
-                  class="w-full border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono" />
-                <button @click="showTgToken = !showTgToken" type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                  <svg v-if="showTgToken" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
-                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                </button>
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Chat ID</label>
-              <input v-model="form.telegramChatId" type="text"
-                placeholder="-1001234567890 ou 123456789"
-                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono" />
-              <p class="mt-1 text-xs text-slate-400">ID do grupo ou conversa onde o bot vai notificar</p>
+          <!-- Bot Token -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Bot Token</label>
+            <div class="relative">
+              <input v-model="form.telegramBotToken" :type="showTgToken ? 'text' : 'password'"
+                placeholder="123456789:AAF..."
+                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono" />
+              <button @click="showTgToken = !showTgToken" type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                <svg v-if="showTgToken" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
             </div>
           </div>
 
-          <div class="flex items-center gap-3 pt-1">
-            <button @click="testTelegram" :disabled="!form.telegramBotToken || !form.telegramChatId || testingTg"
-              class="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl border-2 border-sky-500 text-sky-600 hover:bg-sky-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-              <svg v-if="testingTg" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.013 9.484c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.876.737z"/></svg>
-              {{ testingTg ? 'Enviando...' : 'Testar notificação' }}
-            </button>
-            <Transition name="fade-save">
-              <span v-if="tgTestResult" :class="['text-sm font-medium', tgTestResult === 'ok' ? 'text-emerald-600' : 'text-red-500']">
-                {{ tgTestResult === 'ok' ? 'Mensagem enviada!' : tgTestResult }}
-              </span>
-            </Transition>
+          <!-- Recipients list -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Destinatários</label>
+              <button @click="addRecipient"
+                class="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 px-2.5 py-1 rounded-lg hover:bg-violet-50 transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Adicionar
+              </button>
+            </div>
+
+            <div class="space-y-2">
+              <div v-if="form.telegramRecipients.length === 0"
+                class="text-center py-5 text-sm text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                Nenhum destinatário. Clique em "Adicionar" para incluir.
+              </div>
+
+              <div v-for="(r, i) in form.telegramRecipients" :key="r.id"
+                class="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <!-- Name -->
+                <input v-model="r.name" type="text" placeholder="Nome (ex: Admin, Sócia...)"
+                  class="w-32 sm:w-40 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent flex-shrink-0" />
+                <!-- Chat ID -->
+                <input v-model="r.chatId" type="text" placeholder="Chat ID"
+                  class="flex-1 min-w-0 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm bg-white font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent" />
+                <!-- Test -->
+                <button @click="testRecipient(r)" :disabled="!form.telegramBotToken || !r.chatId || r.testing"
+                  class="flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-sky-300 text-sky-600 hover:bg-sky-50 transition-all disabled:opacity-40"
+                  title="Testar este destinatário">
+                  <svg v-if="r.testing" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  <svg v-else class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.013 9.484c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.876.737z"/></svg>
+                  <span class="hidden sm:inline">{{ r.testing ? 'Enviando' : 'Testar' }}</span>
+                </button>
+                <!-- Test result -->
+                <Transition name="fade-save">
+                  <span v-if="r.testResult" :class="['text-xs font-medium flex-shrink-0', r.testResult === 'ok' ? 'text-emerald-600' : 'text-red-500']">
+                    {{ r.testResult === 'ok' ? '✓ OK' : '✗ Erro' }}
+                  </span>
+                </Transition>
+                <!-- Remove -->
+                <button @click="removeRecipient(i)"
+                  class="flex-shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                  title="Remover">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </div>
+            <p class="mt-1.5 text-xs text-slate-400">Cada destinatário recebe todas as notificações de venda.</p>
           </div>
         </div>
       </div>
@@ -313,18 +341,50 @@ const showMpToken = ref(false);
 const showWebhookSecret = ref(false);
 const showTgToken = ref(false);
 const testingTg = ref(false);
-const tgTestResult = ref('');
 
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
 const apiUrl = `${supabaseUrl}/functions/v1/mp-webhook`;
+
+interface TgRecipient { id: string; name: string; chatId: string; testing?: boolean; testResult?: string }
 
 const form = ref({
   mercadoPagoAccessToken: '',
   mercadoPagoPixKey: '',
   mercadoPagoWebhookSecret: '',
   telegramBotToken: '',
-  telegramChatId: '',
+  telegramRecipients: [] as TgRecipient[],
 });
+
+function addRecipient() {
+  form.value.telegramRecipients.push({ id: crypto.randomUUID(), name: '', chatId: '', testing: false, testResult: '' });
+}
+
+function removeRecipient(i: number) {
+  form.value.telegramRecipients.splice(i, 1);
+}
+
+async function testRecipient(r: TgRecipient) {
+  r.testing = true;
+  r.testResult = '';
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${form.value.telegramBotToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: r.chatId,
+        text: `✅ *Teste de notificação*\n\nOlá${r.name ? ', ' + r.name : ''}! O bot está configurado corretamente.`,
+        parse_mode: 'Markdown',
+      }),
+    });
+    const json = await res.json();
+    r.testResult = json.ok ? 'ok' : 'erro';
+  } catch {
+    r.testResult = 'erro';
+  } finally {
+    r.testing = false;
+    setTimeout(() => (r.testResult = ''), 4000);
+  }
+}
 
 onMounted(async () => {
   try {
@@ -335,7 +395,12 @@ onMounted(async () => {
       form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';
       form.value.mercadoPagoWebhookSecret = v.mercadoPagoWebhookSecret ?? '';
       form.value.telegramBotToken = v.telegramBotToken ?? '';
-      form.value.telegramChatId = v.telegramChatId ?? '';
+      // migrate old single chatId to recipients list
+      if (v.telegramRecipients?.length) {
+        form.value.telegramRecipients = v.telegramRecipients.map((r: any) => ({ ...r, testing: false, testResult: '' }));
+      } else if (v.telegramChatId) {
+        form.value.telegramRecipients = [{ id: crypto.randomUUID(), name: 'Admin', chatId: v.telegramChatId, testing: false, testResult: '' }];
+      }
     }
   } catch {
     // use defaults
@@ -343,29 +408,6 @@ onMounted(async () => {
     loading.value = false;
   }
 });
-
-async function testTelegram() {
-  testingTg.value = true;
-  tgTestResult.value = '';
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${form.value.telegramBotToken}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: form.value.telegramChatId,
-        text: '✅ *Teste de notificação*\n\nO bot está configurado corretamente e vai notificar cada venda!',
-        parse_mode: 'Markdown',
-      }),
-    });
-    const json = await res.json();
-    tgTestResult.value = json.ok ? 'ok' : (json.description || 'Erro ao enviar');
-  } catch (e: any) {
-    tgTestResult.value = 'Erro de rede';
-  } finally {
-    testingTg.value = false;
-    setTimeout(() => (tgTestResult.value = ''), 5000);
-  }
-}
 
 async function save() {
   saving.value = true;
@@ -380,7 +422,7 @@ async function save() {
       mercadoPagoPixKey: form.value.mercadoPagoPixKey,
       mercadoPagoWebhookSecret: form.value.mercadoPagoWebhookSecret,
       telegramBotToken: form.value.telegramBotToken,
-      telegramChatId: form.value.telegramChatId,
+      telegramRecipients: form.value.telegramRecipients.map(({ id, name, chatId }) => ({ id, name, chatId })),
     };
     await supabase.from('site_config').upsert(
       { key: 'global', value: merged, updated_at: new Date().toISOString() },
