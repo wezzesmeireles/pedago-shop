@@ -23,18 +23,53 @@
       </div>
     </div>
 
-    <!-- Table -->
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <!-- Mobile Cards (md:hidden) -->
+    <div class="md:hidden space-y-3">
+      <div v-if="orders.length === 0" class="bg-white rounded-2xl border border-slate-100 shadow-sm py-16 text-center">
+        <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <svg class="w-7 h-7 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        </div>
+        <p class="text-sm font-medium text-slate-400">Nenhum pedido encontrado</p>
+      </div>
+      <div v-for="order in orders" :key="order.id" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <span class="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">{{ order.orderNumber }}</span>
+          <span class="text-sm font-black text-violet-600">{{ formatPrice(order.totalAmount) }}</span>
+        </div>
+        <div class="flex items-center gap-2 mb-2">
+          <StatusBadge :status="order.status" />
+          <span class="text-xs text-slate-400">{{ formatDate(order.createdAt) }}</span>
+        </div>
+        <p class="text-sm font-semibold text-slate-800 leading-snug">{{ order.customerName }}</p>
+        <p class="text-xs text-slate-400 mb-3">{{ order.customerEmail }}</p>
+        <p v-if="order.items?.length" class="text-xs text-slate-500 mb-3 line-clamp-2">{{ order.items.map((i: any) => i.productName).join(' · ') }}</p>
+        <button @click="openDetails(order.id)"
+          class="w-full py-2 text-sm font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 rounded-xl transition-colors">
+          Ver Detalhes
+        </button>
+      </div>
+      <div v-if="totalPages > 1" class="flex items-center justify-between bg-white rounded-2xl border border-slate-100 px-4 py-3">
+        <span class="text-xs text-slate-500">Pág. {{ currentPage }}/{{ totalPages }}</span>
+        <div class="flex gap-1">
+          <button @click="loadOrders(currentPage - 1)" :disabled="currentPage === 1" class="w-8 h-8 flex items-center justify-center rounded-xl text-slate-500 bg-slate-50 disabled:opacity-30 text-sm">‹</button>
+          <button v-for="p in pageRange" :key="p" @click="loadOrders(p)" :class="['w-8 h-8 rounded-xl text-sm font-semibold', p === currentPage ? 'bg-violet-600 text-white' : 'bg-slate-50 text-slate-600']">{{ p }}</button>
+          <button @click="loadOrders(currentPage + 1)" :disabled="currentPage === totalPages" class="w-8 h-8 flex items-center justify-center rounded-xl text-slate-500 bg-slate-50 disabled:opacity-30 text-sm">›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop Table (hidden md:block) -->
+    <div class="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
             <tr class="bg-slate-50 border-b border-slate-100">
               <th class="text-left px-5 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Pedido</th>
-              <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:table-cell">Cliente</th>
+              <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Cliente</th>
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Produtos</th>
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Total</th>
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-              <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider hidden md:table-cell">Data</th>
+              <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Data</th>
               <th class="px-4 py-3.5 w-24"></th>
             </tr>
           </thead>
@@ -51,7 +86,7 @@
               <td class="px-5 py-4">
                 <span class="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">{{ order.orderNumber }}</span>
               </td>
-              <td class="px-4 py-4 hidden sm:table-cell">
+              <td class="px-4 py-4">
                 <p class="text-sm font-semibold text-slate-900">{{ order.customerName }}</p>
                 <p class="text-xs text-slate-400 mt-0.5">{{ order.customerEmail }}</p>
               </td>
@@ -64,7 +99,7 @@
               <td class="px-4 py-4">
                 <StatusBadge :status="order.status" />
               </td>
-              <td class="px-4 py-4 hidden md:table-cell">
+              <td class="px-4 py-4 hidden lg:table-cell">
                 <span class="text-xs text-slate-400">{{ formatDate(order.createdAt) }}</span>
               </td>
               <td class="px-4 py-4">
@@ -77,8 +112,6 @@
           </tbody>
         </table>
       </div>
-
-      <!-- Pagination -->
       <div v-if="totalPages > 1" class="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
         <span class="text-xs text-slate-500 font-medium">Página {{ currentPage }} de {{ totalPages }}</span>
         <div class="flex gap-1">
