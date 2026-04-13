@@ -80,7 +80,27 @@ export const useAuthStore = defineStore('auth', () => {
         password,
         options: { data: { name } },
       });
-      if (error) throw new Error(error.message);
+
+      if (error) {
+        const msg = error.message.toLowerCase();
+        // Rate limit hit — account may have been created; try signing in directly
+        if (msg.includes('rate limit') || msg.includes('email rate')) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+          if (!signInError) {
+            if (phone) {
+              const { data: me } = await supabase.auth.getUser();
+              if (me.user) await supabase.from('profiles').update({ phone, name }).eq('id', me.user.id);
+            }
+            await fetchMe();
+            return;
+          }
+          throw new Error('Muitas tentativas de cadastro. Aguarde alguns minutos e tente novamente.');
+        }
+        if (msg.includes('already registered') || msg.includes('user already registered')) {
+          throw new Error('Este email já está cadastrado. Tente fazer login.');
+        }
+        throw new Error(error.message);
+      }
 
       // If session exists, email confirmation is disabled — login immediately
       if (data.session) {
