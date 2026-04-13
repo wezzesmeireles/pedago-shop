@@ -427,7 +427,7 @@
 
     <!-- WhatsApp floating button -->
     <a
-      v-if="config.socialLinks?.whatsapp"
+      v-if="config.socialLinks?.whatsapp && auth.isLoggedIn"
       :href="`https://wa.me/${config.socialLinks.whatsapp}?text=${encodeURIComponent('Ola, ' + (config.storeName || 'loja') + '!\n\nVim pelo site e gostaria de tirar uma duvida.\n\nPoderia me ajudar?')}`"
       target="_blank"
       rel="noopener"
