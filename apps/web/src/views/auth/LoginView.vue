@@ -107,17 +107,18 @@ async function handleLogin() {
       router.push(redirect || '/');
     }
   } catch (err: any) {
+    const code = (err?.code || err?.error_code || '').toLowerCase();
     const raw = (err?.message || err?.response?.data?.message || '').toLowerCase();
-    if (raw.includes('invalid login') || raw.includes('invalid credentials') || raw.includes('wrong password'))
+    if (code === 'invalid_credentials' || raw.includes('invalid login') || raw.includes('invalid credentials') || raw.includes('wrong password'))
       errors.general = 'Email ou senha incorretos. Verifique seus dados e tente novamente.';
-    else if (raw.includes('email not confirmed'))
+    else if (code === 'email_not_confirmed' || raw.includes('email not confirmed'))
       errors.general = 'Email não confirmado. Verifique sua caixa de entrada.';
-    else if (raw.includes('too many') || raw.includes('rate limit'))
+    else if (code === 'captcha_failed' || raw.includes('captcha'))
+      errors.general = 'Verificação de segurança falhou. Recarregue a página e tente novamente.';
+    else if (code === 'over_request_rate_limit' || code === 'too_many_requests' || raw.includes('too many') || raw.includes('rate limit'))
       errors.general = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
     else if (raw.includes('user not found') || raw.includes('no user'))
       errors.general = 'Nenhuma conta encontrada com este email.';
-    else if (raw.includes('captcha'))
-      errors.general = 'Erro no captcha. Recarregue a página e tente novamente.';
     else
       errors.general = 'Erro ao fazer login. Tente novamente.';
   } finally {

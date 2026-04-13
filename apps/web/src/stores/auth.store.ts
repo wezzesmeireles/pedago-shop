@@ -63,8 +63,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        console.error('[login error]', error);
-        throw new Error(error.message);
+        console.error('[login error]', error.code, error.message);
+        throw error; // preserve AuthApiError with .code property
       }
       await fetchMe().catch(() => {});
     } finally {
