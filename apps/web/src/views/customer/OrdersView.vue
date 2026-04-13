@@ -5,7 +5,7 @@
     <div class="flex items-center justify-between gap-4">
       <div>
         <h1 class="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Meus Pedidos</h1>
-        <p class="text-xs sm:text-sm text-gray-400 mt-0.5">Acompanhe o histórico das suas compras</p>
+        <p class="text-xs sm:text-sm text-gray-400 mt-0.5">Suas compras realizadas com sucesso</p>
       </div>
       <div v-if="!loading && orders.length"
         class="flex-shrink-0 bg-gradient-to-br from-violet-500 to-violet-700 text-white rounded-2xl px-4 py-2.5 text-center shadow-lg shadow-violet-200">
@@ -15,18 +15,14 @@
     </div>
 
     <!-- Summary cards (only when there are orders) -->
-    <div v-if="!loading && orders.length" class="grid grid-cols-3 gap-2 sm:gap-3">
+    <div v-if="!loading && orders.length" class="grid grid-cols-2 gap-2 sm:gap-3">
       <div class="bg-white rounded-2xl border border-emerald-100 p-3 sm:p-4 text-center shadow-sm">
-        <p class="text-lg sm:text-2xl font-black text-emerald-600">{{ countByStatus('PAID') }}</p>
-        <p class="text-xs text-gray-400 font-medium mt-0.5">Pagos</p>
+        <p class="text-lg sm:text-2xl font-black text-emerald-600">{{ orders.length }}</p>
+        <p class="text-xs text-gray-400 font-medium mt-0.5">{{ orders.length !== 1 ? 'Compras' : 'Compra' }}</p>
       </div>
-      <div class="bg-white rounded-2xl border border-amber-100 p-3 sm:p-4 text-center shadow-sm">
-        <p class="text-lg sm:text-2xl font-black text-amber-500">{{ countByStatus('AWAITING_PAYMENT') }}</p>
-        <p class="text-xs text-gray-400 font-medium mt-0.5">Pendentes</p>
-      </div>
-      <div class="bg-white rounded-2xl border border-gray-100 p-3 sm:p-4 text-center shadow-sm">
-        <p class="text-lg sm:text-2xl font-black text-gray-700">{{ formatPrice(totalSpent) }}</p>
-        <p class="text-xs text-gray-400 font-medium mt-0.5">Total gasto</p>
+      <div class="bg-white rounded-2xl border border-violet-100 p-3 sm:p-4 text-center shadow-sm">
+        <p class="text-lg sm:text-2xl font-black text-violet-600">{{ formatPrice(totalSpent) }}</p>
+        <p class="text-xs text-gray-400 font-medium mt-0.5">Total investido</p>
       </div>
     </div>
 
@@ -166,49 +162,13 @@
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 border-t border-gray-50">
 
             <div class="flex flex-wrap gap-2">
-              <!-- PAID -->
-              <RouterLink v-if="order.status === 'PAID'" to="/minha-conta/downloads"
+              <RouterLink to="/minha-conta/downloads"
                 class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-emerald-200 w-full sm:w-auto justify-center sm:justify-start">
                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
-                Ir para Downloads
+                Baixar Arquivos
               </RouterLink>
-
-              <!-- AWAITING_PAYMENT -->
-              <RouterLink v-if="order.status === 'AWAITING_PAYMENT'" to="/checkout"
-                class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-amber-200 w-full sm:w-auto justify-center sm:justify-start">
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z"/>
-                </svg>
-                Concluir Pagamento
-              </RouterLink>
-
-              <!-- CANCELLED / EXPIRED -->
-              <div v-if="['CANCELLED', 'EXPIRED'].includes(order.status)" class="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
-                <span class="inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  {{ order.status === 'CANCELLED' ? 'Pedido cancelado' : 'Pedido expirado' }}
-                </span>
-                <RouterLink to="/catalogo"
-                  class="text-xs text-violet-600 hover:text-violet-700 font-bold hover:underline flex items-center gap-1">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                  </svg>
-                  Tentar novamente
-                </RouterLink>
-              </div>
-
-              <!-- REFUNDED -->
-              <div v-if="order.status === 'REFUNDED'"
-                class="inline-flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-xl border border-blue-100 font-medium">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-                </svg>
-                Reembolso processado
-              </div>
             </div>
 
             <!-- Paid timestamp -->
@@ -295,6 +255,7 @@ async function loadPage(page: number) {
       .from('orders')
       .select('*, order_items(id, product_name, unit_price, quantity, products(id, name, cover_image_url, slug), download_tokens(*))', { count: 'exact' })
       .eq('user_id', user!.id)
+      .eq('status', 'PAID')
       .order('created_at', { ascending: false })
       .range(from, to);
 
