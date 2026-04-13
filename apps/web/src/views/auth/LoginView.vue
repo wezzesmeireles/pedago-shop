@@ -128,8 +128,14 @@ async function handleLogin() {
   loading.value = true;
   try {
     await auth.login(form.email, form.password);
-    const redirect = route.query.redirect as string;
-    router.push(redirect || '/');
+    const redirect = route.query.redirect as string | undefined;
+    // Check if user has phone — if not, redirect to phone collection
+    const { data: profile } = await supabase.from('profiles').select('phone').eq('id', auth.user!.id).single();
+    if (!profile?.phone) {
+      router.push({ name: 'phone-required', query: redirect ? { redirect } : {} });
+    } else {
+      router.push(redirect || '/');
+    }
   } catch (err: any) {
     const msg = err?.message || err?.response?.data?.message || 'Erro ao fazer login.';
     errors.general = Array.isArray(msg) ? msg.join(', ') : msg;
