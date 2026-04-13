@@ -37,27 +37,19 @@
         <p v-if="errors.password" class="mt-1 text-xs text-red-600">{{ errors.password }}</p>
       </div>
 
-      <!-- Captcha -->
-      <div
-        @click="confirmHuman"
-        :class="['flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer select-none transition-all', humanConfirmed ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white hover:border-gray-300']"
-      >
-        <div :class="['w-6 h-6 rounded flex items-center justify-center flex-shrink-0 transition-all', humanConfirmed ? 'bg-green-500' : 'border-2 border-gray-300 bg-white']">
-          <svg v-if="humanConfirmed" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-          </svg>
-        </div>
-        <span class="text-sm font-medium text-gray-700">Não sou um robô</span>
-        <div class="ml-auto flex flex-col items-center opacity-60">
-          <svg class="w-8 h-8" viewBox="0 0 64 64" fill="none">
-            <rect x="8" y="8" width="48" height="48" rx="8" fill="#4285f4"/>
-            <path d="M32 16 L16 28 L20 28 L20 48 L28 48 L28 36 L36 36 L36 48 L44 48 L44 28 L48 28 Z" fill="white"/>
-          </svg>
-          <span class="text-[9px] text-gray-400 leading-tight text-center">reCAPTCHA<br/>Privacidade · Termos</span>
-        </div>
+      <!-- hCaptcha -->
+      <div>
+        <VueHcaptcha
+          :sitekey="hcaptchaSiteKey"
+          @verify="onCaptchaVerify"
+          @expired="onCaptchaExpired"
+          @error="onCaptchaError"
+          ref="captchaRef"
+          theme="light"
+          language="pt"
+        />
+        <p v-if="errors.captcha" class="mt-1.5 text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">{{ errors.captcha }}</p>
       </div>
-
-      <p v-if="errors.captcha" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">{{ errors.captcha }}</p>
       <p v-if="errors.general" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">{{ errors.general }}</p>
 
       <AppButton type="submit" variant="primary" size="lg" :loading="loading" class="w-full">
@@ -94,24 +86,35 @@ import { useAuthStore } from '@/stores/auth.store';
 import AppInput from '@/components/ui/AppInput.vue';
 import AppButton from '@/components/ui/AppButton.vue';
 import { supabase } from '@/lib/supabase';
+import VueHcaptcha from 'vue-hcaptcha';
 
 const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
+const hcaptchaSiteKey = (import.meta as any).env?.VITE_HCAPTCHA_SITE_KEY || '';
+const captchaRef = ref<InstanceType<typeof VueHcaptcha> | null>(null);
+const captchaToken = ref('');
+
 const loading = ref(false);
-const humanConfirmed = ref(false);
 const showPassword = ref(false);
 const form = reactive({ email: '', password: '' });
 const errors = reactive({ email: '', password: '', captcha: '', general: '' });
 
-async function loginGoogle() {
-  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/auth/google-callback' } });
+function onCaptchaVerify(token: string) {
+  captchaToken.value = token;
+  errors.captcha = '';
+}
+function onCaptchaExpired() {
+  captchaToken.value = '';
+}
+function onCaptchaError() {
+  captchaToken.value = '';
+  errors.captcha = 'Erro no captcha. Tente novamente.';
 }
 
-function confirmHuman() {
-  humanConfirmed.value = true;
-  errors.captcha = '';
+async function loginGoogle() {
+  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/auth/google-callback' } });
 }
 
 async function handleLogin() {
@@ -120,16 +123,15 @@ async function handleLogin() {
   errors.captcha = '';
   errors.general = '';
 
-  if (!humanConfirmed.value) {
-    errors.captcha = 'Confirme que você não é um robô.';
+  if (!captchaToken.value) {
+    errors.captcha = 'Complete o captcha antes de continuar.';
     return;
   }
 
   loading.value = true;
   try {
-    await auth.login(form.email, form.password);
+    await auth.login(form.email, form.password, captchaToken.value);
     const redirect = route.query.redirect as string | undefined;
-    // Check if user has phone — if not, redirect to phone collection
     const { data: profile } = await supabase.from('profiles').select('phone').eq('id', auth.user!.id).single();
     if (!profile?.phone) {
       router.push({ name: 'phone-required', query: redirect ? { redirect } : {} });
@@ -139,7 +141,8 @@ async function handleLogin() {
   } catch (err: any) {
     const msg = err?.message || err?.response?.data?.message || 'Erro ao fazer login.';
     errors.general = Array.isArray(msg) ? msg.join(', ') : msg;
-    humanConfirmed.value = false;
+    captchaToken.value = '';
+    captchaRef.value?.reset();
   } finally {
     loading.value = false;
   }
