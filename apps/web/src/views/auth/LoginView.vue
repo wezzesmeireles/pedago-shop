@@ -109,6 +109,7 @@ async function handleLogin() {
   } catch (err: any) {
     const code = (err?.code || err?.error_code || '').toLowerCase();
     const raw = (err?.message || err?.response?.data?.message || '').toLowerCase();
+    console.error('[login-debug] code:', code, '| message:', raw);
     if (code === 'invalid_credentials' || raw.includes('invalid login') || raw.includes('invalid credentials') || raw.includes('wrong password'))
       errors.general = 'Email ou senha incorretos. Verifique seus dados e tente novamente.';
     else if (code === 'email_not_confirmed' || raw.includes('email not confirmed'))
@@ -120,7 +121,7 @@ async function handleLogin() {
     else if (raw.includes('user not found') || raw.includes('no user'))
       errors.general = 'Nenhuma conta encontrada com este email.';
     else
-      errors.general = 'Erro ao fazer login. Tente novamente.';
+      errors.general = `Erro ao fazer login (${code || raw.substring(0, 60)}). Tente novamente.`;
   } finally {
     loading.value = false;
   }
