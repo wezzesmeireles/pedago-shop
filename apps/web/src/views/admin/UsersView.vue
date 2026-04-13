@@ -368,15 +368,13 @@ async function openOrders(user: any) {
   loadingOrders.value = true;
   userOrders.value = [];
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users?userId=${user.id}`, {
-      headers: {
-        Authorization: `Bearer ${session?.access_token}`,
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      },
-    });
-    const data = await resp.json();
-    userOrders.value = (data.orders ?? []).map((o: any) => ({
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, order_number, status, total_amount, created_at, order_items(product_name, quantity, unit_price)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (error) { console.error('openOrders error:', error); return; }
+    userOrders.value = (data ?? []).map((o: any) => ({
       ...o,
       orderNumber: o.order_number,
       createdAt: o.created_at,
