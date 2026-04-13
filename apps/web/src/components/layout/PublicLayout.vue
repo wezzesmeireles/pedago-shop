@@ -174,11 +174,11 @@
             <template v-else>
               <RouterLink
                 to="/auth/login"
-                class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-primary-600
+                class="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600
                        hover:text-primary-700 px-3 py-2 rounded-xl hover:bg-primary-50 transition-all"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                Entrar
+                <span class="hidden xs:inline sm:inline">Entrar</span>
               </RouterLink>
             </template>
 
@@ -197,6 +197,24 @@
                 </svg>
               </transition>
             </button>
+          </div>
+        </div>
+
+        <!-- Mobile search bar — always visible -->
+        <div class="md:hidden pb-3 pt-1 border-t border-gray-100">
+          <div class="relative">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="O que está buscando?"
+              class="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl
+                     focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100
+                     bg-gray-50 placeholder:text-gray-400"
+              @keyup.enter="doSearch"
+            />
+            <svg class="absolute left-3 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+            </svg>
           </div>
         </div>
 
@@ -219,21 +237,6 @@
         <!-- Mobile menu -->
         <transition name="mobile-menu">
           <div v-if="mobileMenuOpen" class="md:hidden pb-4 border-t border-gray-100 pt-3 space-y-1">
-            <div class="mb-3">
-              <div class="relative">
-                <input
-                  v-model="searchQuery"
-                  type="text"
-                  placeholder="O que está buscando?"
-                  class="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl
-                         focus:outline-none focus:border-primary-400 bg-gray-50"
-                  @keyup.enter="doSearch"
-                />
-                <svg class="absolute left-3 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
-                </svg>
-              </div>
-            </div>
             <RouterLink
               v-for="link in navLinks"
               :key="link.to"
