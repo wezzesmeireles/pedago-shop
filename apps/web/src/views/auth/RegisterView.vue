@@ -94,7 +94,6 @@ async function handleRegister() {
     console.error('[register error]', err);
     const msg = err?.message || err?.response?.data?.message || 'Erro ao cadastrar.';
     error.value = Array.isArray(msg) ? msg.join(', ') : msg;
-    humanConfirmed.value = false;
   } finally {
     loading.value = false;
   }
