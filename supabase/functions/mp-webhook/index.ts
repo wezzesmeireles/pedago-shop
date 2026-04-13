@@ -11,6 +11,41 @@ async function getSiteConfig() {
   return (data?.value as Record<string, any>) ?? {};
 }
 
+async function sendTelegramNotification(cfg: Record<string, any>, order: any, payment: any) {
+  const token = cfg.telegramBotToken?.trim();
+  const chatId = cfg.telegramChatId?.trim();
+  if (!token || !chatId) return;
+
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n));
+
+  const method = payment.payment_type_id === 'pix' ? 'PIX' : 'Cartao de Credito';
+  const customerName = order.customer_name ?? order.profiles?.name ?? 'Cliente';
+  const orderNumber = order.order_number ?? order.id.slice(0, 8).toUpperCase();
+
+  const items = (order.order_items ?? [])
+    .map((i: any) => `  • ${i.product_name ?? 'Produto'} x${i.quantity}`)
+    .join('\n');
+
+  const text =
+    `*Nova Venda Aprovada!*\n\n` +
+    `*Pedido:* #${orderNumber}\n` +
+    `*Cliente:* ${customerName}\n` +
+    `*Valor:* ${fmt(order.total_amount)}\n` +
+    `*Forma:* ${method}\n` +
+    (items ? `\n*Itens:*\n${items}` : '');
+
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
+    });
+  } catch {
+    // non-fatal — don't break the webhook flow
+  }
+}
+
 async function verifySignature(xSignature: string, queryId?: string, xRequestId?: string, secret?: string): Promise<boolean> {
   if (!secret) return true;
   try {
@@ -101,6 +136,9 @@ Deno.serve(async (req) => {
           const newCount = (prod?.sales_count ?? 0) + item.quantity;
           await supabase.from('products').update({ sales_count: newCount }).eq('id', item.product_id);
         }
+
+        // Telegram notification — non-blocking
+        await sendTelegramNotification(cfg, order, payment);
       }
     } else if (orderId && (mpStatus === 'rejected' || mpStatus === 'cancelled')) {
       const { data: order } = await supabase.from('orders').select('id, status').eq('id', orderId).single();
