@@ -288,17 +288,22 @@
         </div>
         <p class="text-sm text-slate-500">Nenhum pedido encontrado</p>
       </div>
-      <div v-else class="space-y-2">
-        <div v-for="order in userOrders" :key="order.id" class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-xs font-mono font-bold text-slate-700">{{ order.orderNumber }}</span>
-              <StatusBadge :status="order.status" />
-            </div>
-            <p class="text-xs text-slate-500 truncate">{{ order.items?.map((i: any) => i.productName).join(', ') }}</p>
-            <p class="text-xs text-slate-400 mt-0.5">{{ formatDate(order.createdAt) }}</p>
+      <div v-else class="space-y-3">
+        <div v-for="order in userOrders" :key="order.id" class="p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+          <!-- Top row: order number + price -->
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <span class="text-xs font-mono font-bold text-slate-700">{{ order.orderNumber }}</span>
+            <span class="text-sm font-bold text-violet-600">{{ formatPrice(order.totalAmount) }}</span>
           </div>
-          <span class="text-sm font-bold text-violet-600 flex-shrink-0">{{ formatPrice(order.totalAmount) }}</span>
+          <!-- Status + date row -->
+          <div class="flex items-center gap-2 mb-1.5">
+            <StatusBadge :status="order.status" />
+            <span class="text-xs text-slate-400">{{ formatDate(order.createdAt) }}</span>
+          </div>
+          <!-- Items list -->
+          <p v-if="order.items?.length" class="text-xs text-slate-500 leading-relaxed">
+            {{ order.items.map((i: any) => i.productName).join(' · ') }}
+          </p>
         </div>
       </div>
     </AppModal>
