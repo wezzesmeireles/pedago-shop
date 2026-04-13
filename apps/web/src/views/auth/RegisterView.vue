@@ -88,7 +88,7 @@ const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
-const hcaptchaSiteKey = (import.meta as any).env?.VITE_HCAPTCHA_SITE_KEY || '';
+const hcaptchaSiteKey = (import.meta as any).env?.VITE_HCAPTCHA_SITE_KEY ?? '';
 const captchaRef = ref<InstanceType<typeof VueHcaptcha> | null>(null);
 const captchaToken = ref('');
 
