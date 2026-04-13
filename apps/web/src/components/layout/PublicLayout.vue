@@ -339,23 +339,6 @@
             </div>
           </div>
 
-          <!-- Departamentos -->
-          <div>
-            <h4 class="font-bold text-white mb-4 text-xs uppercase tracking-widest">Departamentos</h4>
-            <ul class="space-y-2.5">
-              <li v-for="dept in departments" :key="dept.label">
-                <RouterLink
-                  :to="dept.to"
-                  class="text-purple-300 hover:text-white text-sm transition-colors
-                         inline-flex items-center gap-1.5 group"
-                >
-                  <span class="w-1 h-1 rounded-full bg-purple-500 group-hover:bg-purple-300 transition-colors"></span>
-                  {{ dept.label }}
-                </RouterLink>
-              </li>
-            </ul>
-          </div>
-
           <!-- Contato -->
           <div>
             <h4 class="font-bold text-white mb-4 text-xs uppercase tracking-widest">Entre em contato</h4>
@@ -496,13 +479,6 @@ const navLinks = [
   { to: '/quem-somos', label: 'Quem Somos' },
 ];
 
-const departments = [
-  { to: '/catalogo', label: 'Todas as Atividades' },
-  { to: '/catalogo?categoria=alfabetizacao', label: 'Alfabetização' },
-  { to: '/catalogo?categoria=matematica', label: 'Matemática' },
-  { to: '/catalogo?categoria=ciencias', label: 'Ciências' },
-  { to: '/catalogo?categoria=artes', label: 'Artes' },
-];
 
 // Trust badge icons as render functions to avoid extra imports
 const ChatIcon = { render: () => h('svg', { fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24', class: 'w-7 h-7' }, [
