@@ -11,7 +11,37 @@ async function getSiteConfig() {
   return (data?.value as Record<string, any>) ?? {};
 }
 
-async function markPaid(order: any, payment: any) {
+function esc(s: string) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function fmt(n: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n));
+}
+
+function nowBR() {
+  return new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+async function tg(cfg: Record<string, any>, html: string) {
+  const token = cfg.telegramBotToken?.trim();
+  const chatId = cfg.telegramChatId?.trim();
+  if (!token || !chatId) return;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML' }),
+    });
+    const json = await res.json();
+    if (!json.ok) console.error('[tg] error:', JSON.stringify(json));
+    else console.log('[tg] sent ok');
+  } catch (e) {
+    console.error('[tg] fetch error:', e);
+  }
+}
+
+async function markPaid(order: any, payment: any, cfg: Record<string, any>) {
   if (order.status === 'PAID') return;
 
   await supabase.from('orders').update({
@@ -43,9 +73,30 @@ async function markPaid(order: any, payment: any) {
   }
 
   console.log(`Reconciled order ${order.id} → PAID`);
+
+  // Telegram notification
+  const customerName = order.customer_name ?? 'Cliente';
+  const orderNumber = order.order_number ?? order.id.slice(0, 8).toUpperCase();
+  const methodEmoji = payment.payment_type_id === 'pix' ? '🟢 PIX' : '💳 Cartao de Credito';
+  const itemsList = (order.order_items ?? [])
+    .map((i: any) => `    📌 ${esc(i.product_name ?? 'Produto')} x${i.quantity}  —  ${fmt((i.unit_price ?? 0) * i.quantity)}`)
+    .join('\n');
+
+  await tg(cfg,
+    `🎉 <b>VENDA APROVADA!</b>\n` +
+    `——————————————————\n\n` +
+    `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+    `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+    (order.customer_email ? `📧 <b>Email:</b> ${esc(order.customer_email)}\n` : '') +
+    `\n💳 <b>Pagamento:</b> ${methodEmoji}\n` +
+    `✅ <b>Status:</b> Pagamento Confirmado\n\n` +
+    (itemsList ? `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` : '') +
+    `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +
+    `🕐 ${nowBR()}`,
+  );
 }
 
-async function processPixOrder(order: any, accessToken: string) {
+async function processPixOrder(order: any, accessToken: string, cfg: Record<string, any>) {
   const res = await fetch(`https://api.mercadopago.com/v1/payments/${order.mp_payment_id}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -53,13 +104,13 @@ async function processPixOrder(order: any, accessToken: string) {
   const payment = await res.json();
 
   if (payment.status === 'approved') {
-    await markPaid(order, payment);
+    await markPaid(order, payment, cfg);
   } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
     await supabase.from('orders').update({ status: 'CANCELLED', mp_status: payment.status, updated_at: new Date().toISOString() }).eq('id', order.id);
   }
 }
 
-async function processCardOrder(order: any, accessToken: string) {
+async function processCardOrder(order: any, accessToken: string, cfg: Record<string, any>) {
   // Search payments by external_reference (order id) — card payments don't have mp_payment_id yet
   const res = await fetch(
     `https://api.mercadopago.com/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc&limit=1`,
@@ -76,7 +127,7 @@ async function processCardOrder(order: any, accessToken: string) {
   }
 
   if (payment.status === 'approved') {
-    await markPaid(order, payment);
+    await markPaid(order, payment, cfg);
   } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
     await supabase.from('orders').update({ status: 'CANCELLED', mp_status: payment.status, updated_at: new Date().toISOString() }).eq('id', order.id);
   }
@@ -104,8 +155,8 @@ Deno.serve(async (req) => {
   if (!accessToken) return new Response('no access token', { status: 500 });
 
   await Promise.all(pending.map((o: any) => {
-    if (o.mp_payment_id) return processPixOrder(o, accessToken); // works for both PIX and card with known payment_id
-    if (o.mp_preference_id || o.payment_method === 'CREDIT_CARD') return processCardOrder(o, accessToken);
+    if (o.mp_payment_id) return processPixOrder(o, accessToken, cfg);
+    if (o.mp_preference_id || o.payment_method === 'CREDIT_CARD') return processCardOrder(o, accessToken, cfg);
     return Promise.resolve();
   }));
 
