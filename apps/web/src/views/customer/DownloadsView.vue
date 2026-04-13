@@ -134,28 +134,39 @@ onMounted(async () => {
     // Query from orders down — RLS filters by auth.uid() automatically
     const { data: orders } = await supabase
       .from('orders')
-      .select('order_number, order_items(id, product_name, products(cover_image_url, file_key), download_tokens(token, download_count, max_downloads, expires_at, revoked_at, delivery_link))')
+      .select('order_number, order_items(id, product_name, products(id, cover_image_url, file_key), download_tokens(token, download_count, max_downloads, expires_at, revoked_at, delivery_link))')
       .eq('status', 'PAID')
       .order('created_at', { ascending: false });
 
+    // Deduplicate by product_id: if the same product was bought in multiple orders,
+    // keep only the most recent non-revoked token (latest order comes first).
+    const seen = new Set<string>();
     const downloads: DownloadEntry[] = [];
+
     for (const order of orders ?? []) {
       for (const item of (order as any).order_items ?? []) {
-        for (const token of item.download_tokens ?? []) {
-          if (token.revoked_at) continue;
-          downloads.push({
-            token: token.token,
-            fileKey: item.products?.file_key ?? '',
-            productName: item.product_name,
-            orderNumber: (order as any).order_number,
-            coverImageUrl: item.products?.cover_image_url,
-            downloadCount: token.download_count,
-            maxDownloads: token.max_downloads,
-            expiresAt: token.expires_at,
-            expired: new Date(token.expires_at) < new Date(),
-            deliveryLink: token.delivery_link ?? undefined,
-          });
-        }
+        const productId = item.products?.id ?? item.product_name;
+
+        // Skip already seen products (same product bought in multiple orders)
+        if (seen.has(productId)) continue;
+
+        // Among all tokens for this item, pick the first non-revoked one
+        const token = (item.download_tokens ?? []).find((t: any) => !t.revoked_at);
+        if (!token) continue;
+
+        seen.add(productId);
+        downloads.push({
+          token: token.token,
+          fileKey: item.products?.file_key ?? '',
+          productName: item.product_name,
+          orderNumber: (order as any).order_number,
+          coverImageUrl: item.products?.cover_image_url,
+          downloadCount: token.download_count,
+          maxDownloads: token.max_downloads,
+          expiresAt: token.expires_at,
+          expired: new Date(token.expires_at) < new Date(),
+          deliveryLink: token.delivery_link ?? undefined,
+        });
       }
     }
     allDownloads.value = downloads;
