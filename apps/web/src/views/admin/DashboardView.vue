@@ -123,7 +123,7 @@
     </div>
 
     <!-- ── Armazenamento ────────────────────────────────────── -->
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
       <div class="flex items-center justify-between mb-5">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
@@ -203,7 +203,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
       <!-- Últimos Pedidos -->
       <div class="xl:col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100">
           <h2 class="font-bold text-slate-900">Últimos Pedidos</h2>
           <RouterLink to="/admin/pedidos" class="text-xs text-violet-600 font-semibold hover:text-violet-700 flex items-center gap-1">
             Ver todos <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -218,7 +218,7 @@
         </div>
         <div v-else class="divide-y divide-slate-50">
           <div v-for="order in recentOrders" :key="order.id"
-            class="flex items-center gap-3 px-6 py-4 hover:bg-slate-50/60 transition-colors">
+            class="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 hover:bg-slate-50/60 transition-colors">
             <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center text-violet-700 text-sm font-bold flex-shrink-0">
               {{ (order.user?.name ?? order.customerName ?? '?')[0]?.toUpperCase() }}
             </div>
@@ -242,7 +242,7 @@
 
       <!-- Mais Vendidos -->
       <div class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100">
           <h2 class="font-bold text-slate-900">Mais Vendidos</h2>
           <RouterLink to="/admin/produtos" class="text-xs text-violet-600 font-semibold hover:text-violet-700 flex items-center gap-1">
             Ver todos <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -257,7 +257,7 @@
         </div>
         <div v-else class="divide-y divide-slate-50">
           <div v-for="(product, i) in topProducts" :key="product.id"
-            class="flex items-center gap-3 px-6 py-4 hover:bg-slate-50/60 transition-colors">
+            class="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 hover:bg-slate-50/60 transition-colors">
             <div :class="['w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0',
               i === 0 ? 'bg-amber-100 text-amber-600' : i === 1 ? 'bg-slate-200 text-slate-500' : i === 2 ? 'bg-orange-100 text-orange-500' : 'bg-slate-100 text-slate-400']">
               {{ i + 1 }}

@@ -93,7 +93,7 @@
               <span class="w-5 h-5 bg-violet-100 text-violet-700 rounded-full text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5">4</span>
               <div>
                 Em <span class="font-medium">URIs de redirecionamento autorizados</span>, adicione:
-                <code class="block bg-white border border-slate-200 rounded-lg px-3 py-1.5 mt-1 text-xs">https://[seu-projeto].supabase.co/auth/v1/callback</code>
+                <code class="block bg-white border border-slate-200 rounded-lg px-3 py-1.5 mt-1 text-xs break-all">https://[seu-projeto].supabase.co/auth/v1/callback</code>
               </div>
             </li>
             <li class="flex gap-3">
@@ -112,7 +112,7 @@
     <div v-else class="space-y-4">
       <!-- Mercado Pago -->
       <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3 flex-wrap gap-y-2">
           <div class="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
@@ -129,7 +129,7 @@
           </div>
         </div>
 
-        <div class="p-6 space-y-4">
+        <div class="p-4 sm:p-6 space-y-4">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
               Access Token
@@ -169,14 +169,14 @@
 
           <div class="bg-sky-50 rounded-xl p-3 flex gap-2 text-xs text-sky-700">
             <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span>Configure o webhook no painel do Mercado Pago apontando para: <code class="bg-sky-100 px-1 rounded font-mono">{{ apiUrl }}</code></span>
+            <span>Configure o webhook no painel do Mercado Pago apontando para:<br><code class="block bg-sky-100 px-2 py-1 mt-1 rounded font-mono break-all">{{ apiUrl }}</code></span>
           </div>
         </div>
       </div>
 
       <!-- Google OAuth -->
       <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+        <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3 flex-wrap gap-y-2">
           <div class="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center flex-shrink-0">
             <svg class="w-5 h-5" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -191,7 +191,7 @@
           </div>
           <span class="ml-auto text-xs px-2.5 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-700">Supabase Auth</span>
         </div>
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
           <div class="bg-violet-50 rounded-xl p-4 flex gap-3 text-sm text-violet-700">
             <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <div>
@@ -203,7 +203,7 @@
       </div>
 
       <!-- Save bar -->
-      <div class="flex items-center justify-between pt-2">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
         <Transition name="fade-save">
           <p v-if="savedAt" class="text-sm text-emerald-600 flex items-center gap-1.5 font-medium">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -212,7 +212,7 @@
           <div v-else></div>
         </Transition>
         <button @click="save" :disabled="saving"
-          class="inline-flex items-center gap-2 bg-violet-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-60">
+          class="inline-flex items-center justify-center gap-2 bg-violet-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-violet-700 transition-colors shadow-sm disabled:opacity-60 w-full sm:w-auto">
           <svg v-if="saving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
           {{ saving ? 'Salvando...' : 'Salvar Configurações' }}

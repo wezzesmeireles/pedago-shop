@@ -23,10 +23,10 @@
     </div>
 
     <!-- Tabs -->
-    <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
-      <div class="flex gap-1 bg-slate-100 p-1 rounded-2xl w-max sm:w-fit min-w-full sm:min-w-0">
+    <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 scrollbar-none">
+      <div class="flex gap-1 bg-slate-100 p-1 rounded-2xl w-max">
         <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
-          :class="['flex-1 sm:flex-none px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap', activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
+          :class="['px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap', activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
           {{ tab.label }}
         </button>
       </div>
@@ -34,7 +34,7 @@
 
     <!-- Tab: Identidade -->
     <div v-show="activeTab === 'identity'" class="space-y-4">
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4">
         <h2 class="font-semibold text-slate-900">Dados da Loja</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -52,7 +52,7 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4">
         <h2 class="font-semibold text-slate-900">Logo</h2>
         <div class="flex items-center gap-4">
           <div class="w-16 h-16 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 flex-shrink-0">
@@ -86,7 +86,7 @@
     <!-- Tab: Banner & Anúncio -->
     <div v-show="activeTab === 'banner'" class="space-y-4">
       <div v-for="(slide, idx) in form.banners" :key="idx"
-        class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
                :style="{ background: bannerGradients[idx % bannerGradients.length] }">
@@ -164,7 +164,7 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4">
         <h2 class="font-semibold text-slate-900">Barra de Anúncio</h2>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Texto</label>
@@ -209,7 +209,7 @@
 
     <!-- Tab: SEO -->
     <div v-show="activeTab === 'seo'" class="space-y-4">
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4">
         <h2 class="font-semibold text-slate-900">SEO</h2>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Título da página (meta title)</label>
@@ -223,7 +223,7 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4">
         <h2 class="font-semibold text-slate-900">Outros</h2>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Mensagem do PIX no checkout</label>

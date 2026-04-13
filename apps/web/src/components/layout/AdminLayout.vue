@@ -134,10 +134,10 @@
         <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <div class="hidden md:flex items-center gap-2 text-sm text-slate-500">
-          <span>Admin</span>
-          <span class="text-slate-300">/</span>
-          <span class="text-slate-900 font-medium">{{ currentPageLabel }}</span>
+        <div class="flex items-center gap-2 text-sm text-slate-500">
+          <span class="hidden md:inline">Admin</span>
+          <span class="hidden md:inline text-slate-300">/</span>
+          <span class="text-slate-900 font-semibold">{{ currentPageLabel }}</span>
         </div>
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center text-violet-700 text-sm font-bold">
@@ -146,10 +146,26 @@
         </div>
       </header>
 
-      <main class="flex-1 p-4 md:p-6">
+      <main class="flex-1 p-4 md:p-6 pb-20 md:pb-6">
         <RouterView />
       </main>
     </div>
+
+    <!-- ── Mobile Bottom Nav ─────────────────────────────────── -->
+    <nav class="fixed bottom-0 left-0 right-0 z-30 md:hidden bg-white border-t border-slate-100 flex safe-area-inset-bottom shadow-[0_-1px_12px_rgba(0,0,0,0.06)]">
+      <RouterLink v-for="item in bottomNav" :key="item.to" :to="item.to"
+        :class="['flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[52px] transition-colors',
+          isActive(item.to) ? 'text-violet-600' : 'text-slate-400']">
+        <span v-html="item.icon" :class="['[&>svg]:w-5 [&>svg]:h-5', isActive(item.to) ? 'text-violet-600' : 'text-slate-400']"></span>
+        <span class="text-[10px] font-medium leading-none">{{ item.label }}</span>
+      </RouterLink>
+      <button @click="mobileMenuOpen = !mobileMenuOpen"
+        :class="['flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[52px] transition-colors',
+          mobileMenuOpen ? 'text-violet-600' : 'text-slate-400']">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+        <span class="text-[10px] font-medium leading-none">Mais</span>
+      </button>
+    </nav>
   </div>
 </template>
 
@@ -191,6 +207,14 @@ const settingsNav: NavItem[] = [
 ];
 
 const allNav = [...mainNav, ...settingsNav];
+
+// Bottom nav: 4 most-used pages + "Mais" drawer trigger
+const bottomNav: NavItem[] = [
+  { to: '/admin/dashboard', label: 'Início', icon: icon.grid },
+  { to: '/admin/produtos', label: 'Produtos', icon: icon.box },
+  { to: '/admin/pedidos', label: 'Pedidos', icon: icon.clipboard },
+  { to: '/admin/usuarios', label: 'Usuários', icon: icon.users },
+];
 
 function isActive(path: string) {
   return route.path === path || route.path.startsWith(path + '/');
