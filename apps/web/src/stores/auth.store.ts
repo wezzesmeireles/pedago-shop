@@ -75,26 +75,15 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(name: string, email: string, password: string, phone?: string) {
     loading.value = true;
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-      // Use the edge function with service role key — bypasses captcha/rate limits on signUp
-      const res = await fetch(`${supabaseUrl}/functions/v1/register-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${anonKey}`,
-          'apikey': anonKey,
-        },
-        body: JSON.stringify({ name, email, password, phone }),
+      // Use edge function with service role — bypasses captcha/rate limits on signUp
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('register-user', {
+        body: { name, email, password, phone },
       });
 
-      const json = await res.json().catch(() => ({}));
-      const errMsg = (json?.message ?? '').toLowerCase();
-
-      if (!res.ok) {
-        // Account already exists → try to sign in
-        if (res.status === 400 && (errMsg.includes('already') || errMsg.includes('existe') || errMsg.includes('registered'))) {
+      if (fnError) {
+        const errMsg = (fnError.message ?? '').toLowerCase();
+        console.error('[register-user fn error]', fnError);
+        if (errMsg.includes('already') || errMsg.includes('existe') || errMsg.includes('registered')) {
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (!signInErr) { await fetchMe(); return; }
           throw new Error('Este email já está cadastrado. Tente fazer login.');
