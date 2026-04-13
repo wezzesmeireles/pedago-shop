@@ -109,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { supabase } from '@/lib/supabase';
 import { useCatalogStore } from '@/stores/catalog.store';
@@ -125,7 +125,7 @@ const isDesktop = ref(window.innerWidth >= 1024);
 const pagination = ref({ page: 1, limit: 12, total: 0, totalPages: 1 });
 
 const filters = reactive({
-  search: '',
+  search: (route.query.busca as string) || '',
   category: (route.query.categoria as string) || '',
   sort: 'newest',
 });
@@ -204,6 +204,12 @@ function clearFilters() {
   filters.sort = 'newest';
   fetchProducts();
 }
+
+watch(() => route.query, (q) => {
+  if (q.busca !== undefined) filters.search = (q.busca as string) || '';
+  if (q.categoria !== undefined) filters.category = (q.categoria as string) || '';
+  fetchProducts();
+});
 
 onMounted(async () => {
   window.addEventListener('resize', handleResize);
