@@ -50,6 +50,14 @@
                       </svg>
                       <span class="text-xs text-green-600 font-medium">{{ user.phone }}</span>
                     </div>
+                    <button
+                      v-else
+                      @click="openAddPhone(user)"
+                      class="flex items-center gap-1 mt-0.5 text-xs text-slate-400 hover:text-green-600 transition-colors group/phone"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                      <span class="group-hover/phone:underline">Adicionar WhatsApp</span>
+                    </button>
                   </div>
                 </div>
               </td>
@@ -146,6 +154,30 @@
       </div>
     </div>
 
+    <!-- Add Phone Modal -->
+    <AppModal v-model="addPhoneOpen" :title="`Adicionar WhatsApp — ${addPhoneUser?.name ?? ''}`">
+      <div class="space-y-4">
+        <p class="text-sm text-slate-500">Informe o número de WhatsApp do cliente para poder contatá-lo.</p>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">WhatsApp</label>
+          <input
+            v-model="addPhoneValue"
+            type="tel"
+            placeholder="(11) 99999-9999"
+            @keyup.enter="saveAddPhone"
+            class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+        </div>
+        <button
+          @click="saveAddPhone"
+          :disabled="addPhoneSaving || !addPhoneValue.trim()"
+          class="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm"
+        >
+          {{ addPhoneSaving ? 'Salvando...' : 'Salvar número' }}
+        </button>
+      </div>
+    </AppModal>
+
     <!-- WhatsApp Modal -->
     <AppModal v-model="waOpen" :title="`WhatsApp — ${waUser?.name ?? ''}`">
       <div class="space-y-4">
@@ -231,6 +263,11 @@ const waOpen = ref(false);
 const waUser = ref<any>(null);
 const waMessage = ref('');
 
+const addPhoneOpen = ref(false);
+const addPhoneUser = ref<any>(null);
+const addPhoneValue = ref('');
+const addPhoneSaving = ref(false);
+
 const pageRange = computed(() => {
   const range = [];
   const start = Math.max(1, currentPage.value - 2);
@@ -292,6 +329,22 @@ async function loadUsers(page = 1) {
 
 async function toggleActive(user: any) {
   await supabase.from('profiles').update({ is_active: !user.isActive, updated_at: new Date().toISOString() }).eq('id', user.id);
+  await loadUsers(currentPage.value);
+}
+
+function openAddPhone(user: any) {
+  addPhoneUser.value = user;
+  addPhoneValue.value = '';
+  addPhoneOpen.value = true;
+}
+
+async function saveAddPhone() {
+  if (!addPhoneValue.value.trim() || !addPhoneUser.value) return;
+  addPhoneSaving.value = true;
+  const digits = addPhoneValue.value.replace(/\D/g, '');
+  await supabase.from('profiles').update({ phone: digits, updated_at: new Date().toISOString() }).eq('id', addPhoneUser.value.id);
+  addPhoneSaving.value = false;
+  addPhoneOpen.value = false;
   await loadUsers(currentPage.value);
 }
 
