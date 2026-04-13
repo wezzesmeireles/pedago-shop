@@ -32,6 +32,8 @@ const router = createRouter({
         { path: 'register', name: 'register', component: () => import('@/views/auth/RegisterView.vue') },
         { path: 'google-callback', name: 'google-callback', component: () => import('@/views/auth/GoogleCallbackView.vue') },
         { path: 'whatsapp', name: 'phone-required', component: () => import('@/views/auth/PhoneRequiredView.vue') },
+        { path: 'esqueci-senha', name: 'forgot-password', component: () => import('@/views/auth/ForgotPasswordView.vue') },
+        { path: 'reset-senha', name: 'reset-password', component: () => import('@/views/auth/ResetPasswordView.vue') },
       ],
     },
     // Admin login (standalone, no layout)

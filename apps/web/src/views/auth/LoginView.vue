@@ -37,6 +37,12 @@
 
       <p v-if="errors.general" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">{{ errors.general }}</p>
 
+      <div class="flex justify-end -mt-1">
+        <RouterLink to="/auth/esqueci-senha" class="text-xs text-primary-600 hover:underline font-medium">
+          Esqueci minha senha
+        </RouterLink>
+      </div>
+
       <AppButton type="submit" variant="primary" size="lg" :loading="loading" class="w-full">
         Entrar
       </AppButton>
@@ -101,8 +107,19 @@ async function handleLogin() {
       router.push(redirect || '/');
     }
   } catch (err: any) {
-    const msg = err?.message || err?.response?.data?.message || 'Erro ao fazer login.';
-    errors.general = Array.isArray(msg) ? msg.join(', ') : msg;
+    const raw = (err?.message || err?.response?.data?.message || '').toLowerCase();
+    if (raw.includes('invalid login') || raw.includes('invalid credentials') || raw.includes('wrong password'))
+      errors.general = 'Email ou senha incorretos. Verifique seus dados e tente novamente.';
+    else if (raw.includes('email not confirmed'))
+      errors.general = 'Email não confirmado. Verifique sua caixa de entrada.';
+    else if (raw.includes('too many') || raw.includes('rate limit'))
+      errors.general = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+    else if (raw.includes('user not found') || raw.includes('no user'))
+      errors.general = 'Nenhuma conta encontrada com este email.';
+    else if (raw.includes('captcha'))
+      errors.general = 'Erro no captcha. Recarregue a página e tente novamente.';
+    else
+      errors.general = 'Erro ao fazer login. Tente novamente.';
   } finally {
     loading.value = false;
   }
