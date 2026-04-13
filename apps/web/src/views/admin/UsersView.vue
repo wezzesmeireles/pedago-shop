@@ -201,10 +201,14 @@ function debouncedLoad() {
 }
 
 async function loadUsers(page = 1) {
-  const { data, error } = await supabase.rpc('get_all_users_for_admin');
+  const [{ data, error }, { data: phones }] = await Promise.all([
+    supabase.rpc('get_all_users_for_admin'),
+    supabase.from('profiles').select('id, phone'),
+  ]);
   if (error) { console.error('loadUsers error:', error); return; }
 
-  let filtered = data ?? [];
+  const phoneMap = new Map((phones ?? []).map((p: any) => [p.id, p.phone]));
+  let filtered = (data ?? []).map((u: any) => ({ ...u, phone: phoneMap.get(u.id) ?? null }));
   if (search.value) {
     const q = search.value.toLowerCase();
     filtered = filtered.filter((u: any) =>
