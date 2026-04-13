@@ -398,7 +398,7 @@ onMounted(async () => {
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'AWAITING_PAYMENT'),
       supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'CUSTOMER'),
       supabase.from('products').select('id, name, sales_count, cover_image_url, price').is('deleted_at', null).order('sales_count', { ascending: false }).limit(5),
-      supabase.from('orders').select('*, profiles(name), order_items(product_name)').eq('status', 'PAID').order('paid_at', { ascending: false }).limit(6),
+      supabase.from('orders').select('*, profiles(name), order_items(product_name)').order('created_at', { ascending: false }).limit(6),
     ]);
 
     stats.value = {
