@@ -81,14 +81,18 @@ export const useAuthStore = defineStore('auth', () => {
       });
 
       if (fnError) {
-        const errMsg = (fnError.message ?? '').toLowerCase();
-        console.error('[register-user fn error]', fnError);
+        // Parse actual body from FunctionsHttpError
+        let errMsg = '';
+        try { errMsg = (await (fnError as any).context?.json())?.message?.toLowerCase() ?? ''; } catch { /**/ }
+        if (!errMsg) errMsg = (fnError.message ?? '').toLowerCase();
+        console.error('[register-user fn error]', errMsg, fnError);
+
         if (errMsg.includes('already') || errMsg.includes('existe') || errMsg.includes('registered')) {
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
           if (!signInErr) { await fetchMe(); return; }
           throw new Error('Este email já está cadastrado. Tente fazer login.');
         }
-        throw new Error('Erro ao criar conta. Tente novamente.');
+        throw new Error(`Erro ao criar conta: ${errMsg || 'tente novamente.'}`);
       }
 
       // Account created — sign in immediately

@@ -30,8 +30,11 @@ Deno.serve(async (req) => {
   });
 
   if (error) {
+    console.error('[register-user] createUser error:', error.message, error);
+    const msg = error.message.toLowerCase();
+    const status = msg.includes('already') || msg.includes('registered') ? 409 : 400;
     return new Response(JSON.stringify({ message: error.message }), {
-      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
