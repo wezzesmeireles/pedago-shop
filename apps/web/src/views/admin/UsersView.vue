@@ -315,6 +315,9 @@ import { ref, computed, onMounted } from 'vue';
 import { supabase } from '@/lib/supabase';
 import AppModal from '@/components/ui/AppModal.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
+import { useSiteConfigStore } from '@/stores/site-config.store';
+
+const { config } = useSiteConfigStore();
 
 const users = ref([]);
 const search = ref('');
@@ -417,7 +420,9 @@ async function saveAddPhone() {
 
 function openWhatsApp(user: any) {
   waUser.value = user;
-  waMessage.value = `Olá ${user.name?.split(' ')[0] ?? ''}! Tudo bem?`;
+  const firstName = user.name?.split(' ')[0] ?? '';
+  const store = config.storeName || 'nossa loja';
+  waMessage.value = `Ola, ${firstName}!\n\nAqui e a equipe da ${store}.\n\nEstamos passando para te avisar sobre novidades incriveis que chegaram! Se quiser saber mais, e so responder esta mensagem.\n\nAte logo!`;
   waOpen.value = true;
 }
 
