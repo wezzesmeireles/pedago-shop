@@ -19,10 +19,16 @@ function nowBR() {
 }
 
 function buildItemsList(items: any[]) {
-  return (items ?? []).map((i: any) => `    📌 ${i.product_name ?? 'Produto'} x${i.quantity}  —  ${fmt((i.unit_price ?? 0) * i.quantity)}`).join('\n');
+  return (items ?? []).map((i: any) =>
+    `    📌 ${esc(i.product_name ?? 'Produto')} x${i.quantity}  —  ${fmt((i.unit_price ?? 0) * i.quantity)}`
+  ).join('\n');
 }
 
-async function tg(cfg: Record<string, any>, text: string) {
+function esc(s: string) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function tg(cfg: Record<string, any>, html: string) {
   const token = cfg.telegramBotToken?.trim();
   const chatId = cfg.telegramChatId?.trim();
   if (!token || !chatId) {
@@ -33,10 +39,11 @@ async function tg(cfg: Record<string, any>, text: string) {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML' }),
     });
     const json = await res.json();
     if (!json.ok) console.error('[tg] error:', JSON.stringify(json));
+    else console.log('[tg] sent ok');
   } catch (e) {
     console.error('[tg] fetch error:', e);
   }
@@ -45,10 +52,7 @@ async function tg(cfg: Record<string, any>, text: string) {
 function orderSummary(order: any) {
   const customerName = order.customer_name ?? order.profiles?.name ?? 'Cliente';
   const orderNumber = order.order_number ?? order.id.slice(0, 8).toUpperCase();
-  const items = (order.order_items ?? [])
-    .map((i: any) => `  • ${i.product_name ?? 'Produto'} x${i.quantity}`)
-    .join('\n');
-  return { customerName, orderNumber, items };
+  return { customerName, orderNumber };
 }
 
 async function verifySignature(xSignature: string, queryId?: string, xRequestId?: string, secret?: string): Promise<boolean> {
@@ -144,21 +148,21 @@ Deno.serve(async (req) => {
 
         // Telegram — venda aprovada
         const { customerName, orderNumber } = orderSummary(order);
-        const method = payment.payment_type_id === 'pix' ? 'PIX' : 'Cartao de Credito';
         const methodEmoji = payment.payment_type_id === 'pix' ? '🟢 PIX' : '💳 Cartao de Credito';
-        const installments = payment.installments && payment.installments > 1 ? ` (${payment.installments}x de ${fmt(payment.transaction_amount / payment.installments)})` : '';
+        const installments = payment.installments && payment.installments > 1
+          ? ` (${payment.installments}x de ${fmt(payment.transaction_amount / payment.installments)})` : '';
         const itemsList = buildItemsList(order.order_items ?? []);
         const customerEmail = order.customer_email ?? '';
         await tg(cfg,
-          `🎉 *VENDA APROVADA!*\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📋 *Pedido:* \`#${orderNumber}\`\n` +
-          `👤 *Cliente:* ${customerName}\n` +
-          (customerEmail ? `📧 *Email:* ${customerEmail}\n` : '') +
-          `\n💳 *Pagamento:* ${methodEmoji}${installments}\n` +
-          `✅ *Status:* Pagamento Confirmado\n\n` +
-          `🛍️ *Itens Comprados:*\n${itemsList}\n\n` +
-          `💰 *Total Recebido: ${fmt(order.total_amount)}*\n\n` +
+          `🎉 <b>VENDA APROVADA!</b>\n` +
+          `——————————————————\n\n` +
+          `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+          `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+          (customerEmail ? `📧 <b>Email:</b> ${esc(customerEmail)}\n` : '') +
+          `\n💳 <b>Pagamento:</b> ${methodEmoji}${esc(installments)}\n` +
+          `✅ <b>Status:</b> Pagamento Confirmado\n\n` +
+          `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` +
+          `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +
           `🕐 ${nowBR()}`,
         );
       }
@@ -170,12 +174,12 @@ Deno.serve(async (req) => {
         const statusLabel = mpStatus === 'rejected' ? 'RECUSADO' : 'CANCELADO';
         const statusEmoji = mpStatus === 'rejected' ? '🚫' : '❌';
         await tg(cfg,
-          `${statusEmoji} *PAGAMENTO ${statusLabel}*\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📋 *Pedido:* \`#${orderNumber}\`\n` +
-          `👤 *Cliente:* ${customerName}\n` +
-          `💰 *Valor:* ${fmt(order.total_amount)}\n\n` +
-          `⚠️ *Motivo:* Pagamento ${statusLabel.toLowerCase()} pelo Mercado Pago\n\n` +
+          `${statusEmoji} <b>PAGAMENTO ${statusLabel}</b>\n` +
+          `——————————————————\n\n` +
+          `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+          `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+          `💰 <b>Valor:</b> ${fmt(order.total_amount)}\n\n` +
+          `⚠️ <b>Motivo:</b> Pagamento ${statusLabel.toLowerCase()} pelo Mercado Pago\n\n` +
           `🕐 ${nowBR()}`,
         );
       }
@@ -186,12 +190,12 @@ Deno.serve(async (req) => {
       if (order) {
         const { customerName, orderNumber } = orderSummary(order);
         await tg(cfg,
-          `↩️ *REEMBOLSO PROCESSADO*\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📋 *Pedido:* \`#${orderNumber}\`\n` +
-          `👤 *Cliente:* ${customerName}\n` +
-          `💸 *Valor Reembolsado:* ${fmt(order.total_amount)}\n\n` +
-          `ℹ️ Os downloads do cliente foram revogados automaticamente.\n\n` +
+          `↩️ <b>REEMBOLSO PROCESSADO</b>\n` +
+          `——————————————————\n\n` +
+          `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+          `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+          `💸 <b>Valor Reembolsado:</b> ${fmt(order.total_amount)}\n\n` +
+          `ℹ️ Downloads do cliente revogados automaticamente.\n\n` +
           `🕐 ${nowBR()}`,
         );
       }

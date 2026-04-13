@@ -25,10 +25,16 @@ function nowBR() {
 }
 
 function buildItemsList(orderItems: any[]) {
-  return orderItems.map((i: any) => `    📌 ${i.product_name} x${i.quantity}  —  ${fmt(i.unit_price * i.quantity)}`).join('\n');
+  return orderItems.map((i: any) =>
+    `    📌 ${esc(i.product_name ?? 'Produto')} x${i.quantity}  —  ${fmt(i.unit_price * i.quantity)}`
+  ).join('\n');
 }
 
-async function tg(cfg: Record<string, any>, text: string) {
+function esc(s: string) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function tg(cfg: Record<string, any>, html: string) {
   const token = cfg.telegramBotToken?.trim();
   const chatId = cfg.telegramChatId?.trim();
   if (!token || !chatId) {
@@ -39,10 +45,11 @@ async function tg(cfg: Record<string, any>, text: string) {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML' }),
     });
     const json = await res.json();
     if (!json.ok) console.error('[tg] error:', JSON.stringify(json));
+    else console.log('[tg] sent ok');
   } catch (e) {
     console.error('[tg] fetch error:', e);
   }
@@ -174,16 +181,16 @@ Deno.serve(async (req) => {
       const itemsList = buildItemsList(orderItems ?? []);
       const clientName = profile?.name ?? user.email ?? 'Desconhecido';
       await tg(cfg,
-        `🔔 *NOVO PEDIDO — PIX GERADO*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Pedido:* \`#${orderNumber}\`\n` +
-        `👤 *Cliente:* ${clientName}\n` +
-        `📧 *Email:* ${user.email}\n\n` +
-        `💳 *Pagamento:* PIX\n` +
-        `⏳ *Status:* Aguardando pagamento\n` +
-        `⌛ *Expira em:* 30 minutos\n\n` +
-        `🛍️ *Itens do Pedido:*\n${itemsList}\n\n` +
-        `💰 *Total: ${fmt(totalAmount)}*\n\n` +
+        `🔔 <b>NOVO PEDIDO — PIX GERADO</b>\n` +
+        `——————————————————\n\n` +
+        `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+        `👤 <b>Cliente:</b> ${esc(clientName)}\n` +
+        `📧 <b>Email:</b> ${esc(user.email)}\n\n` +
+        `💳 <b>Pagamento:</b> PIX\n` +
+        `⏳ <b>Status:</b> Aguardando pagamento\n` +
+        `⌛ <b>Expira em:</b> 30 minutos\n\n` +
+        `🛍️ <b>Itens do Pedido:</b>\n${itemsList}\n\n` +
+        `💰 <b>Total: ${fmt(totalAmount)}</b>\n\n` +
         `🕐 ${nowBR()}`,
       );
 
@@ -222,15 +229,15 @@ Deno.serve(async (req) => {
       const itemsList = buildItemsList(orderItems ?? []);
       const clientName = profile?.name ?? user.email ?? 'Desconhecido';
       await tg(cfg,
-        `🔔 *NOVO PEDIDO — CARTAO DE CREDITO*\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `📋 *Pedido:* \`#${orderNumber}\`\n` +
-        `👤 *Cliente:* ${clientName}\n` +
-        `📧 *Email:* ${user.email}\n\n` +
-        `💳 *Pagamento:* Cartao de Credito\n` +
-        `⏳ *Status:* Redirecionado para checkout\n\n` +
-        `🛍️ *Itens do Pedido:*\n${itemsList}\n\n` +
-        `💰 *Total: ${fmt(totalAmount)}*\n\n` +
+        `🔔 <b>NOVO PEDIDO — CARTAO DE CREDITO</b>\n` +
+        `——————————————————\n\n` +
+        `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+        `👤 <b>Cliente:</b> ${esc(clientName)}\n` +
+        `📧 <b>Email:</b> ${esc(user.email)}\n\n` +
+        `💳 <b>Pagamento:</b> Cartao de Credito\n` +
+        `⏳ <b>Status:</b> Redirecionado para checkout\n\n` +
+        `🛍️ <b>Itens do Pedido:</b>\n${itemsList}\n\n` +
+        `💰 <b>Total: ${fmt(totalAmount)}</b>\n\n` +
         `🕐 ${nowBR()}`,
       );
 
