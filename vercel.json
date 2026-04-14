@@ -1,7 +1,7 @@
 {
   "version": 2,
   "installCommand": "pnpm install --no-frozen-lockfile",
-  "buildCommand": "pnpm --filter @pedago/shared build && pnpm --filter web build",
+  "buildCommand": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
     {

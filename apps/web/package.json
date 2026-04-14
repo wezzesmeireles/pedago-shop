@@ -8,7 +8,7 @@
     "lint": "eslint src --ext .ts,.vue"
   },
   "dependencies": {
-    "@pedago/shared": "workspace:*",
+    "@sitepedagogico/shared": "workspace:*",
     "@supabase/supabase-js": "^2.45.4",
     "@vueuse/core": "^10.11.0",
     "@vueuse/head": "^2.0.0",

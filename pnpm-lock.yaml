@@ -14,7 +14,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@pedago/shared':
+      '@sitepedagogico/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@supabase/supabase-js':

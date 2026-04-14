@@ -248,7 +248,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue';
 import { useSiteConfigStore } from '@/stores/site-config.store';
-import type { SiteConfigData } from '@pedago/shared';
+import type { SiteConfigData } from '@sitepedagogico/shared';
 import { supabase } from '@/lib/supabase';
 
 const siteConfigStore = useSiteConfigStore();

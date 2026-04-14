@@ -1,9 +1,9 @@
 {
-  "name": "pedago-shop",
+  "name": "sitepedagogico",
   "private": true,
   "scripts": {
     "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter @pedago/shared build && pnpm --filter web build"
+    "build": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

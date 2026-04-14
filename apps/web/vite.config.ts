@@ -7,11 +7,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      '@pedago/shared': resolve(__dirname, '../../packages/shared/src/index.ts'),
+      '@sitepedagogico/shared': resolve(__dirname, '../../packages/shared/src/index.ts'),
     },
   },
   optimizeDeps: {
-    include: ['@pedago/shared'],
+    include: ['@sitepedagogico/shared'],
   },
   server: {
     port: 5173,

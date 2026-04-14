@@ -131,9 +131,37 @@ function typeLabel(type: string) {
 
 const changelog: Release[] = [
   {
-    version: 'v2.7 — 13/04/2026',
+    version: 'v2.8 — 13/04/2026',
     date: '13 de abril de 2026',
     highlight: true,
+    tags: ['Admin', 'Pedidos', 'Segurança', 'Site'],
+    changes: [
+      {
+        type: 'feat',
+        text: 'Botão "Reconciliar Pagamentos" no painel de pedidos',
+        detail: 'Admin pode verificar todos os pedidos AWAITING_PAYMENT no Mercado Pago com um clique, ou reconciliar um pedido específico no modal.',
+      },
+      {
+        type: 'fix',
+        text: 'Dois pagamentos não reconhecidos automaticamente — agora corrigidos via reconciliação manual',
+        detail: 'A reconciliação atualiza o status para PAID e dispara notificações Telegram e geração de tokens de download.',
+      },
+      {
+        type: 'fix',
+        text: 'Cadastro de novos usuários voltando a funcionar',
+        detail: 'Fluxo roteado para edge function register-user com admin.createUser (service role) para contornar hCaptcha e rate limits do Supabase.',
+      },
+      {
+        type: 'improve',
+        text: 'Rebranding completo: "pedago-shop" → "sitepedagogico"',
+        detail: 'Atualizado em package.json (raiz, web, shared), vercel.json, vite.config.ts, tsconfig.json e todos os imports internos. Título da aba: "Site Pedagógico".',
+      },
+    ],
+  },
+  {
+    version: 'v2.7 — 13/04/2026',
+    date: '13 de abril de 2026',
+    highlight: false,
     tags: ['Pedidos', 'Downloads', 'Design', 'Notificações', 'Login', 'Email'],
     changes: [
       {

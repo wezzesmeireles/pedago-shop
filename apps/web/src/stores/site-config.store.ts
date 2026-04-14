@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { supabase } from '@/lib/supabase';
-import type { SiteConfigData } from '@pedago/shared';
-import { DEFAULT_SITE_CONFIG } from '@pedago/shared';
+import type { SiteConfigData } from '@sitepedagogico/shared';
+import { DEFAULT_SITE_CONFIG } from '@sitepedagogico/shared';
 
 export const useSiteConfigStore = defineStore('siteConfig', () => {
   const config = ref<SiteConfigData>({ ...DEFAULT_SITE_CONFIG });
