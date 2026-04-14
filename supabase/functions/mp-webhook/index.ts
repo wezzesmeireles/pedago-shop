@@ -109,8 +109,21 @@ Deno.serve(async (req) => {
   }
 
   const eventId = String(paymentId);
-  const { data: existing } = await supabase.from('webhook_events').select('status').eq('source', 'mercadopago').eq('event_id', eventId).single();
-  if (existing?.status === 'processed') return new Response('ok', { status: 200 });
+
+  // Skip only if already fully processed or currently being processed.
+  // 'skipped' means a non-actionable status (pending/in_process) was received before —
+  // we allow reprocessing so the final 'approved' event is not blocked.
+  const { data: existing } = await supabase
+    .from('webhook_events')
+    .select('status')
+    .eq('source', 'mercadopago')
+    .eq('event_id', eventId)
+    .single();
+
+  if (existing?.status === 'processed' || existing?.status === 'processing') {
+    console.log(`[webhook] event ${eventId} already ${existing.status} — skipping`);
+    return new Response('ok', { status: 200 });
+  }
 
   await supabase.from('webhook_events').upsert(
     { source: 'mercadopago', event_id: eventId, event_type: eventType, payload: body, status: 'processing' },
@@ -123,93 +136,142 @@ Deno.serve(async (req) => {
     const mpStatus = payment.status ?? 'unknown';
     const orderId = payment.external_reference;
 
+    console.log(`[webhook] payment ${eventId} status=${mpStatus} order=${orderId}`);
+
     if (orderId && mpStatus === 'approved') {
-      const { data: order } = await supabase.from('orders').select('*, order_items(*, products(delivery_type, delivery_link))').eq('id', orderId).single();
-      if (order && order.status !== 'PAID') {
-        await supabase.from('orders').update({
+      const { data: order } = await supabase
+        .from('orders')
+        .select('*, order_items(*, products(delivery_type, delivery_link))')
+        .eq('id', orderId)
+        .single();
+
+      if (order) {
+        // Atomic update: only succeeds if order is still AWAITING_PAYMENT.
+        // This prevents duplicate notifications if webhook fires multiple times simultaneously.
+        const { data: updated } = await supabase.from('orders').update({
           status: 'PAID',
           mp_payment_id: String(payment.id),
           mp_status: mpStatus,
           paid_at: new Date().toISOString(),
           payment_method: payment.payment_type_id === 'pix' ? 'PIX' : 'CREDIT_CARD',
           updated_at: new Date().toISOString(),
-        }).eq('id', orderId);
+        }).eq('id', orderId).eq('status', 'AWAITING_PAYMENT').select('id');
 
-        const tokenExpires = new Date();
-        tokenExpires.setFullYear(tokenExpires.getFullYear() + 30);
+        if (updated?.length) {
+          // We won the race — create tokens and notify
+          const tokenExpires = new Date();
+          tokenExpires.setFullYear(tokenExpires.getFullYear() + 30);
 
-        for (const item of order.order_items) {
-          await supabase.from('download_tokens').insert({
-            order_id: orderId,
-            order_item_id: item.id,
-            max_downloads: 99999,
-            expires_at: tokenExpires.toISOString(),
-            delivery_link: item.products?.delivery_link ?? null,
-          });
+          for (const item of order.order_items) {
+            const { data: existingToken } = await supabase
+              .from('download_tokens').select('id').eq('order_item_id', item.id).single();
+            if (!existingToken) {
+              await supabase.from('download_tokens').insert({
+                order_id: orderId,
+                order_item_id: item.id,
+                max_downloads: 99999,
+                expires_at: tokenExpires.toISOString(),
+                delivery_link: item.products?.delivery_link ?? null,
+              });
+            }
+            const { data: prod } = await supabase.from('products').select('sales_count').eq('id', item.product_id).single();
+            const newCount = (prod?.sales_count ?? 0) + item.quantity;
+            await supabase.from('products').update({ sales_count: newCount }).eq('id', item.product_id);
+          }
 
-          const { data: prod } = await supabase.from('products').select('sales_count').eq('id', item.product_id).single();
-          const newCount = (prod?.sales_count ?? 0) + item.quantity;
-          await supabase.from('products').update({ sales_count: newCount }).eq('id', item.product_id);
+          const { customerName, orderNumber } = orderSummary(order);
+          const methodEmoji = payment.payment_type_id === 'pix' ? '🟢 PIX' : '💳 Cartao de Credito';
+          const installments = payment.installments && payment.installments > 1
+            ? ` (${payment.installments}x de ${fmt(payment.transaction_amount / payment.installments)})` : '';
+          const itemsList = buildItemsList(order.order_items ?? []);
+          const customerEmail = order.customer_email ?? '';
+
+          await tg(cfg,
+            `🎉 <b>VENDA APROVADA!</b>\n` +
+            `——————————————————\n\n` +
+            `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+            `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+            (customerEmail ? `📧 <b>Email:</b> ${esc(customerEmail)}\n` : '') +
+            `\n💳 <b>Pagamento:</b> ${methodEmoji}${esc(installments)}\n` +
+            `✅ <b>Status:</b> Pagamento Confirmado\n\n` +
+            `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` +
+            `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +
+            `🕐 ${nowBR()}`,
+          );
+        } else {
+          console.log(`[webhook] order ${orderId} already PAID — no duplicate notification sent`);
         }
+      }
 
-        // Telegram — venda aprovada
-        const { customerName, orderNumber } = orderSummary(order);
-        const methodEmoji = payment.payment_type_id === 'pix' ? '🟢 PIX' : '💳 Cartao de Credito';
-        const installments = payment.installments && payment.installments > 1
-          ? ` (${payment.installments}x de ${fmt(payment.transaction_amount / payment.installments)})` : '';
-        const itemsList = buildItemsList(order.order_items ?? []);
-        const customerEmail = order.customer_email ?? '';
-        await tg(cfg,
-          `🎉 <b>VENDA APROVADA!</b>\n` +
-          `——————————————————\n\n` +
-          `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
-          `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
-          (customerEmail ? `📧 <b>Email:</b> ${esc(customerEmail)}\n` : '') +
-          `\n💳 <b>Pagamento:</b> ${methodEmoji}${esc(installments)}\n` +
-          `✅ <b>Status:</b> Pagamento Confirmado\n\n` +
-          `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` +
-          `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +
-          `🕐 ${nowBR()}`,
-        );
-      }
     } else if (orderId && (mpStatus === 'rejected' || mpStatus === 'cancelled')) {
-      const { data: order } = await supabase.from('orders').select('id, status, order_number, customer_name, total_amount, order_items(product_name, quantity)').eq('id', orderId).single();
-      if (order && order.status !== 'PAID') {
-        await supabase.from('orders').update({ status: 'CANCELLED', mp_status: mpStatus, updated_at: new Date().toISOString() }).eq('id', orderId);
-        const { customerName, orderNumber } = orderSummary(order);
-        const statusLabel = mpStatus === 'rejected' ? 'RECUSADO' : 'CANCELADO';
-        const statusEmoji = mpStatus === 'rejected' ? '🚫' : '❌';
-        await tg(cfg,
-          `${statusEmoji} <b>PAGAMENTO ${statusLabel}</b>\n` +
-          `——————————————————\n\n` +
-          `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
-          `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
-          `💰 <b>Valor:</b> ${fmt(order.total_amount)}\n\n` +
-          `⚠️ <b>Motivo:</b> Pagamento ${statusLabel.toLowerCase()} pelo Mercado Pago\n\n` +
-          `🕐 ${nowBR()}`,
-        );
-      }
-    } else if (orderId && (mpStatus === 'refunded' || mpStatus === 'charged_back')) {
-      const { data: order } = await supabase.from('orders').select('id, status, order_number, customer_name, total_amount').eq('id', orderId).single();
-      await supabase.from('orders').update({ status: 'REFUNDED', mp_status: mpStatus, updated_at: new Date().toISOString() }).eq('id', orderId);
-      await supabase.from('download_tokens').update({ revoked_at: new Date().toISOString() }).eq('order_id', orderId).is('revoked_at', null);
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, status, order_number, customer_name, total_amount, order_items(product_name, quantity)')
+        .eq('id', orderId)
+        .single();
+
       if (order) {
-        const { customerName, orderNumber } = orderSummary(order);
-        await tg(cfg,
-          `↩️ <b>REEMBOLSO PROCESSADO</b>\n` +
-          `——————————————————\n\n` +
-          `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
-          `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
-          `💸 <b>Valor Reembolsado:</b> ${fmt(order.total_amount)}\n\n` +
-          `ℹ️ Downloads do cliente revogados automaticamente.\n\n` +
-          `🕐 ${nowBR()}`,
-        );
+        const { data: updated } = await supabase.from('orders')
+          .update({ status: 'CANCELLED', mp_status: mpStatus, updated_at: new Date().toISOString() })
+          .eq('id', orderId).eq('status', 'AWAITING_PAYMENT').select('id');
+
+        if (updated?.length) {
+          const { customerName, orderNumber } = orderSummary(order);
+          const statusLabel = mpStatus === 'rejected' ? 'RECUSADO' : 'CANCELADO';
+          const statusEmoji = mpStatus === 'rejected' ? '🚫' : '❌';
+          await tg(cfg,
+            `${statusEmoji} <b>PAGAMENTO ${statusLabel}</b>\n` +
+            `——————————————————\n\n` +
+            `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+            `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+            `💰 <b>Valor:</b> ${fmt(order.total_amount)}\n\n` +
+            `⚠️ <b>Motivo:</b> Pagamento ${statusLabel.toLowerCase()} pelo Mercado Pago\n\n` +
+            `🕐 ${nowBR()}`,
+          );
+        }
       }
+
+    } else if (orderId && (mpStatus === 'refunded' || mpStatus === 'charged_back')) {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('id, status, order_number, customer_name, total_amount')
+        .eq('id', orderId)
+        .single();
+
+      const { data: updated } = await supabase.from('orders')
+        .update({ status: 'REFUNDED', mp_status: mpStatus, updated_at: new Date().toISOString() })
+        .eq('id', orderId).neq('status', 'REFUNDED').select('id');
+
+      if (updated?.length) {
+        await supabase.from('download_tokens').update({ revoked_at: new Date().toISOString() }).eq('order_id', orderId).is('revoked_at', null);
+        if (order) {
+          const { customerName, orderNumber } = orderSummary(order);
+          await tg(cfg,
+            `↩️ <b>REEMBOLSO PROCESSADO</b>\n` +
+            `——————————————————\n\n` +
+            `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+            `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+            `💸 <b>Valor Reembolsado:</b> ${fmt(order.total_amount)}\n\n` +
+            `ℹ️ Downloads do cliente revogados automaticamente.\n\n` +
+            `🕐 ${nowBR()}`,
+          );
+        }
+      }
+
+    } else {
+      // Non-actionable status: pending, in_process, authorized, etc.
+      // Mark as 'skipped' (not 'processed') so that the later 'approved' webhook
+      // for this same payment_id is not blocked by the deduplication check.
+      console.log(`[webhook] payment ${eventId} status=${mpStatus} — non-actionable, marking skipped`);
+      await supabase.from('webhook_events').update({ status: 'skipped' }).eq('source', 'mercadopago').eq('event_id', eventId);
+      return new Response('ok', { status: 200 });
     }
 
     await supabase.from('webhook_events').update({ status: 'processed' }).eq('source', 'mercadopago').eq('event_id', eventId);
     return new Response('ok', { status: 200 });
+
   } catch (e) {
+    console.error('[webhook] error:', e);
     await supabase.from('webhook_events').update({ status: 'failed', error_message: String(e) }).eq('source', 'mercadopago').eq('event_id', eventId);
     return new Response('error', { status: 500 });
   }

@@ -51,16 +51,22 @@ async function tg(cfg: Record<string, any>, html: string) {
 }
 
 async function markPaid(order: any, payment: any, cfg: Record<string, any>) {
-  if (order.status === 'PAID') return;
-
-  await supabase.from('orders').update({
+  // Atomic update: only succeeds if the order is still AWAITING_PAYMENT in the DB.
+  // If the webhook already marked it PAID (race condition), this returns 0 rows
+  // and we skip the notification — preventing duplicate Telegram messages.
+  const { data: updated } = await supabase.from('orders').update({
     status: 'PAID',
     mp_payment_id: String(payment.id),
     mp_status: payment.status,
     paid_at: new Date().toISOString(),
     payment_method: payment.payment_type_id === 'pix' ? 'PIX' : 'CREDIT_CARD',
     updated_at: new Date().toISOString(),
-  }).eq('id', order.id);
+  }).eq('id', order.id).eq('status', 'AWAITING_PAYMENT').select('id');
+
+  if (!updated?.length) {
+    console.log(`[reconcile] order ${order.id} already PAID — skipping notification`);
+    return;
+  }
 
   const tokenExpires = new Date();
   tokenExpires.setFullYear(tokenExpires.getFullYear() + 30);
@@ -81,9 +87,8 @@ async function markPaid(order: any, payment: any, cfg: Record<string, any>) {
     await supabase.from('products').update({ sales_count: (prod?.sales_count ?? 0) + item.quantity }).eq('id', item.product_id);
   }
 
-  console.log(`Reconciled order ${order.id} → PAID`);
+  console.log(`[reconcile] order ${order.id} → PAID ✓`);
 
-  // Telegram notification
   const customerName = order.customer_name ?? 'Cliente';
   const orderNumber = order.order_number ?? order.id.slice(0, 8).toUpperCase();
   const methodEmoji = payment.payment_type_id === 'pix' ? '🟢 PIX' : '💳 Cartao de Credito';
@@ -115,12 +120,14 @@ async function processPixOrder(order: any, accessToken: string, cfg: Record<stri
   if (payment.status === 'approved') {
     await markPaid(order, payment, cfg);
   } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
-    await supabase.from('orders').update({ status: 'CANCELLED', mp_status: payment.status, updated_at: new Date().toISOString() }).eq('id', order.id);
+    await supabase.from('orders')
+      .update({ status: 'CANCELLED', mp_status: payment.status, updated_at: new Date().toISOString() })
+      .eq('id', order.id).eq('status', 'AWAITING_PAYMENT');
   }
 }
 
 async function processCardOrder(order: any, accessToken: string, cfg: Record<string, any>) {
-  // Search payments by external_reference (order id) — card payments don't have mp_payment_id yet
+  // Search payments by external_reference (order id) — card payments may not have mp_payment_id yet
   const res = await fetch(
     `https://api.mercadopago.com/v1/payments/search?external_reference=${order.id}&sort=date_created&criteria=desc&limit=1`,
     { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -132,13 +139,17 @@ async function processCardOrder(order: any, accessToken: string, cfg: Record<str
 
   // Save mp_payment_id even if pending, so webhook can confirm later
   if (!order.mp_payment_id && payment.id) {
-    await supabase.from('orders').update({ mp_payment_id: String(payment.id), mp_status: payment.status }).eq('id', order.id);
+    await supabase.from('orders')
+      .update({ mp_payment_id: String(payment.id), mp_status: payment.status })
+      .eq('id', order.id);
   }
 
   if (payment.status === 'approved') {
     await markPaid(order, payment, cfg);
   } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
-    await supabase.from('orders').update({ status: 'CANCELLED', mp_status: payment.status, updated_at: new Date().toISOString() }).eq('id', order.id);
+    await supabase.from('orders')
+      .update({ status: 'CANCELLED', mp_status: payment.status, updated_at: new Date().toISOString() })
+      .eq('id', order.id).eq('status', 'AWAITING_PAYMENT');
   }
 }
 
@@ -149,7 +160,7 @@ Deno.serve(async (req) => {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   let query = supabase
     .from('orders')
-    .select('id, mp_payment_id, mp_preference_id, payment_method, order_items(*, products(delivery_type, delivery_link))')
+    .select('id, mp_payment_id, mp_preference_id, payment_method, customer_name, customer_email, total_amount, order_number, order_items(*, products(delivery_type, delivery_link))')
     .eq('status', 'AWAITING_PAYMENT')
     .gte('created_at', cutoff);
 
