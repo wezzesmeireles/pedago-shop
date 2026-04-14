@@ -18,9 +18,11 @@
           type="tel"
           required
           placeholder="(11) 99999-9999"
-          class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          :class="['w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
+            phoneError ? 'border-red-400 bg-red-50' : 'border-gray-200']"
         />
-        <p class="text-xs text-gray-400 mt-1">Usado apenas para enviar seus materiais</p>
+        <p v-if="phoneError" class="text-xs text-red-500 mt-1">{{ phoneError }}</p>
+        <p v-else class="text-xs text-gray-400 mt-1">Obrigatório para receber seus materiais e novidades</p>
       </div>
       <button
         type="submit"
@@ -28,9 +30,6 @@
         class="w-full bg-green-500 hover:bg-green-600 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition-all text-sm"
       >
         {{ saving ? 'Salvando...' : 'Continuar' }}
-      </button>
-      <button type="button" @click="skip" class="w-full text-gray-400 text-xs hover:text-gray-600 transition-colors py-1">
-        Pular por agora
       </button>
     </form>
   </div>
@@ -46,22 +45,23 @@ const route = useRoute();
 
 const phone = ref('');
 const saving = ref(false);
+const phoneError = ref('');
 
 const redirect = (route.query.redirect as string) || '/';
 
 async function save() {
-  if (!phone.value.trim()) return;
+  phoneError.value = '';
+  const digits = phone.value.replace(/\D/g, '');
+  if (!digits || digits.length < 10) {
+    phoneError.value = 'Informe um número de WhatsApp válido com DDD.';
+    return;
+  }
   saving.value = true;
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
-    const digits = phone.value.replace(/\D/g, '');
     await supabase.from('profiles').update({ phone: digits, updated_at: new Date().toISOString() }).eq('id', user.id);
   }
   saving.value = false;
-  router.push(redirect);
-}
-
-function skip() {
   router.push(redirect);
 }
 </script>

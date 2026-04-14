@@ -10,8 +10,7 @@
       <!-- Phone / WhatsApp -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">
-          WhatsApp / Telefone
-          <span class="text-gray-400 font-normal">(opcional)</span>
+          WhatsApp <span class="text-red-500">*</span>
         </label>
         <div class="relative">
           <span class="absolute left-3 top-2.5 text-gray-400">
@@ -22,13 +21,14 @@
           <input
             v-model="form.phone"
             type="tel"
+            required
             placeholder="(11) 99999-9999"
-            class="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm
-                   focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent
-                   placeholder:text-gray-400 transition-all"
+            :class="['w-full pl-9 pr-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent placeholder:text-gray-400 transition-all',
+              phoneError ? 'border-red-400 bg-red-50' : 'border-gray-200']"
           />
         </div>
-        <p class="text-xs text-gray-400 mt-1">Usado para receber confirmações via WhatsApp</p>
+        <p v-if="phoneError" class="text-xs text-red-500 mt-1">{{ phoneError }}</p>
+        <p v-else class="text-xs text-gray-400 mt-1">Usado para receber confirmações via WhatsApp</p>
       </div>
 
       <AppInput v-model="form.password" label="Senha" type="password" placeholder="Mínimo 8 caracteres" required hint="Use pelo menos 8 caracteres" />
@@ -76,6 +76,7 @@ const route = useRoute();
 
 const loading = ref(false);
 const error = ref('');
+const phoneError = ref('');
 const form = reactive({ name: '', email: '', password: '', phone: '' });
 
 async function loginGoogle() {
@@ -84,10 +85,17 @@ async function loginGoogle() {
 
 async function handleRegister() {
   error.value = '';
+  phoneError.value = '';
+
+  const digits = form.phone.replace(/\D/g, '');
+  if (!digits || digits.length < 10) {
+    phoneError.value = 'Informe um número de WhatsApp válido com DDD.';
+    return;
+  }
 
   loading.value = true;
   try {
-    await auth.register(form.name, form.email, form.password, form.phone || undefined);
+    await auth.register(form.name, form.email, form.password, digits);
     const redirect = route.query.redirect as string;
     router.push(redirect || '/');
   } catch (err: any) {
