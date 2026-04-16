@@ -279,7 +279,7 @@ function debouncedLoad() { clearTimeout(searchTimeout); searchTimeout = setTimeo
 async function loadOrders(page = 1) {
   const limit = 20;
   const from = (page - 1) * limit;
-  let q = supabase.from('orders').select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' }).order('created_at', { ascending: false }).range(from, from + limit - 1);
+  let q = supabase.from('orders').select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' }).order('created_at', { ascending: false });
   if (statusFilter.value) q = q.eq('status', statusFilter.value);
   if (search.value) q = q.or(`order_number.ilike.%${search.value}%,customer_email.ilike.%${search.value}%,customer_name.ilike.%${search.value}%`);
   if (dateFilter.value) {
@@ -291,7 +291,7 @@ async function loadOrders(page = 1) {
     else dateFrom = new Date(now.getFullYear(), 0, 1).toISOString();
     q = q.gte('created_at', dateFrom);
   }
-  const { data, count } = await q;
+  const { data, count } = await q.range(from, from + limit - 1);
   orders.value = (data ?? []).map((o: any) => ({
     ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at,
     items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
