@@ -38,10 +38,66 @@
           {{ f.label }}
         </button>
       </div>
+      <div class="ml-auto flex items-center gap-2">
+        <span v-if="loadingOrders" class="text-xs text-slate-400 animate-pulse">Carregando...</span>
+        <span v-else class="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-1 rounded-full">{{ totalCount }} pedido{{ totalCount !== 1 ? 's' : '' }}</span>
+      </div>
     </div>
 
-    <!-- Mobile Cards (md:hidden) -->
-    <div class="md:hidden space-y-3">
+    <!-- Pedidos Filtrados por Data (estilo Dashboard) -->
+    <div v-if="dateFilter" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100">
+        <div class="flex items-center gap-3">
+          <h2 class="font-bold text-slate-900">Pedidos - {{ dateFilterLabel }}</h2>
+          <span class="text-xs text-violet-600 font-bold bg-violet-50 px-2 py-1 rounded-full">{{ dateFilterModalOrders.length }} pedido{{ dateFilterModalOrders.length !== 1 ? 's' : '' }}</span>
+        </div>
+        <div class="text-right">
+          <p class="text-lg font-black text-violet-600">{{ formatPrice(dateFilterModalOrders.reduce((sum: number, o: any) => sum + o.totalAmount, 0)) }}</p>
+          <p class="text-xs text-slate-400">total</p>
+        </div>
+      </div>
+      <div v-if="loadingDateFilterModal" class="divide-y divide-slate-50">
+        <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-6 py-4 animate-pulse">
+          <div class="w-9 h-9 rounded-full bg-slate-100 flex-shrink-0"></div>
+          <div class="flex-1 space-y-2"><div class="h-3 bg-slate-100 rounded w-32"></div><div class="h-2.5 bg-slate-50 rounded w-20"></div></div>
+          <div class="w-16 h-4 bg-slate-100 rounded"></div>
+        </div>
+      </div>
+      <div v-else class="divide-y divide-slate-50">
+        <div v-for="order in dateFilterModalOrders" :key="order.id"
+          class="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 hover:bg-slate-50/60 transition-colors cursor-pointer"
+          @click="openDetails(order.id)">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center text-violet-700 text-sm font-bold flex-shrink-0">
+            {{ (order.customerName ?? '?')[0]?.toUpperCase() }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-slate-800 truncate">{{ order.customerName }}</p>
+          <div class="flex items-center gap-2 flex-wrap">
+            <p class="text-xs text-slate-400 font-mono">{{ order.orderNumber }}</p>
+            <span v-if="order.paymentMethod" :class="[
+              'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+              order.paymentMethod === 'PIX' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+            ]">
+              {{ order.paymentMethod === 'PIX' ? '💠 PIX' : '💳 Cartão' }}
+            </span>
+          </div>
+          </div>
+          <div class="text-right flex-shrink-0 space-y-1">
+            <p class="text-sm font-bold text-slate-900">{{ formatPrice(order.totalAmount) }}</p>
+            <StatusBadge :status="order.status" />
+          </div>
+        </div>
+        <div v-if="!dateFilterModalOrders.length" class="px-6 py-12 text-center">
+          <div class="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+            <svg class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          </div>
+          <p class="text-sm text-slate-400">Nenhum pedido encontrado</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Cards (md:hidden) - only show when no date filter -->
+    <div v-if="!dateFilter" class="md:hidden space-y-3">
       <div v-if="orders.length === 0" class="bg-white rounded-2xl border border-slate-100 shadow-sm py-16 text-center">
         <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
           <svg class="w-7 h-7 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
@@ -53,8 +109,14 @@
           <span class="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">{{ order.orderNumber }}</span>
           <span class="text-sm font-black text-violet-600">{{ formatPrice(order.totalAmount) }}</span>
         </div>
-        <div class="flex items-center gap-2 mb-2">
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
           <StatusBadge :status="order.status" />
+          <span v-if="order.paymentMethod" :class="[
+            'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+            order.paymentMethod === 'PIX' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+          ]">
+            {{ order.paymentMethod === 'PIX' ? '💠 PIX' : '💳 Cartão' }}
+          </span>
           <span class="text-xs text-slate-400">{{ formatDate(order.createdAt) }}</span>
         </div>
         <p class="text-sm font-semibold text-slate-800 leading-snug">{{ order.customerName }}</p>
@@ -75,8 +137,8 @@
       </div>
     </div>
 
-    <!-- Desktop Table (hidden md:block) -->
-    <div class="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+    <!-- Desktop Table (hidden md:block) - only show when no date filter -->
+    <div v-if="!dateFilter" class="hidden md:block bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full">
           <thead>
@@ -86,13 +148,14 @@
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Produtos</th>
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Total</th>
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+              <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Pagamento</th>
               <th class="text-left px-4 py-3.5 text-xs font-bold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Data</th>
               <th class="px-4 py-3.5 w-24"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50">
             <tr v-if="orders.length === 0">
-              <td colspan="7" class="px-5 py-16 text-center">
+              <td colspan="8" class="px-5 py-16 text-center">
                 <div class="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <svg class="w-7 h-7 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                 </div>
@@ -115,6 +178,14 @@
               </td>
               <td class="px-4 py-4">
                 <StatusBadge :status="order.status" />
+              </td>
+              <td class="px-4 py-4 hidden lg:table-cell">
+                <span v-if="order.paymentMethod" :class="[
+                  'text-[10px] font-bold px-2 py-1 rounded-full',
+                  order.paymentMethod === 'PIX' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'
+                ]">
+                  {{ order.paymentMethod === 'PIX' ? '💠 PIX' : '💳 Cartão' }}
+                </span>
               </td>
               <td class="px-4 py-4 hidden lg:table-cell">
                 <span class="text-xs text-slate-400">{{ formatDate(order.createdAt) }}</span>
@@ -241,6 +312,36 @@ const selectedOrder = ref<any>(null);
 const updatingStatus = ref(false);
 const reconciling = ref(false);
 const reconcileMsg = ref<{ ok: boolean; text: string } | null>(null);
+const loadingOrders = ref(false);
+const totalCount = ref(0);
+const dateFilterModalOrders = ref<any[]>([]);
+const loadingDateFilterModal = ref(false);
+
+const dateFilterLabel = computed(() => {
+  const labels: Record<string, string> = { day: 'hoje', week: 'esta semana', month: 'este mês', year: 'este ano' };
+  return labels[dateFilter.value] || dateFilter.value;
+});
+
+async function openDateFilterModal() {
+  loadingDateFilterModal.value = true;
+  try {
+    const dateFrom = getDateFrom();
+    let q: any = supabase
+      .from('orders')
+      .select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' });
+
+    if (statusFilter.value) q = q.eq('status', statusFilter.value);
+    if (dateFrom) q = q.gte('created_at', dateFrom);
+
+    const { data } = await q.order('created_at', { ascending: false });
+    dateFilterModalOrders.value = (data ?? []).map((o: any) => ({
+      ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at, paymentMethod: o.payment_method,
+      items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
+    }));
+  } finally {
+    loadingDateFilterModal.value = false;
+  }
+}
 
 const statusFilters = [
   { value: '', label: 'Todos', activeClass: 'bg-slate-800 text-white' },
@@ -270,34 +371,66 @@ const pageRange = computed(() => {
 
 function formatPrice(p: number) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p)); }
 function formatDate(d: string) { return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-function setStatusFilter(val: string) { statusFilter.value = val; loadOrders(1); }
-function setDateFilter(val: string) { dateFilter.value = val; loadOrders(1); }
+function getDateFrom(): string | null {
+  const now = new Date();
+  if (dateFilter.value === 'day') {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+  if (dateFilter.value === 'week') {
+    const d = new Date(now);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+  if (dateFilter.value === 'month') {
+    const d = new Date(now.getFullYear(), now.getMonth(), 1);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+  if (dateFilter.value === 'year') {
+    const d = new Date(now.getFullYear(), 0, 1);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+  return null;
+}
+
+function setStatusFilter(val: string) { statusFilter.value = val; dateFilterModalOrders.value = []; loadOrders(1); }
+function setDateFilter(val: string) { dateFilter.value = val; loadOrders(1); openDateFilterModal(); }
 
 let searchTimeout: ReturnType<typeof setTimeout>;
 function debouncedLoad() { clearTimeout(searchTimeout); searchTimeout = setTimeout(() => loadOrders(1), 400); }
 
 async function loadOrders(page = 1) {
-  const limit = 20;
-  const from = (page - 1) * limit;
-  let q = supabase.from('orders').select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' }).order('created_at', { ascending: false });
-  if (statusFilter.value) q = q.eq('status', statusFilter.value);
-  if (search.value) q = q.or(`order_number.ilike.%${search.value}%,customer_email.ilike.%${search.value}%,customer_name.ilike.%${search.value}%`);
-  if (dateFilter.value) {
-    const now = new Date();
-    let dateFrom: string;
-    if (dateFilter.value === 'day') dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    else if (dateFilter.value === 'week') dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
-    else if (dateFilter.value === 'month') dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    else dateFrom = new Date(now.getFullYear(), 0, 1).toISOString();
-    q = q.gte('created_at', dateFrom);
+  loadingOrders.value = true;
+  try {
+    const limit = 20;
+    const from = (page - 1) * limit;
+    const dateFrom = getDateFrom();
+
+    let q: any = supabase
+      .from('orders')
+      .select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' });
+
+    if (statusFilter.value) q = q.eq('status', statusFilter.value);
+    if (search.value) q = q.or(`order_number.ilike.%${search.value}%,customer_email.ilike.%${search.value}%,customer_name.ilike.%${search.value}%`);
+    if (dateFrom) q = q.gte('created_at', dateFrom);
+
+    const { data, count } = await q.order('created_at', { ascending: false }).range(from, from + limit - 1);
+    orders.value = (data ?? []).map((o: any) => ({
+      ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at, paymentMethod: o.payment_method,
+      items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
+    }));
+    totalCount.value = count ?? 0;
+    totalPages.value = Math.ceil((count ?? 0) / limit);
+    currentPage.value = page;
+  } finally {
+    loadingOrders.value = false;
   }
-  const { data, count } = await q.range(from, from + limit - 1);
-  orders.value = (data ?? []).map((o: any) => ({
-    ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at,
-    items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
-  }));
-  totalPages.value = Math.ceil((count ?? 0) / limit);
-  currentPage.value = page;
 }
 
 async function openDetails(id: string) {

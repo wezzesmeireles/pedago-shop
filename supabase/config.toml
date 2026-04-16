@@ -1,0 +1,16 @@
+project_id = "hdldxgbvkjcoesmfoglm"
+
+[functions.create-order]
+verify_jwt = false
+
+[functions.reconcile-orders]
+verify_jwt = false
+
+[functions.download]
+verify_jwt = false
+
+[functions.register-user]
+verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false

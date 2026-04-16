@@ -153,7 +153,6 @@ Deno.serve(async (req) => {
           mp_payment_id: String(payment.id),
           mp_status: mpStatus,
           paid_at: new Date().toISOString(),
-          payment_method: payment.payment_type_id === 'pix' ? 'PIX' : 'CREDIT_CARD',
           updated_at: new Date().toISOString(),
         }).eq('id', orderId).eq('status', 'AWAITING_PAYMENT').select('id');
 
@@ -180,7 +179,9 @@ Deno.serve(async (req) => {
           }
 
           const { customerName, orderNumber } = orderSummary(order);
-          const methodEmoji = payment.payment_type_id === 'pix' ? '🟢 PIX' : '💳 Cartao de Credito';
+          const paymentMethod = order.payment_method || (payment.payment_type_id === 'pix' ? 'PIX' : 'CREDIT_CARD');
+          const isPix = paymentMethod === 'PIX';
+          const methodEmoji = isPix ? '🟢 PIX' : '💳 Cartao de Credito';
           const installments = payment.installments && payment.installments > 1
             ? ` (${payment.installments}x de ${fmt(payment.transaction_amount / payment.installments)})` : '';
           const itemsList = buildItemsList(order.order_items ?? []);

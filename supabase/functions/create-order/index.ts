@@ -85,6 +85,7 @@ async function mpPost(path: string, body: unknown, accessToken: string, idempote
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  try {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -94,8 +95,12 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'Não autenticado.' }, 401);
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-  if (authError || !user) return json({ error: 'Token inválido.' }, 401);
+  const userRes = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/user`, {
+    headers: { Authorization: authHeader, apikey: Deno.env.get('SUPABASE_ANON_KEY')! },
+  });
+  if (!userRes.ok) return json({ error: 'Token inválido.' }, 401);
+  const user = await userRes.json();
+  if (!user?.id) return json({ error: 'Token inválido.' }, 401);
 
   const body = await req.json();
   const { items, paymentMethod } = body;
@@ -255,5 +260,9 @@ Deno.serve(async (req) => {
   } catch (mpErr: any) {
     await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', order.id);
     return json({ error: `Erro Mercado Pago: ${mpErr.message}` }, 500);
+  }
+  } catch (err: any) {
+    console.error('[create-order] error:', err);
+    return json({ error: `Erro interno: ${err.message}` }, 500);
   }
 });
