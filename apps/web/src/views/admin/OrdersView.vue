@@ -285,7 +285,8 @@ async function loadOrders(page = 1) {
     else dateFrom = new Date(now.getFullYear(), 0, 1).toISOString();
     q = q.gte('created_at', dateFrom);
   }
-  const { data, count } = await q;
+  const { data, error, count } = await q;
+  if (error) console.error('[loadOrders] Supabase error:', error);
   orders.value = (data ?? []).map((o: any) => ({
     ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at,
     items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
