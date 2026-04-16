@@ -33,9 +33,8 @@
         </button>
       </div>
       <div class="flex gap-1.5 flex-wrap">
-        <button v-for="f in [{ key: '', label: 'Todos' }, { key: 'day', label: 'Dia' }, { key: 'week', label: 'Semana' }, { key: 'month', label: 'Mês' }, { key: 'year', label: 'Ano' }]"
-          :key="f.key" @click="setDateFilter(f.key)"
-          :class="['px-3 py-2 rounded-xl text-xs font-semibold transition-all', dateFilter === f.key ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200']">
+        <button v-for="f in dateFilters" :key="f.value" @click="setDateFilter(f.value)"
+          :class="['px-3 py-2 rounded-xl text-xs font-semibold transition-all', dateFilter === f.value ? f.activeClass : 'bg-slate-100 text-slate-500 hover:bg-slate-200']">
           {{ f.label }}
         </button>
       </div>
@@ -250,6 +249,13 @@ const statusFilters = [
   { value: 'CANCELLED', label: '✕ Cancelados', activeClass: 'bg-red-500 text-white' },
   { value: 'EXPIRED', label: 'Expirados', activeClass: 'bg-slate-500 text-white' },
 ];
+const dateFilters = [
+  { value: '', label: 'Todos', activeClass: 'bg-violet-600 text-white' },
+  { value: 'day', label: 'Dia', activeClass: 'bg-violet-600 text-white' },
+  { value: 'week', label: 'Semana', activeClass: 'bg-violet-600 text-white' },
+  { value: 'month', label: 'Mês', activeClass: 'bg-violet-600 text-white' },
+  { value: 'year', label: 'Ano', activeClass: 'bg-violet-600 text-white' },
+];
 const statusOptions = [
   { value: 'AWAITING_PAYMENT', label: 'Aguardando', activeClass: 'bg-amber-100 text-amber-700' },
   { value: 'PAID', label: 'Marcar Pago', activeClass: 'bg-emerald-100 text-emerald-700' },
@@ -265,7 +271,7 @@ const pageRange = computed(() => {
 function formatPrice(p: number) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p)); }
 function formatDate(d: string) { return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 function setStatusFilter(val: string) { statusFilter.value = val; loadOrders(1); }
-function setDateFilter(val: string) { console.log('[dateFilter] set to:', val); dateFilter.value = val; loadOrders(1); }
+function setDateFilter(val: string) { dateFilter.value = val; loadOrders(1); }
 
 let searchTimeout: ReturnType<typeof setTimeout>;
 function debouncedLoad() { clearTimeout(searchTimeout); searchTimeout = setTimeout(() => loadOrders(1), 400); }
@@ -283,11 +289,9 @@ async function loadOrders(page = 1) {
     else if (dateFilter.value === 'week') dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
     else if (dateFilter.value === 'month') dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     else dateFrom = new Date(now.getFullYear(), 0, 1).toISOString();
-    console.log('[loadOrders] dateFilter:', dateFilter.value, '| dateFrom:', dateFrom);
     q = q.gte('created_at', dateFrom);
   }
-  const { data, error, count } = await q;
-  if (error) console.error('[loadOrders] Supabase error:', error);
+  const { data, count } = await q;
   orders.value = (data ?? []).map((o: any) => ({
     ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at,
     items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
