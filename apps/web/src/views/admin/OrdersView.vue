@@ -32,6 +32,13 @@
           {{ f.label }}
         </button>
       </div>
+      <div class="flex gap-1.5 flex-wrap">
+        <button v-for="f in [{ key: '', label: 'Todos' }, { key: 'day', label: 'Dia' }, { key: 'week', label: 'Semana' }, { key: 'month', label: 'Mês' }, { key: 'year', label: 'Ano' }]"
+          :key="f.key" @click="setDateFilter(f.key)"
+          :class="['px-3 py-2 rounded-xl text-xs font-semibold transition-all', dateFilter === f.key ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200']">
+          {{ f.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Mobile Cards (md:hidden) -->
@@ -226,6 +233,7 @@ import AppModal from '@/components/ui/AppModal.vue';
 const orders = ref([]);
 const search = ref('');
 const statusFilter = ref('');
+const dateFilter = ref('');
 const currentPage = ref(1);
 const totalPages = ref(1);
 const detailsOpen = ref(false);
@@ -257,6 +265,7 @@ const pageRange = computed(() => {
 function formatPrice(p: number) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p)); }
 function formatDate(d: string) { return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 function setStatusFilter(val: string) { statusFilter.value = val; loadOrders(1); }
+function setDateFilter(val: string) { dateFilter.value = val; loadOrders(1); }
 
 let searchTimeout: ReturnType<typeof setTimeout>;
 function debouncedLoad() { clearTimeout(searchTimeout); searchTimeout = setTimeout(() => loadOrders(1), 400); }
@@ -267,6 +276,15 @@ async function loadOrders(page = 1) {
   let q = supabase.from('orders').select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' }).order('created_at', { ascending: false }).range(from, from + limit - 1);
   if (statusFilter.value) q = q.eq('status', statusFilter.value);
   if (search.value) q = q.or(`order_number.ilike.%${search.value}%,customer_email.ilike.%${search.value}%,customer_name.ilike.%${search.value}%`);
+  if (dateFilter.value) {
+    const now = new Date();
+    let dateFrom: string;
+    if (dateFilter.value === 'day') dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    else if (dateFilter.value === 'week') dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
+    else if (dateFilter.value === 'month') dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    else dateFrom = new Date(now.getFullYear(), 0, 1).toISOString();
+    q = q.gte('created_at', dateFrom);
+  }
   const { data, count } = await q;
   orders.value = (data ?? []).map((o: any) => ({
     ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at,

@@ -31,7 +31,7 @@
           <p class="text-xl sm:text-2xl font-black truncate">{{ formatPrice(filteredRevenue) }}</p>
           <div class="flex items-center gap-1 mt-2">
             <button
-              v-for="f in [{ key: 'day', label: 'Dia' }, { key: 'month', label: 'Mês' }, { key: 'year', label: 'Ano' }]"
+              v-for="f in [{ key: 'day', label: 'Dia' }, { key: 'week', label: 'Semana' }, { key: 'month', label: 'Mês' }, { key: 'year', label: 'Ano' }]"
               :key="f.key"
               @click.stop="revenueFilter = f.key as any"
               :class="['text-[10px] font-bold px-2 py-0.5 rounded-full transition-all',
@@ -301,11 +301,12 @@ import StatusBadge from '@/components/ui/StatusBadge.vue';
 const auth = useAuthStore();
 const loading = ref(true);
 
-const revenueFilter = ref<'day' | 'month' | 'year'>('month');
-const stats = ref({ revenue: { total: 0, day: 0, month: 0, year: 0 }, orders: { total: 0, month: 0, pending: 0 }, users: { total: 0 } });
+const revenueFilter = ref<'day' | 'week' | 'month' | 'year'>('month');
+const stats = ref({ revenue: { total: 0, day: 0, week: 0, month: 0, year: 0 }, orders: { total: 0, month: 0, pending: 0 }, users: { total: 0 } });
 
 const filteredRevenue = computed(() => {
   if (revenueFilter.value === 'day') return stats.value.revenue.day;
+  if (revenueFilter.value === 'week') return stats.value.revenue.week;
   if (revenueFilter.value === 'year') return stats.value.revenue.year;
   return stats.value.revenue.month;
 });
@@ -404,12 +405,14 @@ onMounted(async () => {
   try {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
 
-    const [{ data: totalRev }, { data: dayRev }, { data: monthRev }, { data: yearRev }, { count: totalOrders }, { count: monthOrders }, { count: pending }, { count: users }, { data: topProds }, { data: recent }] = await Promise.all([
+    const [{ data: totalRev }, { data: dayRev }, { data: weekRev }, { data: monthRev }, { data: yearRev }, { count: totalOrders }, { count: monthOrders }, { count: pending }, { count: users }, { data: topProds }, { data: recent }] = await Promise.all([
       supabase.from('orders').select('total_amount').eq('status', 'PAID'),
       supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfDay),
+      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfWeek),
       supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfMonth),
       supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfYear),
       supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID'),
@@ -421,7 +424,7 @@ onMounted(async () => {
     ]);
 
     stats.value = {
-      revenue: { total: sum(totalRev ?? []), day: sum(dayRev ?? []), month: sum(monthRev ?? []), year: sum(yearRev ?? []) },
+      revenue: { total: sum(totalRev ?? []), day: sum(dayRev ?? []), week: sum(weekRev ?? []), month: sum(monthRev ?? []), year: sum(yearRev ?? []) },
       orders: { total: totalOrders ?? 0, month: monthOrders ?? 0, pending: pending ?? 0 },
       users: { total: users ?? 0 },
     };
