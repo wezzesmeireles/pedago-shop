@@ -265,7 +265,7 @@ const pageRange = computed(() => {
 function formatPrice(p: number) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p)); }
 function formatDate(d: string) { return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
 function setStatusFilter(val: string) { statusFilter.value = val; loadOrders(1); }
-function setDateFilter(val: string) { dateFilter.value = val; loadOrders(1); }
+function setDateFilter(val: string) { console.log('[dateFilter] set to:', val); dateFilter.value = val; loadOrders(1); }
 
 let searchTimeout: ReturnType<typeof setTimeout>;
 function debouncedLoad() { clearTimeout(searchTimeout); searchTimeout = setTimeout(() => loadOrders(1), 400); }
@@ -283,6 +283,7 @@ async function loadOrders(page = 1) {
     else if (dateFilter.value === 'week') dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
     else if (dateFilter.value === 'month') dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     else dateFrom = new Date(now.getFullYear(), 0, 1).toISOString();
+    console.log('[loadOrders] dateFilter:', dateFilter.value, '| dateFrom:', dateFrom);
     q = q.gte('created_at', dateFrom);
   }
   const { data, error, count } = await q;
