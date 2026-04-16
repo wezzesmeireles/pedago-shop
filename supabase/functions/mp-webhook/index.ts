@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
           }
 
           const { customerName, orderNumber } = orderSummary(order);
-          const paymentMethod = order.payment_method || (payment.payment_type_id === 'pix' ? 'PIX' : 'CREDIT_CARD');
+          const paymentMethod = order.payment_method || (payment.payment_method_id === 'pix' ? 'PIX' : 'CREDIT_CARD');
           const isPix = paymentMethod === 'PIX';
           const methodEmoji = isPix ? '🟢 PIX' : '💳 Cartao de Credito';
           const installments = payment.installments && payment.installments > 1
@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
             `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
             `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
             (customerEmail ? `📧 <b>Email:</b> ${esc(customerEmail)}\n` : '') +
-            `\n💳 <b>Pagamento:</b> ${methodEmoji}${esc(installments)}\n` +
+            `\n<b>Pagamento:</b> ${methodEmoji}${esc(installments)}\n` +
             `✅ <b>Status:</b> Pagamento Confirmado\n\n` +
             `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` +
             `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +

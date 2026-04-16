@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
         `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
         `👤 <b>Cliente:</b> ${esc(clientName)}\n` +
         `📧 <b>Email:</b> ${esc(user.email)}\n\n` +
-        `💳 <b>Pagamento:</b> PIX\n` +
+        `🟢 <b>Pagamento:</b> PIX\n` +
         `⏳ <b>Status:</b> Aguardando pagamento\n` +
         `⌛ <b>Expira em:</b> 30 minutos\n\n` +
         `🛍️ <b>Itens do Pedido:</b>\n${itemsList}\n\n` +
