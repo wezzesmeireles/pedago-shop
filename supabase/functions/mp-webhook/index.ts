@@ -187,18 +187,33 @@ Deno.serve(async (req) => {
           const itemsList = buildItemsList(order.order_items ?? []);
           const customerEmail = order.customer_email ?? '';
 
-          await tg(cfg,
-            `🎉 <b>VENDA APROVADA!</b>\n` +
-            `——————————————————\n\n` +
-            `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
-            `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
-            (customerEmail ? `📧 <b>Email:</b> ${esc(customerEmail)}\n` : '') +
-            `\n<b>Pagamento:</b> ${methodEmoji}${esc(installments)}\n` +
-            `✅ <b>Status:</b> Pagamento Confirmado\n\n` +
-            `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` +
-            `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +
-            `🕐 ${nowBR()}`,
-          );
+          if (isPix) {
+            await tg(cfg,
+              `✅ <b>PAGAMENTO PIX CONFIRMADO!</b>\n` +
+              `——————————————————\n\n` +
+              `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+              `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+              (customerEmail ? `📧 <b>Email:</b> ${esc(customerEmail)}\n` : '') +
+              `\n🟢 <b>Pagamento:</b> PIX\n` +
+              `✅ <b>Status:</b> Pago\n\n` +
+              `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` +
+              `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +
+              `🕐 ${nowBR()}`,
+            );
+          } else {
+            await tg(cfg,
+              `✅ <b>PAGAMENTO CARTÃO CONFIRMADO!</b>\n` +
+              `——————————————————\n\n` +
+              `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+              `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
+              (customerEmail ? `📧 <b>Email:</b> ${esc(customerEmail)}\n` : '') +
+              `\n💳 <b>Pagamento:</b> Cartão de Crédito${esc(installments)}\n` +
+              `✅ <b>Status:</b> Pago\n\n` +
+              `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` +
+              `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +
+              `🕐 ${nowBR()}`,
+            );
+          }
         } else {
           console.log(`[webhook] order ${orderId} already PAID — no duplicate notification sent`);
         }

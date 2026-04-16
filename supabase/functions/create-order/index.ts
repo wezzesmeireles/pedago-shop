@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
       const itemsList = buildItemsList(orderItems ?? []);
       const clientName = profile?.name ?? user.email ?? 'Desconhecido';
       await tg(cfg,
-        `🔔 <b>NOVO PEDIDO — CARTAO DE CREDITO</b>\n` +
+        `🔔 <b>NOVO PEDIDO — CARTÃO DE CRÉDITO</b>\n` +
         `——————————————————\n\n` +
         `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
         `👤 <b>Cliente:</b> ${esc(clientName)}\n` +
