@@ -73,21 +73,6 @@
           </button>
         </div>
 
-        <!-- Trust badges -->
-        <div class="grid grid-cols-3 gap-3 mt-8 pt-6 border-t">
-          <div class="text-center">
-            <div class="text-2xl mb-1">🔒</div>
-            <p class="text-xs text-gray-500 font-medium">Pagamento Seguro</p>
-          </div>
-          <div class="text-center">
-            <div class="text-2xl mb-1">⚡</div>
-            <p class="text-xs text-gray-500 font-medium">Download Imediato</p>
-          </div>
-          <div class="text-center">
-            <div class="text-2xl mb-1">📱</div>
-            <p class="text-xs text-gray-500 font-medium">Funciona em Qualquer Dispositivo</p>
-          </div>
-        </div>
       </div>
     </div>
 

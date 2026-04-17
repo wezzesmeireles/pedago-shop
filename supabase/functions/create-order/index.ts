@@ -208,6 +208,7 @@ Deno.serve(async (req) => {
       return json({ order: fullOrder, payment: { type: 'PIX', qrCode, qrCodeBase64 } });
 
     } else {
+      console.log('[create-order] card path: creating preference for order', order.id, 'total', totalAmount, 'email', user.email);
       const result = await mpPost('/checkout/preferences', {
         items: (orderItems ?? []).map((item: any) => ({
           id: item.product_id,
@@ -218,9 +219,12 @@ Deno.serve(async (req) => {
           unit_price: round(item.unit_price),
           currency_id: 'BRL',
         })),
-        payer: { name: profile?.name ?? '', email: user.email },
+        payer: {
+          name: (profile?.name ?? '').trim() || (user.email ?? 'Cliente').split('@')[0],
+          email: user.email ?? '',
+        },
         payment_methods: {
-          excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }, { id: 'digital_currency' }],
+          excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }, { id: 'digital_currency' }, { id: 'pix' }],
           installments: 12,
         },
         ...(frontendUrl && {
@@ -235,6 +239,7 @@ Deno.serve(async (req) => {
         notification_url: webhookUrl,
       }, accessToken);
 
+      console.log('[create-order] card preference created:', result.id, 'init_point:', result.init_point?.slice(0, 60));
       await supabase.from('orders').update({ mp_preference_id: result.id }).eq('id', order.id);
 
       const itemsList = buildItemsList(orderItems ?? []);
@@ -258,6 +263,7 @@ Deno.serve(async (req) => {
       });
     }
   } catch (mpErr: any) {
+    console.error('[create-order] MP error:', mpErr.message, JSON.stringify(mpErr));
     await supabase.from('orders').update({ status: 'CANCELLED' }).eq('id', order.id);
     return json({ error: `Erro Mercado Pago: ${mpErr.message}` }, 500);
   }

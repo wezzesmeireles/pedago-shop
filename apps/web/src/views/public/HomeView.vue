@@ -58,85 +58,47 @@
       </div>
     </section>
 
-    <!-- ── Stats Bar ────────────────────────────────────── -->
-    <section ref="statsSection" class="bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 py-8 reveal">
-      <!-- Decorative floating elements -->
-      <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        <span class="absolute top-2 left-[10%] text-2xl opacity-20 float-emoji">📚</span>
-        <span class="absolute top-3 left-[30%] text-xl opacity-20 float-emoji float-emoji-delay-1">✏️</span>
-        <span class="absolute top-1 right-[20%] text-2xl opacity-20 float-emoji float-emoji-delay-2">⭐</span>
-        <span class="absolute bottom-2 right-[40%] text-xl opacity-20 float-emoji float-emoji-delay-3">🎨</span>
-      </div>
-      <div class="max-w-5xl mx-auto px-4 relative">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center text-white">
-          <div v-for="stat in stats" :key="stat.label" class="group">
-            <div class="text-3xl mb-1 group-hover:animate-wiggle transition-all">{{ stat.icon }}</div>
-            <div class="text-2xl md:text-3xl font-black">
-              <NumberTicker :value="stat.target" :suffix="stat.suffix" class-name="text-white" locale="pt-BR" />
-            </div>
-            <div class="text-white/70 text-xs font-medium mt-0.5 uppercase tracking-wide">{{ stat.label }}</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- ── Últimas Compras ────────────────────────────────── -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div class="flex flex-col md:flex-row gap-6 items-start">
-        <!-- Left: Live purchases feed -->
-        <div class="w-full md:w-72 flex-shrink-0">
-          <div class="flex items-center gap-2 mb-4">
-            <span class="relative flex h-2.5 w-2.5">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <p class="text-sm font-bold text-gray-700">Compras em tempo real</p>
-          </div>
+      <div class="flex items-center gap-2 mb-4">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </span>
+        <p class="text-sm font-bold text-gray-700">Compras em tempo real</p>
+      </div>
 
-          <div class="relative h-64 overflow-hidden">
-            <!-- skeleton while loading -->
-            <div v-if="!recentPurchases.length" class="flex flex-col gap-3">
-              <div v-for="i in 3" :key="i" class="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl p-3">
-                <div class="w-10 h-10 rounded-xl shimmer flex-shrink-0"></div>
-                <div class="flex-1 space-y-1.5">
-                  <div class="h-2.5 shimmer rounded w-3/4"></div>
-                  <div class="h-2 shimmer rounded w-1/2"></div>
-                </div>
-                <div class="h-2.5 shimmer rounded w-14"></div>
-              </div>
+      <div class="relative h-72 overflow-hidden">
+        <!-- skeleton while loading -->
+        <div v-if="!recentPurchases.length" class="flex flex-col gap-3">
+          <div v-for="i in 5" :key="i" class="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl p-4">
+            <div class="w-12 h-12 rounded-xl shimmer flex-shrink-0"></div>
+            <div class="flex-1 space-y-1.5">
+              <div class="h-3 shimmer rounded w-3/4"></div>
+              <div class="h-2 shimmer rounded w-1/2"></div>
             </div>
-
-            <AnimatedList v-else :items="recentPurchases" :delay="1800" :max-visible="4">
-              <template #default="{ item }">
-                <div class="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl p-3
-                            shadow-sm hover:shadow-md hover:border-violet-100 transition-all duration-200">
-                  <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
-                       :style="{ background: item.color }">
-                    {{ item.icon }}
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-xs font-bold text-gray-800 truncate">{{ item.name }}</p>
-                    <p class="text-[11px] text-gray-400 truncate">{{ item.buyer }} · {{ item.time }}</p>
-                  </div>
-                  <span class="ml-auto text-xs font-black text-violet-700 flex-shrink-0">{{ item.price }}</span>
-                </div>
-              </template>
-            </AnimatedList>
-            <!-- fade bottom -->
-            <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent"></div>
+            <div class="h-4 shimmer rounded w-16"></div>
           </div>
         </div>
 
-        <!-- Right: Trust strip -->
-        <div class="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div v-for="trust in trustItems" :key="trust.label"
-            class="bg-gradient-to-br rounded-2xl p-4 text-center border border-gray-100 hover:shadow-md transition-all duration-200"
-            :class="trust.bg">
-            <div class="text-2xl mb-1">{{ trust.icon }}</div>
-            <p class="text-xs font-black text-gray-800">{{ trust.label }}</p>
-            <p class="text-[11px] text-gray-500 mt-0.5">{{ trust.desc }}</p>
-          </div>
-        </div>
+        <AnimatedList v-else :items="recentPurchases" :delay="1500" :max-visible="6">
+          <template #default="{ item }">
+            <div class="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4
+                        shadow-sm hover:shadow-md hover:border-violet-100 transition-all duration-200">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
+                   :style="{ background: item.color }">
+                {{ item.icon }}
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-bold text-gray-800 truncate">{{ item.name }}</p>
+                <p class="text-xs text-gray-400 truncate">{{ item.buyer }} · {{ item.time }}</p>
+              </div>
+              <span class="text-sm font-black text-violet-700 flex-shrink-0">{{ item.price }}</span>
+            </div>
+          </template>
+        </AnimatedList>
+        <!-- fade bottom -->
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white to-transparent"></div>
       </div>
     </section>
 
@@ -162,73 +124,6 @@
         </div>
       </section>
     </template>
-
-    <!-- ── Features Bento Grid ──────────────────────────── -->
-    <section ref="featuresSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 reveal">
-      <div class="text-center mb-10">
-        <p class="text-xs font-bold text-violet-600 uppercase tracking-widest mb-2">Por que escolher?</p>
-        <h2 class="text-2xl md:text-3xl font-black text-gray-900">
-          Tudo que você precisa para
-          <SparklesText class-name="text-2xl md:text-3xl font-black text-violet-700 inline">
-            ensinar com alegria ✨
-          </SparklesText>
-        </h2>
-      </div>
-
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-        <!-- Card 1 - large -->
-        <div class="col-span-2 md:col-span-1 row-span-1 bg-gradient-to-br from-violet-600 to-purple-700
-                    rounded-2xl p-6 text-white card-glow relative overflow-hidden group">
-          <div class="absolute -right-4 -bottom-4 text-8xl opacity-20 group-hover:opacity-30
-                      group-hover:scale-110 transition-all duration-500 select-none">📥</div>
-          <div class="text-3xl mb-3 float-emoji">📥</div>
-          <h3 class="font-black text-lg mb-1">Download Instantâneo</h3>
-          <p class="text-white/70 text-sm leading-relaxed">Acesse seus arquivos imediatamente após o pagamento, 24h por dia.</p>
-        </div>
-
-        <!-- Card 2 -->
-        <div class="bg-amber-50 border-2 border-amber-100 rounded-2xl p-5 card-glow group relative overflow-hidden">
-          <div class="absolute -right-3 -bottom-3 text-6xl opacity-10 group-hover:opacity-20 transition-all duration-500 select-none">⭐</div>
-          <div class="text-3xl mb-3 float-emoji float-emoji-delay-1">⭐</div>
-          <h3 class="font-black text-gray-800 mb-1">Alta Qualidade</h3>
-          <p class="text-gray-500 text-sm">Materiais criados por pedagogas experientes, prontos para impressão.</p>
-        </div>
-
-        <!-- Card 3 -->
-        <div class="bg-emerald-50 border-2 border-emerald-100 rounded-2xl p-5 card-glow group relative overflow-hidden">
-          <div class="absolute -right-3 -bottom-3 text-6xl opacity-10 group-hover:opacity-20 transition-all duration-500 select-none">🖨️</div>
-          <div class="text-3xl mb-3 float-emoji float-emoji-delay-2">🖨️</div>
-          <h3 class="font-black text-gray-800 mb-1">Fácil de Imprimir</h3>
-          <p class="text-gray-500 text-sm">Formato A4 otimizado para impressoras domésticas e escolares.</p>
-        </div>
-
-        <!-- Card 4 -->
-        <div class="bg-blue-50 border-2 border-blue-100 rounded-2xl p-5 card-glow group relative overflow-hidden">
-          <div class="absolute -right-3 -bottom-3 text-6xl opacity-10 group-hover:opacity-20 transition-all duration-500 select-none">💬</div>
-          <div class="text-3xl mb-3 float-emoji float-emoji-delay-3">💬</div>
-          <h3 class="font-black text-gray-800 mb-1">Suporte Rápido</h3>
-          <p class="text-gray-500 text-sm">Atendimento via WhatsApp para dúvidas e problemas.</p>
-        </div>
-
-        <!-- Card 5 -->
-        <div class="bg-pink-50 border-2 border-pink-100 rounded-2xl p-5 card-glow group relative overflow-hidden">
-          <div class="absolute -right-3 -bottom-3 text-6xl opacity-10 group-hover:opacity-20 transition-all duration-500 select-none">📅</div>
-          <div class="text-3xl mb-3 float-emoji float-emoji-delay-1">📅</div>
-          <h3 class="font-black text-gray-800 mb-1">Novidades Semanais</h3>
-          <p class="text-gray-500 text-sm">Novas atividades toda semana para manter sua turma engajada.</p>
-        </div>
-
-        <!-- Card 6 - large -->
-        <div class="col-span-2 md:col-span-1 bg-gradient-to-br from-pink-500 to-rose-500
-                    rounded-2xl p-6 text-white card-glow group relative overflow-hidden">
-          <div class="absolute -right-4 -bottom-4 text-8xl opacity-20 group-hover:opacity-30
-                      group-hover:scale-110 transition-all duration-500 select-none">🔒</div>
-          <div class="text-3xl mb-3 float-emoji float-emoji-delay-2">🔒</div>
-          <h3 class="font-black text-lg mb-1">Pagamento Seguro</h3>
-          <p class="text-white/70 text-sm leading-relaxed">PIX e cartão com proteção total pelo Mercado Pago.</p>
-        </div>
-      </div>
-    </section>
 
     <!-- ── Atividades ────────────────────────────────────── -->
     <section ref="atividadesSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 reveal">
@@ -497,7 +392,6 @@ import { useCartStore } from '@/stores/cart.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
 import SparklesText from '@/components/ui/SparklesText.vue';
 import ShimmerButton from '@/components/ui/ShimmerButton.vue';
-import NumberTicker from '@/components/ui/NumberTicker.vue';
 import AnimatedList from '@/components/ui/AnimatedList.vue';
 
 const siteConfigStore = useSiteConfigStore();
@@ -545,14 +439,6 @@ function resetBannerTimer() {
     }, 5000);
   }
 }
-
-// ── Stats with animated counters ────────────────────────
-const stats = ref([
-  { icon: '👩‍🏫', label: 'Professoras', target: 5000, suffix: '+' },
-  { icon: '📋', label: 'Atividades', target: 500, suffix: '+' },
-  { icon: '📥', label: 'Downloads', target: 20000, suffix: '+' },
-  { icon: '⭐', label: 'Avaliações 5★', target: 4800, suffix: '+' },
-]);
 
 // ── Products ─────────────────────────────────────────────
 const atividades = ref<any[]>([]);
@@ -623,13 +509,6 @@ function subscribeRealtimePurchases() {
     .subscribe();
 }
 
-const trustItems = [
-  { icon: '⚡', label: 'Download Imediato', desc: 'Acesso em segundos', bg: 'from-amber-50 to-yellow-50' },
-  { icon: '🔒', label: 'Pagamento Seguro', desc: 'PIX e Cartão', bg: 'from-violet-50 to-purple-50' },
-  { icon: '♾️', label: 'Downloads Ilimitados', desc: 'Use sempre que quiser', bg: 'from-emerald-50 to-teal-50' },
-  { icon: '⭐', label: '5 Estrelas', desc: '+4.800 avaliações', bg: 'from-pink-50 to-rose-50' },
-];
-
 const testimonialsExtra = [
   { name: 'Juliana P.', role: 'Prof. Maternal', text: 'O download é super rápido e os arquivos vêm em alta resolução. Impressão perfeita!' },
   { name: 'Renata B.', role: 'Pedagoga', text: 'Encontrei tudo que precisava para o ano letivo. Variedade incrível de temas e idades.' },
@@ -663,8 +542,6 @@ function subscribeNewsletter() {
 }
 
 // ── Section refs ──────────────────────────────────────────
-const statsSection = ref<HTMLElement | null>(null);
-const featuresSection = ref<HTMLElement | null>(null);
 const atividadesSection = ref<HTMLElement | null>(null);
 const groupSection = ref<HTMLElement | null>(null);
 const testimonialsSection = ref<HTMLElement | null>(null);
@@ -685,7 +562,7 @@ function setupReveal() {
     { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
   );
 
-  [statsSection, featuresSection, atividadesSection, groupSection, testimonialsSection, newsletterSection]
+  [atividadesSection, groupSection, testimonialsSection, newsletterSection]
     .forEach((ref) => { if (ref.value) observer!.observe(ref.value); });
 }
 
