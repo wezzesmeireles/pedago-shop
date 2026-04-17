@@ -67,6 +67,19 @@ export const useAuthStore = defineStore('auth', () => {
         throw error; // preserve AuthApiError with .code property
       }
       await fetchMe().catch(() => {});
+      
+      // Check if user has phone
+      if (data.session?.user.id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('phone')
+          .eq('id', data.session.user.id)
+          .single();
+        
+        if (!profile?.phone) {
+          return { needsPhone: true };
+        }
+      }
     } finally {
       loading.value = false;
     }

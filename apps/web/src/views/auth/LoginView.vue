@@ -98,7 +98,15 @@ async function handleLogin() {
 
   loading.value = true;
   try {
-    await auth.login(form.email, form.password);
+    const result: any = await auth.login(form.email, form.password);
+    
+    // If needs phone (existing user without phone), redirect to phone required
+    if (result?.needsPhone) {
+      const redirect = route.query.redirect as string | undefined;
+      router.push({ name: 'phone-required', query: redirect ? { redirect } : {} });
+      return;
+    }
+    
     const redirect = route.query.redirect as string | undefined;
     const { data: profile } = await supabase.from('profiles').select('phone').eq('id', auth.user!.id).single();
     if (!profile?.phone) {
