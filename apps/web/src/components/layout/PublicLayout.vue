@@ -54,7 +54,8 @@
             <img
               v-if="config.logoUrl"
               :src="config.logoUrl"
-              class="h-16 sm:h-14 w-auto drop-shadow-md group-hover:drop-shadow-lg group-hover:scale-[1.04] transition-all duration-200"
+              class="h-16 sm:h-14 w-auto object-contain drop-shadow-md group-hover:drop-shadow-lg transition-all"
+              style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;"
               :alt="config.storeName"
             />
             <span
