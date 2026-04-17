@@ -22,7 +22,7 @@
       />
 
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-20 sm:h-24 gap-4">
+        <div class="flex items-center justify-between h-24 sm:h-24 gap-4">
 
           <!-- Search -->
           <div class="flex-1 max-w-xs hidden md:block">
@@ -54,7 +54,7 @@
             <img
               v-if="config.logoUrl"
               :src="config.logoUrl"
-              class="h-12 sm:h-14 w-auto drop-shadow-md group-hover:drop-shadow-lg group-hover:scale-[1.04] transition-all duration-200"
+              class="h-16 sm:h-14 w-auto drop-shadow-md group-hover:drop-shadow-lg group-hover:scale-[1.04] transition-all duration-200"
               :alt="config.storeName"
             />
             <span
