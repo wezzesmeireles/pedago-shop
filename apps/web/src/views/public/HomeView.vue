@@ -2,7 +2,7 @@
   <div>
 
     <!-- ── Hero Banner Carousel ────────────────────────── -->
-    <section class="relative overflow-hidden">
+    <section class="relative overflow-hidden -mt-2 sm:mt-0">
       <div class="relative">
         <div
           v-for="(slide, idx) in bannerSlides"
@@ -59,7 +59,7 @@
     </section>
 
     <!-- ── Últimas Compras ────────────────────────────────── -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       <div class="flex items-center gap-2 mb-4">
         <span class="relative flex h-2.5 w-2.5">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -68,37 +68,37 @@
         <p class="text-sm font-bold text-gray-700">Compras em tempo real</p>
       </div>
 
-      <div class="relative h-72 overflow-hidden">
+      <div class="relative h-48 sm:h-72 overflow-hidden">
         <!-- skeleton while loading -->
-        <div v-if="!recentPurchases.length" class="flex flex-col gap-3">
-          <div v-for="i in 5" :key="i" class="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl p-4">
-            <div class="w-12 h-12 rounded-xl shimmer flex-shrink-0"></div>
-            <div class="flex-1 space-y-1.5">
-              <div class="h-3 shimmer rounded w-3/4"></div>
+        <div v-if="!recentPurchases.length" class="flex flex-col gap-2 sm:gap-3">
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-3 sm:p-4">
+            <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl shimmer flex-shrink-0"></div>
+            <div class="flex-1 space-y-1">
+              <div class="h-2.5 sm:h-3 shimmer rounded w-3/4"></div>
               <div class="h-2 shimmer rounded w-1/2"></div>
             </div>
-            <div class="h-4 shimmer rounded w-16"></div>
+            <div class="h-3 sm:h-4 shimmer rounded w-12 sm:w-16"></div>
           </div>
         </div>
 
-        <AnimatedList v-else :items="recentPurchases" :delay="1500" :max-visible="6">
+        <AnimatedList v-else :items="recentPurchases" :delay="1500" :max-visible="4">
           <template #default="{ item }">
-            <div class="flex items-center gap-4 bg-white border border-gray-100 rounded-2xl p-4
+            <div class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-3 sm:p-4
                         shadow-sm hover:shadow-md hover:border-violet-100 transition-all duration-200">
-              <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
+              <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 text-xl sm:text-2xl"
                    :style="{ background: item.color }">
                 {{ item.icon }}
               </div>
               <div class="min-w-0 flex-1">
-                <p class="text-sm font-bold text-gray-800 truncate">{{ item.name }}</p>
-                <p class="text-xs text-gray-400 truncate">{{ item.buyer }} · {{ item.time }}</p>
+                <p class="text-xs sm:text-sm font-bold text-gray-800 truncate">{{ item.name }}</p>
+                <p class="text-[10px] sm:text-xs text-gray-400 truncate">{{ item.buyer }} · {{ item.time }}</p>
               </div>
-              <span class="text-sm font-black text-violet-700 flex-shrink-0">{{ item.price }}</span>
+              <span class="text-xs sm:text-sm font-black text-violet-700 flex-shrink-0">{{ item.price }}</span>
             </div>
           </template>
         </AnimatedList>
         <!-- fade bottom -->
-        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white to-transparent"></div>
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 sm:h-20 bg-gradient-to-t from-white to-transparent"></div>
       </div>
     </section>
 
