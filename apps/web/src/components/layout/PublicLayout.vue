@@ -4,7 +4,7 @@
     <!-- Announcement Bar -->
     <div
       v-if="config.announcementBarText"
-      class="text-white text-xs py-1.5 text-center font-semibold tracking-wider uppercase animate-slide-in-down"
+      class="text-white text-xs py-1.5 text-center font-semibold tracking-wider uppercase animate-slide-in-down hidden sm:block"
       :style="{ backgroundColor: config.announcementBarColor || '#9333ea' }"
     >
       {{ config.announcementBarText }}
@@ -22,7 +22,7 @@
       />
 
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-24 gap-4">
+        <div class="flex items-center justify-between h-16 sm:h-24 gap-4">
 
           <!-- Search -->
           <div class="flex-1 max-w-xs hidden md:block">
@@ -54,7 +54,7 @@
             <img
               v-if="config.logoUrl"
               :src="config.logoUrl"
-              class="h-24 w-auto drop-shadow-md group-hover:drop-shadow-lg group-hover:scale-[1.04] transition-all duration-200"
+              class="h-10 sm:h-14 w-auto drop-shadow-md group-hover:drop-shadow-lg group-hover:scale-[1.04] transition-all duration-200"
               :alt="config.storeName"
             />
             <span

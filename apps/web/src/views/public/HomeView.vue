@@ -2,7 +2,7 @@
   <div>
 
     <!-- ── Hero Banner Carousel ────────────────────────── -->
-    <section class="relative overflow-hidden -mt-2 sm:mt-0">
+    <section class="relative overflow-hidden">
       <div class="relative">
         <div
           v-for="(slide, idx) in bannerSlides"
@@ -10,12 +10,12 @@
           :key="idx"
           class="relative w-full"
         >
-          <RouterLink :to="slide.ctaLink || '/catalogo'" class="block cursor-pointer">
+            <RouterLink :to="slide.ctaLink || '/catalogo'" class="block cursor-pointer">
             <img
               v-if="slide.imageUrl"
               :src="slide.imageUrl"
               :alt="slide.title || 'Banner'"
-              class="w-full h-auto block"
+              class="w-full h-auto sm:h-auto block"
             />
             <div
               v-else
