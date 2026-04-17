@@ -59,7 +59,7 @@ async function markPaid(order: any, payment: any, cfg: Record<string, any>) {
     mp_payment_id: String(payment.id),
     mp_status: payment.status,
     paid_at: new Date().toISOString(),
-    payment_method: payment.payment_type_id === 'pix' ? 'PIX' : 'CREDIT_CARD',
+    payment_method: order.payment_method || (payment.payment_method_id === 'pix' ? 'PIX' : 'CREDIT_CARD'),
     updated_at: new Date().toISOString(),
   }).eq('id', order.id).eq('status', 'AWAITING_PAYMENT').select('id');
 
@@ -91,7 +91,8 @@ async function markPaid(order: any, payment: any, cfg: Record<string, any>) {
 
   const customerName = order.customer_name ?? 'Cliente';
   const orderNumber = order.order_number ?? order.id.slice(0, 8).toUpperCase();
-  const methodEmoji = payment.payment_type_id === 'pix' ? '🟢 PIX' : '💳 Cartao de Credito';
+  const isPix = (order.payment_method || payment.payment_method_id) === 'pix' || order.payment_method === 'PIX';
+  const methodEmoji = isPix ? '🟢 PIX' : '💳 Cartão de Crédito';
   const itemsList = (order.order_items ?? [])
     .map((i: any) => `    📌 ${esc(i.product_name ?? 'Produto')} x${i.quantity}  —  ${fmt((i.unit_price ?? 0) * i.quantity)}`)
     .join('\n');
@@ -102,7 +103,7 @@ async function markPaid(order: any, payment: any, cfg: Record<string, any>) {
     `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
     `👤 <b>Cliente:</b> ${esc(customerName)}\n` +
     (order.customer_email ? `📧 <b>Email:</b> ${esc(order.customer_email)}\n` : '') +
-    `\n💳 <b>Pagamento:</b> ${methodEmoji}\n` +
+    `\n<b>Pagamento:</b> ${methodEmoji}\n` +
     `✅ <b>Status:</b> Pagamento Confirmado\n\n` +
     (itemsList ? `🛍️ <b>Itens Comprados:</b>\n${itemsList}\n\n` : '') +
     `💰 <b>Total Recebido: ${fmt(order.total_amount)}</b>\n\n` +
