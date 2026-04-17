@@ -12,6 +12,7 @@
     "@supabase/supabase-js": "^2.45.4",
     "@vueuse/core": "^10.11.0",
     "@vueuse/head": "^2.0.0",
+    "canvas-confetti": "^1.9.4",
     "pinia": "^2.2.0",
     "uuid": "^9.0.1",
     "vue": "^3.4.31",
