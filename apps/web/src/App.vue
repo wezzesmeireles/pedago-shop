@@ -1,10 +1,12 @@
 <template>
   <RouterView />
+  <PhoneRequiredModal />
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import PhoneRequiredModal from '@/components/ui/PhoneRequiredModal.vue';
 
 const siteConfig = useSiteConfigStore();
 

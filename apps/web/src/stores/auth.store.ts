@@ -8,6 +8,7 @@ interface User {
   email: string;
   role: 'CUSTOMER' | 'ADMIN';
   avatarUrl?: string;
+  phone?: string;
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -40,7 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, name, role, avatar_url')
+        .select('id, name, role, avatar_url, phone')
         .eq('id', authUser.id)
         .single();
 
@@ -52,6 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
         email: authUser.email ?? '',
         role,
         avatarUrl: profile?.avatar_url,
+        phone: profile?.phone ?? undefined,
       };
     } catch (e) {
       user.value = null;

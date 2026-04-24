@@ -36,6 +36,14 @@ Deno.serve(async (req) => {
       return json({ message: 'Nome, email e senha são obrigatórios.' }, 400);
     }
 
+    if (!phone) {
+      return json({ message: 'WhatsApp é obrigatório.' }, 400);
+    }
+    const phoneDigits = String(phone).replace(/\D/g, '');
+    if (phoneDigits.length < 10) {
+      return json({ message: 'Informe um número de WhatsApp válido com DDD.' }, 400);
+    }
+
     const { data, error } = await supabase.auth.admin.createUser({
       email,
       password,

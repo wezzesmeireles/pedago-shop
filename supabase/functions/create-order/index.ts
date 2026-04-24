@@ -107,7 +107,11 @@ Deno.serve(async (req) => {
 
   if (!items?.length || !paymentMethod) return json({ error: 'Dados inválidos.' }, 400);
 
-  const { data: profile } = await supabase.from('profiles').select('id, name').eq('id', user.id).single();
+  const { data: profile } = await supabase.from('profiles').select('id, name, phone').eq('id', user.id).single();
+
+  if (!profile?.phone) {
+    return json({ error: 'Cadastre seu WhatsApp antes de finalizar a compra.' }, 400);
+  }
 
   const productIds = items.map((i: any) => i.productId);
   const { data: products } = await supabase
@@ -196,7 +200,8 @@ Deno.serve(async (req) => {
         `——————————————————\n\n` +
         `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
         `👤 <b>Cliente:</b> ${esc(clientName)}\n` +
-        `📧 <b>Email:</b> ${esc(user.email)}\n\n` +
+        `📧 <b>Email:</b> ${esc(user.email)}\n` +
+        `📱 <b>WhatsApp:</b> ${esc(profile?.phone ?? '-')}\n\n` +
         `🟢 <b>Pagamento:</b> PIX\n` +
         `⏳ <b>Status:</b> Aguardando pagamento\n` +
         `⌛ <b>Expira em:</b> 30 minutos\n\n` +
@@ -249,7 +254,8 @@ Deno.serve(async (req) => {
         `——————————————————\n\n` +
         `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
         `👤 <b>Cliente:</b> ${esc(clientName)}\n` +
-        `📧 <b>Email:</b> ${esc(user.email)}\n\n` +
+        `📧 <b>Email:</b> ${esc(user.email)}\n` +
+        `📱 <b>WhatsApp:</b> ${esc(profile?.phone ?? '-')}\n\n` +
         `💳 <b>Pagamento:</b> Cartao de Credito\n` +
         `⏳ <b>Status:</b> Redirecionado para checkout\n\n` +
         `🛍️ <b>Itens do Pedido:</b>\n${itemsList}\n\n` +

@@ -71,6 +71,8 @@ const router = createRouter({
   ],
 });
 
+const AUTH_ROUTE_NAMES = ['login', 'register', 'google-callback', 'phone-required', 'forgot-password', 'reset-password', 'admin-login'];
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
@@ -85,6 +87,11 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAdmin && auth.user?.role !== 'ADMIN') {
     return { name: 'admin-login' };
+  }
+
+  // Redirect authenticated users without phone to phone-required (skip auth/admin routes)
+  if (auth.isLoggedIn && !auth.user?.phone && !AUTH_ROUTE_NAMES.includes(to.name as string)) {
+    return { name: 'phone-required', query: { redirect: to.fullPath } };
   }
 });
 
