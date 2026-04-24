@@ -66,12 +66,7 @@
               <div v-if="selectedMethod === 'PIX'" class="absolute top-2.5 right-2.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                 <svg class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
               </div>
-              <!-- Logo oficial PIX -->
-              <svg class="w-8 h-8 mb-1" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M112.57 391.19a71.474 71.474 0 0 0 50.695 20.997h209.12l-91.692-91.645a71.696 71.696 0 0 0-101.39 0L112.57 391.19z" fill="#32BCAD"/>
-                <path d="M163.265 99.814a71.474 71.474 0 0 0-50.695 20.997l-47.333 47.286a71.695 71.695 0 0 0 0 101.39l47.333 47.286a71.474 71.474 0 0 0 50.695 20.997h209.12l-109.4-109.45-109.4 109.45h209.12a71.474 71.474 0 0 0 50.695-20.997l47.333-47.286a71.695 71.695 0 0 0 0-101.39l-47.333-47.286a71.474 71.474 0 0 0-50.695-20.997H163.265z" fill="#32BCAD"/>
-                <path d="M372.385 99.814H163.265a71.474 71.474 0 0 0-50.695 20.997l47.128 47.128a71.695 71.695 0 0 1 101.39 0l91.692-91.645-.395-.48z" fill="#32BCAD"/>
-              </svg>
+              <PixLogo class="w-9 h-9 mb-1" />
               <span class="font-black text-gray-900 text-sm block">PIX</span>
               <p class="text-xs text-gray-500 mt-0.5">Aprovação imediata</p>
               <span class="absolute bottom-2 right-2 text-xs bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">Recomendado</span>
@@ -111,18 +106,12 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
-          <span v-if="creating">{{ selectedMethod === 'PIX' ? 'Gerando PIX...' : 'Processando...' }}</span>
-          <span v-else>
-            <template v-if="selectedMethod === 'PIX'">
-              <svg class="w-5 h-5" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M112.57 391.19a71.474 71.474 0 0 0 50.695 20.997h209.12l-91.692-91.645a71.696 71.696 0 0 0-101.39 0L112.57 391.19z" fill="white"/>
-                <path d="M163.265 99.814a71.474 71.474 0 0 0-50.695 20.997l-47.333 47.286a71.695 71.695 0 0 0 0 101.39l47.333 47.286a71.474 71.474 0 0 0 50.695 20.997h209.12l-109.4-109.45-109.4 109.45h209.12a71.474 71.474 0 0 0 50.695-20.997l47.333-47.286a71.695 71.695 0 0 0 0-101.39l-47.333-47.286a71.474 71.474 0 0 0-50.695-20.997H163.265z" fill="white"/>
-                <path d="M372.385 99.814H163.265a71.474 71.474 0 0 0-50.695 20.997l47.128 47.128a71.695 71.695 0 0 1 101.39 0l91.692-91.645-.395-.48z" fill="white"/>
-              </svg>
-              Gerar PIX — {{ fmt(cart.total) }}
-            </template>
-            <template v-else>💳 Pagar com Cartão — {{ fmt(cart.total) }}</template>
-          </span>
+          <template v-if="creating">{{ selectedMethod === 'PIX' ? 'Gerando PIX...' : 'Processando...' }}</template>
+          <template v-else-if="selectedMethod === 'PIX'">
+            <PixLogo class="w-5 h-5" color="white" />
+            Gerar PIX — {{ fmt(cart.total) }}
+          </template>
+          <template v-else>💳 Pagar com Cartão — {{ fmt(cart.total) }}</template>
         </button>
 
         <!-- Selos de segurança -->
@@ -189,24 +178,37 @@
           </span>
         </div>
 
-        <!-- QR Code com design do site -->
+        <!-- QR Code estilizado com logo PIX no centro -->
         <div class="flex justify-center mb-6">
-          <div class="relative p-1 rounded-3xl" style="background: linear-gradient(135deg, #7c3aed, #ec4899, #7c3aed);">
-            <div class="bg-white rounded-[20px] p-4">
-              <img
-                v-if="pixQrBase64"
-                :src="`data:image/png;base64,${pixQrBase64}`"
-                alt="QR Code PIX"
-                class="w-52 h-52 rounded-xl"
-              />
-              <div v-else class="w-52 h-52 flex items-center justify-center">
-                <div class="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full"></div>
+          <div class="relative">
+            <!-- Moldura gradiente animada -->
+            <div class="p-[3px] rounded-3xl qr-gradient-border">
+              <div class="bg-white rounded-[22px] p-5 relative">
+
+                <!-- QR image -->
+                <img
+                  v-if="pixQrBase64"
+                  :src="`data:image/png;base64,${pixQrBase64}`"
+                  alt="QR Code PIX"
+                  class="w-52 h-52 block"
+                />
+                <div v-else class="w-52 h-52 flex items-center justify-center">
+                  <div class="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full"></div>
+                </div>
+
+                <!-- Logo PIX centralizado no QR -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div class="bg-white rounded-xl p-2 shadow-md border border-gray-100">
+                    <PixLogo class="w-8 h-8" />
+                  </div>
+                </div>
               </div>
             </div>
-            <!-- Selo no canto -->
-            <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white border border-gray-100 shadow-md rounded-full px-3 py-1 flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-              <span class="text-xs font-bold text-gray-700">Seguro</span>
+
+            <!-- Badge PIX embaixo -->
+            <div class="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-white border border-gray-100 shadow-md rounded-full px-3 py-1.5 whitespace-nowrap">
+              <PixLogo class="w-3.5 h-3.5" />
+              <span class="text-xs font-black text-gray-700">Pague com PIX</span>
             </div>
           </div>
         </div>
@@ -287,6 +289,7 @@ import { supabase } from '@/lib/supabase';
 import { useCartStore } from '@/stores/cart.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import PixLogo from '@/components/ui/PixLogo.vue';
 
 const router = useRouter();
 const cart = useCartStore();
@@ -463,4 +466,16 @@ onUnmounted(() => {
 @keyframes slideInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 .float { animation: float 3s ease-in-out infinite; }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* Borda gradiente animada no QR */
+.qr-gradient-border {
+  background: linear-gradient(135deg, #7c3aed, #ec4899, #32BCAD, #7c3aed);
+  background-size: 300% 300%;
+  animation: gradientShift 4s ease infinite;
+}
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 </style>
