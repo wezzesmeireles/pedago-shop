@@ -66,7 +66,12 @@
               <div v-if="selectedMethod === 'PIX'" class="absolute top-2.5 right-2.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                 <svg class="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
               </div>
-              <span class="text-2xl block mb-1">⚡</span>
+              <!-- Logo oficial PIX -->
+              <svg class="w-8 h-8 mb-1" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M112.57 391.19a71.474 71.474 0 0 0 50.695 20.997h209.12l-91.692-91.645a71.696 71.696 0 0 0-101.39 0L112.57 391.19z" fill="#32BCAD"/>
+                <path d="M163.265 99.814a71.474 71.474 0 0 0-50.695 20.997l-47.333 47.286a71.695 71.695 0 0 0 0 101.39l47.333 47.286a71.474 71.474 0 0 0 50.695 20.997h209.12l-109.4-109.45-109.4 109.45h209.12a71.474 71.474 0 0 0 50.695-20.997l47.333-47.286a71.695 71.695 0 0 0 0-101.39l-47.333-47.286a71.474 71.474 0 0 0-50.695-20.997H163.265z" fill="#32BCAD"/>
+                <path d="M372.385 99.814H163.265a71.474 71.474 0 0 0-50.695 20.997l47.128 47.128a71.695 71.695 0 0 1 101.39 0l91.692-91.645-.395-.48z" fill="#32BCAD"/>
+              </svg>
               <span class="font-black text-gray-900 text-sm block">PIX</span>
               <p class="text-xs text-gray-500 mt-0.5">Aprovação imediata</p>
               <span class="absolute bottom-2 right-2 text-xs bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">Recomendado</span>
@@ -108,7 +113,15 @@
           </svg>
           <span v-if="creating">{{ selectedMethod === 'PIX' ? 'Gerando PIX...' : 'Processando...' }}</span>
           <span v-else>
-            {{ selectedMethod === 'PIX' ? `⚡ Gerar PIX — ${fmt(cart.total)}` : `💳 Pagar com Cartão — ${fmt(cart.total)}` }}
+            <template v-if="selectedMethod === 'PIX'">
+              <svg class="w-5 h-5" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M112.57 391.19a71.474 71.474 0 0 0 50.695 20.997h209.12l-91.692-91.645a71.696 71.696 0 0 0-101.39 0L112.57 391.19z" fill="white"/>
+                <path d="M163.265 99.814a71.474 71.474 0 0 0-50.695 20.997l-47.333 47.286a71.695 71.695 0 0 0 0 101.39l47.333 47.286a71.474 71.474 0 0 0 50.695 20.997h209.12l-109.4-109.45-109.4 109.45h209.12a71.474 71.474 0 0 0 50.695-20.997l47.333-47.286a71.695 71.695 0 0 0 0-101.39l-47.333-47.286a71.474 71.474 0 0 0-50.695-20.997H163.265z" fill="white"/>
+                <path d="M372.385 99.814H163.265a71.474 71.474 0 0 0-50.695 20.997l47.128 47.128a71.695 71.695 0 0 1 101.39 0l91.692-91.645-.395-.48z" fill="white"/>
+              </svg>
+              Gerar PIX — {{ fmt(cart.total) }}
+            </template>
+            <template v-else>💳 Pagar com Cartão — {{ fmt(cart.total) }}</template>
           </span>
         </button>
 
