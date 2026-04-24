@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="animate-fade-in">
     <h2 class="text-2xl font-bold text-gray-900 mb-2">Bem-vindo de volta!</h2>
     <p class="text-gray-500 text-sm mb-6">Entre na sua conta para acessar seus downloads</p>
 
@@ -35,7 +35,7 @@
         <p v-if="errors.password" class="mt-1 text-xs text-red-600">{{ errors.password }}</p>
       </div>
 
-      <p v-if="errors.general" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">{{ errors.general }}</p>
+      <p v-if="errors.general" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl animate-slide-in-up">{{ errors.general }}</p>
 
       <div class="flex justify-end -mt-1">
         <RouterLink to="/auth/esqueci-senha" class="text-xs text-primary-600 hover:underline font-medium">

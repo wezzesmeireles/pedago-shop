@@ -7,15 +7,15 @@
 
     <!-- Loading skeleton -->
     <div v-if="loading" class="space-y-3">
-      <div v-for="i in 3" :key="i" class="card p-5 animate-pulse">
+      <div v-for="i in 3" :key="i" class="card p-5 stagger-item" :style="{ '--i': i - 1 }">
         <div class="flex gap-4">
-          <div class="w-16 h-16 bg-gray-200 rounded-2xl flex-shrink-0"></div>
+          <div class="w-16 h-16 shimmer rounded-2xl flex-shrink-0"></div>
           <div class="flex-1 space-y-2.5 py-1">
-            <div class="h-4 bg-gray-200 rounded w-2/3"></div>
-            <div class="h-3 bg-gray-200 rounded w-1/3"></div>
-            <div class="h-2 bg-gray-100 rounded-full w-1/2 mt-2"></div>
+            <div class="h-4 shimmer rounded w-2/3"></div>
+            <div class="h-3 shimmer rounded w-1/3"></div>
+            <div class="h-2 shimmer rounded-full w-1/2 mt-2"></div>
           </div>
-          <div class="w-20 h-9 bg-gray-200 rounded-xl flex-shrink-0"></div>
+          <div class="w-20 h-9 shimmer rounded-xl flex-shrink-0"></div>
         </div>
       </div>
     </div>
@@ -34,7 +34,7 @@
 
     <!-- Download list -->
     <div v-else class="space-y-3">
-      <div v-for="download in allDownloads" :key="download.token" class="card p-4 sm:p-5 hover:shadow-md transition-shadow">
+      <div v-for="(download, i) in allDownloads" :key="download.token" class="card p-4 sm:p-5 hover:shadow-md transition-shadow stagger-item" :style="{ '--i': i }">
         <div class="flex gap-3 sm:gap-4">
           <!-- Cover image -->
           <div class="flex-shrink-0">

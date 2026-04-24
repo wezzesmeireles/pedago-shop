@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="animate-fade-in">
     <h2 class="text-2xl font-bold text-gray-900 mb-2">Criar sua conta</h2>
     <p class="text-gray-500 text-sm mb-6">Cadastre-se para comprar e acessar seus downloads</p>
 
@@ -33,7 +33,7 @@
 
       <AppInput v-model="form.password" label="Senha" type="password" placeholder="Mínimo 8 caracteres" required hint="Use pelo menos 8 caracteres" />
 
-      <p v-if="error" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl">{{ error }}</p>
+      <p v-if="error" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl animate-slide-in-up">{{ error }}</p>
 
       <AppButton type="submit" variant="primary" size="lg" :loading="loading" class="w-full">
         Criar Conta

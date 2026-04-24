@@ -8,7 +8,7 @@
     <!-- Product -->
     <div v-else-if="product" class="grid grid-cols-1 lg:grid-cols-2 gap-12">
       <!-- Images -->
-      <div>
+      <div class="stagger-item" style="--i:0">
         <div class="rounded-3xl overflow-hidden aspect-square shadow-xl bg-gray-100 mb-4">
           <img :src="activeImage" :alt="product.name" class="w-full h-full object-cover" />
         </div>
@@ -23,7 +23,7 @@
       </div>
 
       <!-- Info -->
-      <div class="flex flex-col">
+      <div class="flex flex-col stagger-item" style="--i:1">
         <div class="flex items-center gap-2 mb-2">
           <RouterLink :to="`/catalogo?categoria=${product.category?.slug}`" class="text-sm text-primary-600 font-medium hover:underline">
             {{ product.category?.name }}

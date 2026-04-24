@@ -75,23 +75,26 @@
       <!-- Product grid -->
       <div class="flex-1 min-w-0">
         <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-          <div v-for="i in 6" :key="i" class="card overflow-hidden animate-pulse">
-            <div class="aspect-square bg-gray-200"></div>
+          <div v-for="i in 6" :key="i" class="card overflow-hidden">
+            <div class="aspect-square shimmer"></div>
             <div class="p-3 sm:p-4 space-y-2">
-              <div class="h-4 bg-gray-200 rounded"></div>
-              <div class="h-4 bg-gray-200 rounded w-2/3"></div>
+              <div class="h-4 shimmer rounded"></div>
+              <div class="h-4 shimmer rounded w-2/3"></div>
+              <div class="h-6 shimmer rounded-xl w-1/2 mt-1"></div>
             </div>
           </div>
         </div>
 
-        <div v-else-if="products.length === 0" class="text-center py-20">
-          <div class="text-6xl mb-4">🔍</div>
+        <div v-else-if="products.length === 0" class="text-center py-20 animate-fade-in">
+          <div class="text-6xl mb-4 float">🔍</div>
           <p class="text-gray-500 text-lg">Nenhum produto encontrado</p>
           <button @click="clearFilters" class="mt-4 btn-primary text-sm">Limpar Filtros</button>
         </div>
 
         <div v-else class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-          <ProductCard v-for="product in products" :key="product.id" :product="product" />
+          <div v-for="(product, i) in products" :key="product.id" class="stagger-item" :style="{ '--i': i }">
+            <ProductCard :product="product" />
+          </div>
         </div>
 
         <!-- Pagination -->

@@ -28,26 +28,26 @@
 
     <!-- Loading skeleton -->
     <div v-if="loading" class="space-y-3">
-      <div v-for="i in 3" :key="i" class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm animate-pulse">
-        <div class="h-1 bg-gray-200"></div>
+      <div v-for="i in 3" :key="i" class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm stagger-item" :style="{ '--i': i - 1 }">
+        <div class="h-1 shimmer"></div>
         <div class="p-4 sm:p-5">
           <div class="flex justify-between items-start mb-4">
             <div class="space-y-2 flex-1 mr-4">
-              <div class="h-4 bg-gray-200 rounded-lg w-36"></div>
-              <div class="h-3 bg-gray-100 rounded-lg w-28"></div>
+              <div class="h-4 shimmer rounded-lg w-36"></div>
+              <div class="h-3 shimmer rounded-lg w-28"></div>
             </div>
-            <div class="h-5 w-16 bg-gray-200 rounded-full"></div>
+            <div class="h-5 w-16 shimmer rounded-full"></div>
           </div>
           <div class="flex gap-2 mb-4">
-            <div class="h-16 w-16 bg-gray-100 rounded-xl"></div>
+            <div class="h-16 w-16 shimmer rounded-xl"></div>
             <div class="flex-1 space-y-2 py-1">
-              <div class="h-3 bg-gray-100 rounded w-3/4"></div>
-              <div class="h-3 bg-gray-100 rounded w-1/2"></div>
+              <div class="h-3 shimmer rounded w-3/4"></div>
+              <div class="h-3 shimmer rounded w-1/2"></div>
             </div>
           </div>
           <div class="flex justify-between items-center pt-3 border-t border-gray-50">
-            <div class="h-8 w-28 bg-gray-100 rounded-xl"></div>
-            <div class="h-5 w-20 bg-gray-100 rounded-lg"></div>
+            <div class="h-8 w-28 shimmer rounded-xl"></div>
+            <div class="h-5 w-20 shimmer rounded-lg"></div>
           </div>
         </div>
       </div>
@@ -78,8 +78,8 @@
 
     <!-- Order list -->
     <div v-else class="space-y-3">
-      <div v-for="order in orders" :key="order.id"
-        class="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-violet-100 transition-all duration-200 overflow-hidden">
+      <div v-for="(order, i) in orders" :key="order.id"
+        class="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-violet-100 transition-all duration-200 overflow-hidden stagger-item" :style="{ '--i': i }">
 
         <!-- Status stripe top -->
         <div :class="['h-1', statusStripe(order.status)]"></div>

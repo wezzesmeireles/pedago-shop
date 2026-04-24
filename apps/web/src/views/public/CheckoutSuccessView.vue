@@ -2,21 +2,21 @@
   <div class="max-w-lg mx-auto px-4 py-12">
     <div class="card p-8">
       <!-- Success icon -->
-      <div class="text-center mb-8">
-        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
-          <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+      <div class="text-center mb-8 stagger-item" style="--i:0">
+        <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5 bounce-in pulse-glow">
+          <svg class="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path class="draw-check" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
           </svg>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Pagamento Confirmado!</h1>
-        <p class="text-gray-500 text-sm">Seus arquivos estão prontos para download.</p>
+        <h1 class="text-2xl font-black text-gray-900 mb-2 stagger-item" style="--i:1">Pagamento Confirmado! 🎉</h1>
+        <p class="text-gray-500 text-sm stagger-item" style="--i:2">Seus arquivos estão prontos para download.</p>
       </div>
 
       <!-- Loading -->
       <div v-if="loading" class="space-y-3 mb-6">
-        <div class="h-4 bg-gray-100 rounded animate-pulse"></div>
-        <div class="h-12 bg-gray-100 rounded-xl animate-pulse"></div>
-        <div class="h-12 bg-gray-100 rounded-xl animate-pulse"></div>
+        <div class="h-4 shimmer rounded"></div>
+        <div class="h-14 shimmer rounded-xl"></div>
+        <div class="h-14 shimmer rounded-xl"></div>
       </div>
 
       <!-- Awaiting payment confirmation -->
@@ -33,7 +33,7 @@
         </div>
 
         <div class="space-y-3">
-          <div v-for="item in order.order_items" :key="item.id" class="bg-gray-50 rounded-2xl p-4">
+          <div v-for="(item, i) in order.order_items" :key="item.id" class="bg-gray-50 rounded-2xl p-4 stagger-item" :style="{ '--i': i + 3 }">
             <div class="flex items-center gap-3 mb-3">
               <div class="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
