@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
   const { items, paymentMethod } = body;
 
   if (!items?.length || !paymentMethod) return json({ error: 'Dados inválidos.' }, 400);
+  if (!['PIX', 'CREDIT_CARD', 'FREE'].includes(paymentMethod)) return json({ error: 'Método de pagamento inválido.' }, 400);
 
   const { data: profile } = await supabase.from('profiles').select('id, name, phone').eq('id', user.id).single();
 
@@ -131,15 +132,17 @@ Deno.serve(async (req) => {
   const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
   const orderNumber = `ORD-${new Date().getFullYear()}-${String((count ?? 0) + 1).padStart(6, '0')}`;
 
+  const isFreeOrder = paymentMethod === 'FREE';
   const { data: order, error: orderErr } = await supabase.from('orders').insert({
     order_number: orderNumber,
     user_id: user.id,
-    status: 'AWAITING_PAYMENT',
+    status: isFreeOrder ? 'PAID' : 'AWAITING_PAYMENT',
     total_amount: totalAmount,
-    payment_method: paymentMethod,
+    payment_method: isFreeOrder ? null : paymentMethod,
+    paid_at: isFreeOrder ? new Date().toISOString() : null,
     customer_email: user.email,
     customer_name: profile?.name ?? user.email,
-    expires_at: new Date(Date.now() + 30 * 60_000).toISOString(),
+    expires_at: isFreeOrder ? null : new Date(Date.now() + 30 * 60_000).toISOString(),
   }).select().single();
 
   if (orderErr || !order) return json({ error: 'Erro ao criar pedido.' }, 500);
@@ -152,6 +155,25 @@ Deno.serve(async (req) => {
   const fullOrder = { ...order, items: orderItems ?? [] };
 
   const cfg = await getSiteConfig(supabase);
+
+  if (isFreeOrder) {
+    const itemsList = buildItemsList(orderItems ?? []);
+    const clientName = profile?.name ?? user.email ?? 'Desconhecido';
+    await tg(cfg,
+      `🎁 <b>PRODUTO GRATUITO OBTIDO</b>\n` +
+      `——————————————————\n\n` +
+      `📋 <b>Pedido:</b> <code>#${esc(orderNumber)}</code>\n` +
+      `👤 <b>Cliente:</b> ${esc(clientName)}\n` +
+      `📧 <b>Email:</b> ${esc(user.email)}\n` +
+      `📱 <b>WhatsApp:</b> ${esc(profile?.phone ?? '-')}\n\n` +
+      `🎁 <b>Pagamento:</b> Gratuito\n` +
+      `✅ <b>Status:</b> Disponível para download\n\n` +
+      `🛍️ <b>Itens:</b>\n${itemsList}\n\n` +
+      `🕐 ${nowBR()}`,
+    );
+    return json({ order: fullOrder, payment: { type: 'FREE' } });
+  }
+
   const accessToken = cfg.mercadoPagoAccessToken?.trim() || Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN') || '';
 
   if (!accessToken) return json({ error: 'Token do Mercado Pago não configurado.' }, 500);

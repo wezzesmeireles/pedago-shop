@@ -34,8 +34,11 @@
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">{{ product.name }}</h1>
 
         <div class="flex items-baseline gap-3 mb-4">
-          <span class="text-3xl sm:text-4xl font-bold text-primary-600">{{ formatPrice(product.price) }}</span>
-          <span v-if="product.comparePrice" class="text-lg sm:text-xl text-gray-400 line-through">{{ formatPrice(product.comparePrice) }}</span>
+          <span v-if="isFree" class="text-3xl sm:text-4xl font-bold text-emerald-600">Grátis</span>
+          <template v-else>
+            <span class="text-3xl sm:text-4xl font-bold text-primary-600">{{ formatPrice(product.price) }}</span>
+            <span v-if="product.comparePrice" class="text-lg sm:text-xl text-gray-400 line-through">{{ formatPrice(product.comparePrice) }}</span>
+          </template>
         </div>
 
         <!-- Details -->
@@ -65,12 +68,30 @@
 
         <!-- CTA -->
         <div class="space-y-3">
-          <button @click="addToCart" class="w-full btn-primary text-base py-4">
-            🛒 Adicionar ao Carrinho
-          </button>
-          <button @click="buyNow" class="w-full btn-secondary text-base py-4">
-            ⚡ Comprar Agora
-          </button>
+          <template v-if="isFree">
+            <button
+              @click="claimFree"
+              :disabled="claiming"
+              class="w-full text-base py-4 font-bold rounded-xl text-white transition-all
+                     bg-gradient-to-r from-emerald-500 to-green-400
+                     hover:from-emerald-600 hover:to-green-500
+                     disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              {{ claiming ? 'Obtendo...' : 'Obter Grátis' }}
+            </button>
+            <p v-if="claimError" class="text-sm text-red-500 text-center">{{ claimError }}</p>
+          </template>
+          <template v-else>
+            <button @click="addToCart" class="w-full btn-primary text-base py-4">
+              🛒 Adicionar ao Carrinho
+            </button>
+            <button @click="buyNow" class="w-full btn-secondary text-base py-4">
+              ⚡ Comprar Agora
+            </button>
+          </template>
         </div>
 
       </div>
@@ -145,6 +166,10 @@ const auth = useAuthStore();
 const product = ref<any>(null);
 const loading = ref(true);
 const activeImage = ref('');
+const claiming = ref(false);
+const claimError = ref('');
+
+const isFree = computed(() => product.value && Number(product.value.price) === 0);
 
 function loadInstagramEmbed() {
   const win = window as any;
@@ -186,6 +211,49 @@ function buyNow() {
     router.push({ name: 'login', query: { redirect: '/checkout' } });
   } else {
     router.push('/checkout');
+  }
+}
+
+async function claimFree() {
+  if (!auth.isLoggedIn) {
+    router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return;
+  }
+  if (!product.value || claiming.value) return;
+  claiming.value = true;
+  claimError.value = '';
+  try {
+    const orderNumber = `GR${Date.now()}`;
+    const { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .insert({
+        order_number: orderNumber,
+        user_id: auth.user!.id,
+        status: 'PAID',
+        total_amount: 0,
+        paid_at: new Date().toISOString(),
+        customer_email: auth.user!.email,
+        customer_name: auth.user!.name,
+      })
+      .select('id')
+      .single();
+    if (orderErr) throw orderErr;
+
+    const { error: itemErr } = await supabase.from('order_items').insert({
+      order_id: order.id,
+      product_id: product.value.id,
+      product_name: product.value.name,
+      unit_price: 0,
+      quantity: 1,
+    });
+    if (itemErr) throw itemErr;
+
+    router.push('/minha-conta/downloads');
+  } catch (e: any) {
+    console.error('[claimFree]', e);
+    claimError.value = 'Erro ao obter produto. Tente novamente.';
+  } finally {
+    claiming.value = false;
   }
 }
 
