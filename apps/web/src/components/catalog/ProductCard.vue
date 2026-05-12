@@ -118,6 +118,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useCartStore } from '@/stores/cart.store';
 import { useConfetti } from '@/composables/useConfetti';
 
@@ -135,6 +136,7 @@ const props = defineProps<{
   };
 }>();
 
+const router = useRouter();
 const cart = useCartStore();
 const { fireCartConfetti } = useConfetti();
 const justAdded = ref(false);
@@ -152,6 +154,10 @@ function formatPrice(price: number) {
 }
 
 function addToCart() {
+  if (isFree.value) {
+    router.push(`/produto/${props.product.slug}`);
+    return;
+  }
   cart.add({
     productId: props.product.id,
     name: props.product.name,
