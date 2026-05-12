@@ -43,12 +43,18 @@
               <label class="text-sm font-medium text-gray-700 block mb-2">Categoria</label>
               <div class="space-y-1">
                 <button @click="setCategory('')"
-                  :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all', !filters.category ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 text-gray-700']">
+                  :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all', !filters.category && !filters.onlyFree ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 text-gray-700']">
                   Todas
+                </button>
+                <!-- Filtro Grátis -->
+                <button @click="toggleFree"
+                  :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all flex items-center gap-1.5', filters.onlyFree ? 'bg-emerald-500 text-white' : 'hover:bg-emerald-50 text-emerald-700 border border-emerald-200']">
+                  <span class="text-xs font-bold">🎁</span>
+                  <span>Grátis</span>
                 </button>
                 <button v-for="cat in categories" :key="cat.id"
                   @click="setCategory(cat.slug)"
-                  :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all flex justify-between', filters.category === cat.slug ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 text-gray-700']">
+                  :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all flex justify-between', filters.category === cat.slug && !filters.onlyFree ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 text-gray-700']">
                   <span>{{ cat.name }}</span>
                   <span class="text-xs opacity-70">{{ cat._count?.products }}</span>
                 </button>
@@ -131,6 +137,7 @@ const filters = reactive({
   search: (route.query.busca as string) || '',
   category: (route.query.categoria as string) || '',
   sort: 'newest',
+  onlyFree: false,
 });
 
 const categories = computed(() => catalogStore.categories);
@@ -139,6 +146,7 @@ const activeFilterCount = computed(() => {
   let count = 0;
   if (filters.search) count++;
   if (filters.category) count++;
+  if (filters.onlyFree) count++;
   if (filters.sort !== 'newest') count++;
   return count;
 });
@@ -175,6 +183,7 @@ async function fetchProducts(page = 1) {
 
     if (filters.search) q = q.ilike('name', `%${filters.search}%`);
     if (categoryId) q = q.eq('category_id', categoryId);
+    if (filters.onlyFree) q = q.eq('price', 0);
 
     if (filters.sort === 'price_asc') q = q.order('price', { ascending: true });
     else if (filters.sort === 'price_desc') q = q.order('price', { ascending: false });
@@ -192,6 +201,14 @@ async function fetchProducts(page = 1) {
 
 function setCategory(slug: string) {
   filters.category = slug;
+  filters.onlyFree = false;
+  filtersOpen.value = false;
+  fetchProducts();
+}
+
+function toggleFree() {
+  filters.onlyFree = !filters.onlyFree;
+  filters.category = '';
   filtersOpen.value = false;
   fetchProducts();
 }
@@ -205,6 +222,7 @@ function clearFilters() {
   filters.search = '';
   filters.category = '';
   filters.sort = 'newest';
+  filters.onlyFree = false;
   fetchProducts();
 }
 

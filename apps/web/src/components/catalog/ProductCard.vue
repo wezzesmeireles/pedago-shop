@@ -28,7 +28,12 @@
       <!-- Badges -->
       <div class="absolute top-1.5 left-1.5 flex flex-col gap-1">
         <span
-          v-if="product.comparePrice"
+          v-if="isFree"
+          class="bg-gradient-to-r from-emerald-500 to-green-400 text-white text-[9px] font-bold
+                 px-1.5 py-0.5 rounded-full leading-none shadow"
+        >GRÁTIS</span>
+        <span
+          v-else-if="product.comparePrice"
           class="bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-bold
                  px-1.5 py-0.5 rounded-full leading-none shadow"
         >OFERTA</span>
@@ -40,7 +45,7 @@
       </div>
 
       <!-- Discount % badge -->
-      <div v-if="product.comparePrice" class="absolute top-1.5 right-1.5">
+      <div v-if="product.comparePrice && !isFree" class="absolute top-1.5 right-1.5">
         <span class="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow">
           -{{ discountPct }}%
         </span>
@@ -70,8 +75,9 @@
       <div class="mt-auto space-y-2">
         <!-- Price -->
         <div class="flex items-center gap-1.5">
-          <span class="text-sm font-black text-violet-700">{{ formatPrice(product.price) }}</span>
-          <span v-if="product.comparePrice" class="text-[11px] text-gray-400 line-through">
+          <span v-if="isFree" class="text-sm font-black text-emerald-600">Grátis</span>
+          <span v-else class="text-sm font-black text-violet-700">{{ formatPrice(product.price) }}</span>
+          <span v-if="product.comparePrice && !isFree" class="text-[11px] text-gray-400 line-through">
             {{ formatPrice(product.comparePrice) }}
           </span>
         </div>
@@ -86,18 +92,23 @@
                  focus:outline-none focus:ring-2 focus:ring-offset-1 relative overflow-hidden"
           :class="justAdded
             ? 'bg-emerald-500 text-white focus:ring-emerald-400'
-            : 'bg-gradient-to-r from-violet-600 to-pink-500 hover:from-violet-700 hover:to-pink-600 text-white focus:ring-violet-400 shadow hover:shadow-violet-300'"
+            : isFree
+              ? 'bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-600 hover:to-green-500 text-white focus:ring-emerald-400 shadow hover:shadow-emerald-300'
+              : 'bg-gradient-to-r from-violet-600 to-pink-500 hover:from-violet-700 hover:to-pink-600 text-white focus:ring-violet-400 shadow hover:shadow-violet-300'"
         >
           <transition name="btn-icon" mode="out-in">
             <svg v-if="justAdded" key="check" class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+            <svg v-else-if="isFree" key="download" class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
             </svg>
             <svg v-else key="cart" class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-9H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
             </svg>
           </transition>
           <transition name="btn-text" mode="out-in">
-            <span :key="justAdded ? 'added' : 'buy'">{{ justAdded ? 'Adicionado!' : 'Comprar' }}</span>
+            <span :key="justAdded ? 'added' : isFree ? 'free' : 'buy'">{{ justAdded ? 'Adicionado!' : isFree ? 'Obter Grátis' : 'Comprar' }}</span>
           </transition>
         </button>
       </div>
@@ -128,6 +139,8 @@ const cart = useCartStore();
 const { fireCartConfetti } = useConfetti();
 const justAdded = ref(false);
 const cartBtn = ref<HTMLButtonElement | null>(null);
+
+const isFree = computed(() => Number(props.product.price) === 0);
 
 const discountPct = computed(() => {
   if (!props.product.comparePrice) return 0;

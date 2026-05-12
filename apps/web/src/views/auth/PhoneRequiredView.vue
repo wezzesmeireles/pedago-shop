@@ -39,9 +39,11 @@
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/stores/auth.store';
 
 const router = useRouter();
 const route = useRoute();
+const auth = useAuthStore();
 
 const phone = ref('');
 const saving = ref(false);
@@ -60,6 +62,7 @@ async function save() {
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     await supabase.from('profiles').update({ phone: digits, updated_at: new Date().toISOString() }).eq('id', user.id);
+    await auth.fetchMe();
   }
   saving.value = false;
   router.push(redirect);

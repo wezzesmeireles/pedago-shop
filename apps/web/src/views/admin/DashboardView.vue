@@ -207,6 +207,58 @@
       </div>
     </div>
 
+    <!-- ── WhatsApp ───────────────────────────────────────────── -->
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#25D366">
+            <svg class="w-5 h-5 fill-white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          </div>
+          <div>
+            <h2 class="font-bold text-slate-900">WhatsApp</h2>
+            <p v-if="whatsappNumber" class="text-sm text-slate-500 font-mono">+{{ whatsappNumber }}</p>
+            <p v-else class="text-sm text-slate-400 italic">Número não configurado</p>
+          </div>
+        </div>
+        <button v-if="!editingWhatsapp" @click="startEditWhatsapp"
+          class="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-xl transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          Alterar número
+        </button>
+      </div>
+
+      <!-- Inline edit form -->
+      <div v-if="editingWhatsapp" class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div class="flex-1 relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-mono select-none">+</span>
+          <input
+            v-model="whatsappInput"
+            type="tel"
+            placeholder="5511999999999"
+            class="w-full border border-emerald-300 rounded-xl pl-7 pr-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+            @keydown.enter="saveWhatsapp"
+            @keydown.esc="editingWhatsapp = false"
+            autofocus
+          />
+        </div>
+        <div class="flex gap-2">
+          <button @click="saveWhatsapp" :disabled="savingWhatsapp"
+            class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors disabled:opacity-60">
+            <svg v-if="savingWhatsapp" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            {{ savingWhatsapp ? 'Salvando...' : 'Salvar' }}
+          </button>
+          <button @click="editingWhatsapp = false"
+            class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+            Cancelar
+          </button>
+        </div>
+      </div>
+      <p v-if="whatsappSaved" class="mt-2 text-xs text-emerald-600 font-medium flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        Número atualizado com sucesso!
+      </p>
+    </div>
+
     <!-- ── Últimos Pedidos + Mais Vendidos ────────────────────── -->
     <div class="grid grid-cols-1 xl:grid-cols-5 gap-5">
       <!-- Últimos Pedidos -->
@@ -296,10 +348,40 @@
 import { ref, computed, onMounted } from 'vue';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSiteConfigStore } from '@/stores/site-config.store';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 
 const auth = useAuthStore();
+const siteConfigStore = useSiteConfigStore();
 const loading = ref(true);
+
+// ── WhatsApp ────────────────────────────────────────────────
+const whatsappNumber = computed(() => siteConfigStore.config.socialLinks?.whatsapp ?? '');
+const editingWhatsapp = ref(false);
+const whatsappInput = ref('');
+const savingWhatsapp = ref(false);
+const whatsappSaved = ref(false);
+
+function startEditWhatsapp() {
+  whatsappInput.value = whatsappNumber.value;
+  editingWhatsapp.value = true;
+  whatsappSaved.value = false;
+}
+
+async function saveWhatsapp() {
+  savingWhatsapp.value = true;
+  try {
+    await siteConfigStore.update({
+      ...siteConfigStore.config,
+      socialLinks: { ...siteConfigStore.config.socialLinks, whatsapp: whatsappInput.value.replace(/\D/g, '') },
+    });
+    editingWhatsapp.value = false;
+    whatsappSaved.value = true;
+    setTimeout(() => { whatsappSaved.value = false; }, 3000);
+  } finally {
+    savingWhatsapp.value = false;
+  }
+}
 
 const revenueFilter = ref<'day' | 'week' | 'month' | 'year'>('month');
 const stats = ref({ revenue: { total: 0, day: 0, week: 0, month: 0, year: 0 }, orders: { total: 0, month: 0, pending: 0 }, users: { total: 0 } });
