@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
 
   const productIds = items.map((i: any) => i.productId);
   const { data: products } = await supabase
-    .from('products').select('id, name, price')
+    .from('products').select('id, name, price, delivery_link')
     .in('id', productIds).eq('is_active', true).is('deleted_at', null);
 
   if (!products || products.length !== productIds.length) {
@@ -157,6 +157,20 @@ Deno.serve(async (req) => {
   const cfg = await getSiteConfig(supabase);
 
   if (isFreeOrder) {
+    // Criar download_tokens para cada item (validade 30 anos)
+    const tokenExpires = new Date();
+    tokenExpires.setFullYear(tokenExpires.getFullYear() + 30);
+    for (const item of orderItems ?? []) {
+      const prod = productMap.get((item as any).product_id);
+      await supabase.from('download_tokens').insert({
+        order_id: order.id,
+        order_item_id: item.id,
+        max_downloads: 99999,
+        expires_at: tokenExpires.toISOString(),
+        delivery_link: prod?.delivery_link ?? null,
+      });
+    }
+
     const itemsList = buildItemsList(orderItems ?? []);
     const clientName = profile?.name ?? user.email ?? 'Desconhecido';
     await tg(cfg,
