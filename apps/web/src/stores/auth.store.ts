@@ -120,6 +120,12 @@ export const useAuthStore = defineStore('auth', () => {
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
       if (signInErr) throw new Error('Conta criada com sucesso! Faça login para continuar.');
       await fetchMe();
+
+      // Fallback: se a edge function não salvou o phone, salvar do client diretamente
+      if (phone && user.value && !user.value.phone) {
+        await supabase.from('profiles').update({ phone, updated_at: new Date().toISOString() }).eq('id', user.value.id);
+        await fetchMe();
+      }
     } finally {
       loading.value = false;
     }

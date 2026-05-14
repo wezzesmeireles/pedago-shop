@@ -99,21 +99,14 @@ async function handleLogin() {
   loading.value = true;
   try {
     const result: any = await auth.login(form.email, form.password);
-    
-    // If needs phone (existing user without phone), redirect to phone required
-    if (result?.needsPhone) {
-      const redirect = route.query.redirect as string | undefined;
+    const redirect = route.query.redirect as string | undefined;
+
+    if (result?.needsPhone || !auth.user?.phone) {
       router.push({ name: 'phone-required', query: redirect ? { redirect } : {} });
       return;
     }
-    
-    const redirect = route.query.redirect as string | undefined;
-    const { data: profile } = await supabase.from('profiles').select('phone').eq('id', auth.user!.id).single();
-    if (!profile?.phone) {
-      router.push({ name: 'phone-required', query: redirect ? { redirect } : {} });
-    } else {
-      router.push(redirect || '/');
-    }
+
+    router.push(redirect || '/');
   } catch (err: any) {
     const code = (err?.code || err?.error_code || '').toLowerCase();
     const raw = (err?.message || err?.response?.data?.message || '').toLowerCase();
