@@ -40,11 +40,12 @@ export default async function handler(req: any, res: any) {
   const slug = String(req.query.slug ?? '').replace(/[^a-z0-9-]/gi, '');
   const isBot = BOT_UA.test(ua);
 
-  // Usuário normal: busca o index.html do SPA e serve inline
-  // (URL do browser permanece /produto/:slug — Vue router roda normalmente)
+  // Usuário normal: serve index.html inline (arquivo estático — sem loop)
+  // /index.html é arquivo estático no Vercel; não passa pela função novamente.
+  // URL do browser permanece igual (/produto/:slug ou /) — Vue router roda normalmente.
   if (!isBot) {
     try {
-      const spaRes = await fetch(SITE_URL, { headers: { 'user-agent': 'vercel-og-proxy' } });
+      const spaRes = await fetch(`${SITE_URL}/index.html`, { headers: { 'user-agent': 'vercel-og-proxy' } });
       const html = await spaRes.text();
       res.setHeader('Content-Type', 'text/html;charset=utf-8');
       res.setHeader('Cache-Control', 'no-store');
@@ -71,7 +72,8 @@ export default async function handler(req: any, res: any) {
   const defaultTitle: string = cfg.seoTitle ?? storeName;
 
   const title = product ? `${product.name} | ${storeName}` : defaultTitle;
-  const desc = String(product?.description ?? defaultDesc).slice(0, 160);
+  const rawDesc = product?.description?.trim();
+  const desc = String(rawDesc || (product ? `Baixe "${product.name}" em PDF. Entrega digital — receba imediatamente após o pagamento.` : defaultDesc)).slice(0, 160);
   const image: string = product?.cover_image_url ?? defaultImage;
   const url = slug ? `${SITE_URL}/produto/${slug}` : SITE_URL;
 
