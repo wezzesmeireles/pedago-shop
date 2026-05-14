@@ -1,5 +1,6 @@
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
+// anon key é pública — já está no bundle JS do frontend
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? 'https://hdldxgbvkjcoesmfoglm.supabase.co';
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? 'sb_publishable_W64H0XMozN-8ll1QaaNPyw_JC7SkAhF';
 const SITE_URL = 'https://sitepedagogico.com.br';
 
 async function supaGet(path: string) {
