@@ -381,32 +381,31 @@ function debouncedLoad() {
 }
 
 async function loadUsers(page = 1) {
-  const [{ data, error }, { data: phones }] = await Promise.all([
-    supabase.rpc('get_all_users_for_admin'),
-    supabase.from('profiles').select('id, phone'),
-  ]);
-  if (error) { console.error('loadUsers error:', error); return; }
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? '';
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-  const phoneMap = new Map((phones ?? []).map((p: any) => [p.id, p.phone]));
-  let filtered = (data ?? []).map((u: any) => ({ ...u, phone: phoneMap.get(u.id) ?? null }));
-  if (search.value) {
-    const q = search.value.toLowerCase();
-    filtered = filtered.filter((u: any) =>
-      u.email?.toLowerCase().includes(q) || u.name?.toLowerCase().includes(q),
-    );
-  }
+  const url = new URL(`${baseUrl}/functions/v1/admin-users`);
+  url.searchParams.set('page', String(page));
+  url.searchParams.set('limit', '20');
+  if (search.value) url.searchParams.set('search', search.value);
 
-  const limit = 20;
-  const from = (page - 1) * limit;
-  totalPages.value = Math.ceil(filtered.length / limit);
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
+  });
+  if (!res.ok) { console.error('loadUsers error:', res.status, await res.text()); return; }
+  const data = await res.json();
+
+  totalPages.value = Math.max(1, Math.ceil((data.total ?? 0) / 20));
   currentPage.value = page;
 
-  users.value = filtered.slice(from, from + limit).map((u: any) => ({
+  users.value = (data.items ?? []).map((u: any) => ({
     ...u,
     avatarUrl: u.avatar_url,
     isActive: u.is_active,
     createdAt: u.created_at,
-    ordersCount: Number(u.orders_count ?? 0),
+    ordersCount: Number(u.ordersCount ?? 0),
     phone: u.phone ?? null,
   }));
 }
@@ -441,8 +440,11 @@ async function saveAddPhone() {
       addPhoneError.value = data?.error ?? 'Erro ao salvar. Tente novamente.';
       return;
     }
+    // Update local state immediately so phone shows without waiting for loadUsers
+    const idx = (users.value as any[]).findIndex((u: any) => u.id === addPhoneUser.value.id);
+    if (idx !== -1) (users.value as any[])[idx] = { ...(users.value as any[])[idx], phone: digits };
     addPhoneOpen.value = false;
-    await loadUsers(currentPage.value);
+    loadUsers(currentPage.value);
   } catch (e: any) {
     addPhoneError.value = 'Erro ao salvar. Tente novamente.';
   } finally {
