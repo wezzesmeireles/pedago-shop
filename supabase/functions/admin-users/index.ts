@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
       email: authUser.email ?? '',
       name: profile.name ?? authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? '',
       avatar_url: profile.avatar_url ?? authUser.user_metadata?.avatar_url ?? '',
+      phone: profile.phone ?? null,
       role: profile.role ?? 'CUSTOMER',
       is_active: profile.is_active ?? true,
       created_at: authUser.created_at,
