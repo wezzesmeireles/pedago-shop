@@ -26,6 +26,31 @@ Deno.serve(async (req) => {
   const admin = await requireAdmin(req);
   if (!admin) return new Response(JSON.stringify({ message: 'Acesso negado.' }), { status: 403, headers: corsHeaders });
 
+  // PATCH — update phone for any user (service role bypasses RLS)
+  if (req.method === 'PATCH') {
+    try {
+      const { userId, phone } = await req.json();
+      if (!userId || !phone) {
+        return new Response(JSON.stringify({ error: 'userId e phone são obrigatórios.' }), { status: 400, headers: corsHeaders });
+      }
+      const digits = String(phone).replace(/\D/g, '');
+      if (digits.length < 10) {
+        return new Response(JSON.stringify({ error: 'Número inválido.' }), { status: 400, headers: corsHeaders });
+      }
+      const { error } = await supabase
+        .from('profiles')
+        .update({ phone: digits, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+      if (error) {
+        console.error('[admin-users PATCH] update error:', error);
+        return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+      }
+      return new Response(JSON.stringify({ ok: true, phone: digits }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+    }
+  }
+
   const url = new URL(req.url);
   const page = parseInt(url.searchParams.get('page') ?? '1');
   const limit = parseInt(url.searchParams.get('limit') ?? '20');
