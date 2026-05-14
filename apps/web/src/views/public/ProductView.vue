@@ -153,15 +153,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useHead } from '@vueuse/head';
 import { useRoute, useRouter } from 'vue-router';
 import { supabase } from '@/lib/supabase';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { useSiteConfigStore } from '@/stores/site-config.store';
 
 const route = useRoute();
 const router = useRouter();
 const cart = useCartStore();
 const auth = useAuthStore();
+const siteConfig = useSiteConfigStore();
 
 const product = ref<any>(null);
 const loading = ref(true);
@@ -170,6 +173,40 @@ const claiming = ref(false);
 const claimError = ref('');
 
 const isFree = computed(() => product.value && Number(product.value.price) === 0);
+
+useHead(computed(() => {
+  const p = product.value;
+  const cfg = siteConfig.config;
+  const title = p ? `${p.name} | ${cfg.storeName}` : (cfg.seoTitle || cfg.storeName);
+  const description = (p?.description || cfg.seoDescription || '').substring(0, 160);
+  const image = p?.coverImageUrl || cfg.logoUrl || '';
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const url = p ? `${origin}/produto/${p.slug}` : origin;
+  const price = p ? String(Number(p.price).toFixed(2)) : '';
+  return {
+    title,
+    meta: [
+      { name: 'description', content: description },
+      { property: 'og:title', content: title },
+      { property: 'og:description', content: description },
+      { property: 'og:image', content: image },
+      { property: 'og:image:width', content: '1200' },
+      { property: 'og:image:height', content: '630' },
+      { property: 'og:url', content: url },
+      { property: 'og:type', content: 'product' },
+      { property: 'og:site_name', content: cfg.storeName },
+      { property: 'product:price:amount', content: price },
+      { property: 'product:price:currency', content: 'BRL' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: title },
+      { name: 'twitter:description', content: description },
+      { name: 'twitter:image', content: image },
+    ],
+    link: [
+      { rel: 'canonical', href: url },
+    ],
+  };
+}));
 
 function loadInstagramEmbed() {
   const win = window as any;

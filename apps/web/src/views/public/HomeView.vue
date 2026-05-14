@@ -386,6 +386,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useHead } from '@vueuse/head';
 import { supabase } from '@/lib/supabase';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
@@ -396,6 +397,30 @@ import AnimatedList from '@/components/ui/AnimatedList.vue';
 
 const siteConfigStore = useSiteConfigStore();
 const cart = useCartStore();
+
+useHead(computed(() => {
+  const cfg = siteConfigStore.config;
+  const title = cfg.seoTitle || cfg.storeName || 'Site Pedagógico';
+  const description = cfg.seoDescription || cfg.storeDescription || '';
+  const image = cfg.logoUrl || cfg.bannerImageUrl || (cfg.banners?.[0]?.imageUrl) || '';
+  const url = typeof window !== 'undefined' ? window.location.origin : '';
+  return {
+    title,
+    meta: [
+      { name: 'description', content: description },
+      { property: 'og:title', content: title },
+      { property: 'og:description', content: description },
+      { property: 'og:image', content: image },
+      { property: 'og:url', content: url },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:site_name', content: cfg.storeName },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: title },
+      { name: 'twitter:description', content: description },
+      { name: 'twitter:image', content: image },
+    ],
+  };
+}));
 
 const categories = ref<any[]>([]);
 const categoriesWithProducts = ref<any[]>([]);

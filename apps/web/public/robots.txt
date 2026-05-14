@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /minha-conta
+Disallow: /checkout
+Disallow: /auth
+
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+Disallow: /minha-conta
+Disallow: /checkout
+Disallow: /auth
