@@ -59,12 +59,29 @@ async function save() {
     return;
   }
   saving.value = true;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    await supabase.from('profiles').update({ phone: digits, updated_at: new Date().toISOString() }).eq('id', user.id);
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      phoneError.value = 'Sessão expirada. Faça login novamente.';
+      return;
+    }
+    const { error } = await supabase
+      .from('profiles')
+      .update({ phone: digits, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+    if (error) {
+      console.error('[phone-required] update error:', error);
+      phoneError.value = 'Erro ao salvar. Tente novamente.';
+      return;
+    }
     await auth.fetchMe();
+    if (!auth.user?.phone) {
+      phoneError.value = 'Número não foi salvo. Tente novamente.';
+      return;
+    }
+    router.push(redirect);
+  } finally {
+    saving.value = false;
   }
-  saving.value = false;
-  router.push(redirect);
 }
 </script>
