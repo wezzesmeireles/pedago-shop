@@ -242,6 +242,7 @@
             class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
         </div>
+        <p v-if="addPhoneError" class="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{{ addPhoneError }}</p>
         <button
           @click="saveAddPhone"
           :disabled="addPhoneSaving || !addPhoneValue.trim()"
@@ -349,6 +350,7 @@ const addPhoneOpen = ref(false);
 const addPhoneUser = ref<any>(null);
 const addPhoneValue = ref('');
 const addPhoneSaving = ref(false);
+const addPhoneError = ref('');
 
 const pageRange = computed(() => {
   const range = [];
@@ -417,17 +419,35 @@ async function toggleActive(user: any) {
 function openAddPhone(user: any) {
   addPhoneUser.value = user;
   addPhoneValue.value = user.phone ?? '';
+  addPhoneError.value = '';
   addPhoneOpen.value = true;
 }
 
 async function saveAddPhone() {
   if (!addPhoneValue.value.trim() || !addPhoneUser.value) return;
-  addPhoneSaving.value = true;
+  addPhoneError.value = '';
   const digits = addPhoneValue.value.replace(/\D/g, '');
-  await supabase.from('profiles').update({ phone: digits, updated_at: new Date().toISOString() }).eq('id', addPhoneUser.value.id);
-  addPhoneSaving.value = false;
-  addPhoneOpen.value = false;
-  await loadUsers(currentPage.value);
+  if (digits.length < 10) {
+    addPhoneError.value = 'Informe um número válido com DDD.';
+    return;
+  }
+  addPhoneSaving.value = true;
+  try {
+    const { data, error } = await supabase.functions.invoke('admin-users', {
+      method: 'PATCH',
+      body: { userId: addPhoneUser.value.id, phone: digits },
+    });
+    if (error || data?.error) {
+      addPhoneError.value = data?.error ?? 'Erro ao salvar. Tente novamente.';
+      return;
+    }
+    addPhoneOpen.value = false;
+    await loadUsers(currentPage.value);
+  } catch (e: any) {
+    addPhoneError.value = 'Erro ao salvar. Tente novamente.';
+  } finally {
+    addPhoneSaving.value = false;
+  }
 }
 
 function openWhatsApp(user: any) {
