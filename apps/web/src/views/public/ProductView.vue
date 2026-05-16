@@ -1,12 +1,12 @@
 <template>
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center py-20">
       <div class="animate-spin w-10 h-10 border-4 border-primary-600 border-t-transparent rounded-full"></div>
     </div>
 
     <!-- Product -->
-    <div v-else-if="product" class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+    <div v-else-if="product" class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
       <!-- Images -->
       <div class="stagger-item" style="--i:0">
         <div class="rounded-3xl overflow-hidden aspect-square shadow-xl bg-gray-100 mb-4">

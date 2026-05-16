@@ -22,7 +22,7 @@
       />
 
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-24 sm:h-24 gap-4">
+        <div class="flex items-center justify-between h-16 sm:h-20 gap-4">
 
           <!-- Search -->
           <div class="flex-1 max-w-xs hidden md:block">
@@ -54,7 +54,7 @@
             <img
               v-if="config.logoUrl"
               :src="config.logoUrl"
-              class="h-16 sm:h-14 w-auto object-contain drop-shadow-md group-hover:drop-shadow-lg transition-all"
+              class="h-10 sm:h-13 w-auto object-contain drop-shadow-md group-hover:drop-shadow-lg transition-all"
               style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;"
               :alt="config.storeName"
             />
@@ -91,7 +91,7 @@
             <!-- Cart -->
             <button
               @click="openCart"
-              class="relative p-2.5 text-gray-600 hover:text-primary-600 hover:bg-primary-50
+              class="relative min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-600 hover:text-primary-600 hover:bg-primary-50
                      rounded-full transition-all duration-200 active:scale-90"
               aria-label="Carrinho"
             >
@@ -128,12 +128,12 @@
               <div class="relative" ref="userMenuRef">
                 <button
                   @click="userMenuOpen = !userMenuOpen"
-                  class="flex items-center gap-2 p-1.5 rounded-full hover:bg-gray-100 transition-colors active:scale-95"
+                  class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors active:scale-95 min-w-[44px] min-h-[44px] justify-center"
                 >
-                  <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="w-8 h-8 rounded-full ring-2 ring-primary-200" />
+                  <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="w-9 h-9 rounded-full ring-2 ring-primary-200" />
                   <div
                     v-else
-                    class="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500
+                    class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500
                            flex items-center justify-center text-white font-bold text-sm shadow"
                   >
                     {{ auth.user?.name?.[0]?.toUpperCase() }}
@@ -186,7 +186,7 @@
             <!-- Mobile toggle -->
             <button
               @click="mobileMenuOpen = !mobileMenuOpen"
-              class="md:hidden p-2.5 text-gray-600 hover:bg-gray-100 rounded-full transition-all active:scale-90"
+              class="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-full transition-all active:scale-90"
               aria-label="Menu"
             >
               <transition name="icon-swap" mode="out-in">
@@ -202,18 +202,19 @@
         </div>
 
         <!-- Mobile search bar — always visible -->
-        <div class="md:hidden pb-3 pt-1 border-t border-gray-100">
+        <div class="md:hidden pb-2 pt-1 border-t border-gray-100">
           <div class="relative">
             <input
               v-model="searchQuery"
               type="text"
               placeholder="O que está buscando?"
-              class="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl
+              class="w-full pl-9 pr-3 py-3 text-base border border-gray-200 rounded-xl
                      focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100
                      bg-gray-50 placeholder:text-gray-400"
+              style="-webkit-text-size-adjust: 100%; font-size: 16px;"
               @keyup.enter="doSearch"
             />
-            <svg class="absolute left-3 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="absolute left-3 top-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
             </svg>
           </div>
@@ -237,13 +238,13 @@
 
         <!-- Mobile menu -->
         <transition name="mobile-menu">
-          <div v-if="mobileMenuOpen" class="md:hidden pb-4 border-t border-gray-100 pt-3 space-y-1">
+          <div v-if="mobileMenuOpen" class="md:hidden pb-4 border-t border-gray-100 pt-2 space-y-0.5">
             <RouterLink
               v-for="link in navLinks"
               :key="link.to"
               :to="link.to"
-              class="flex items-center gap-2 py-2.5 px-3 text-gray-700 font-medium text-sm
-                     rounded-xl hover:bg-gray-50 transition-colors"
+              class="flex items-center gap-2 py-3.5 px-3 text-gray-700 font-medium text-base
+                     rounded-xl hover:bg-gray-50 transition-colors active:bg-gray-100"
               @click="mobileMenuOpen = false"
             >
               {{ link.label }}
@@ -251,8 +252,8 @@
             <RouterLink
               v-if="auth.isLoggedIn"
               to="/minha-conta/pedidos"
-              class="flex items-center gap-2 py-2.5 px-3 text-primary-600 font-medium text-sm
-                     rounded-xl hover:bg-primary-50 transition-colors"
+              class="flex items-center gap-2 py-3.5 px-3 text-primary-600 font-medium text-base
+                     rounded-xl hover:bg-primary-50 transition-colors active:bg-primary-100"
               @click="mobileMenuOpen = false"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,7 +278,7 @@
     <!-- Trust Badges -->
     <section class="bg-gray-50 border-t border-gray-100 py-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div
             v-for="(badge, i) in trustBadges"
             :key="badge.label"
