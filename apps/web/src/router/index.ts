@@ -5,7 +5,7 @@ let authReady = false;
 
 const router = createRouter({
   history: createWebHistory(),
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: () => ({ top: 0, behavior: 'instant' as ScrollBehavior }),
   routes: [
     // Public
     {
