@@ -27,18 +27,18 @@
 
         <!-- Prev/Next arrows -->
         <button @click="prevBanner"
-          class="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full
+          class="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full
                  bg-white/20 backdrop-blur-md hover:bg-white/40 flex items-center justify-center
-                 text-white transition-all shadow-lg border border-white/30"
+                 text-white transition-all shadow-lg border border-white/30 active:scale-90"
           aria-label="Anterior">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/>
           </svg>
         </button>
         <button @click="nextBanner"
-          class="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full
+          class="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full
                  bg-white/20 backdrop-blur-md hover:bg-white/40 flex items-center justify-center
-                 text-white transition-all shadow-lg border border-white/30"
+                 text-white transition-all shadow-lg border border-white/30 active:scale-90"
           aria-label="Próximo">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>

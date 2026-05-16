@@ -8,7 +8,7 @@
       <!-- Mobile filter toggle -->
       <button
         @click="filtersOpen = !filtersOpen"
-        class="lg:hidden flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all"
+        class="lg:hidden flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all active:bg-gray-100 min-h-[44px]"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/>
@@ -35,7 +35,8 @@
             <div>
               <label class="text-sm font-medium text-gray-700 block mb-1">Buscar</label>
               <input v-model="filters.search" @input="debouncedFetch" type="text" placeholder="Nome, tema..."
-                class="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
+                class="w-full rounded-xl border border-gray-300 px-3 py-3 text-base focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                style="font-size: 16px;" />
             </div>
 
             <!-- Category -->

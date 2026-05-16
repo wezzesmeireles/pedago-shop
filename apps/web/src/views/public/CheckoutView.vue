@@ -190,9 +190,9 @@
                   v-if="pixQrBase64"
                   :src="`data:image/png;base64,${pixQrBase64}`"
                   alt="QR Code PIX"
-                  class="w-52 h-52 block"
+                  class="w-44 h-44 sm:w-52 sm:h-52 block"
                 />
-                <div v-else class="w-52 h-52 flex items-center justify-center">
+                <div v-else class="w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center">
                   <div class="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full"></div>
                 </div>
 
@@ -227,6 +227,7 @@
               :value="pixQrCode"
               readonly
               class="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-600 truncate min-w-0"
+              style="font-size: 16px;"
             />
             <button
               @click="copyText(pixQrCode)"

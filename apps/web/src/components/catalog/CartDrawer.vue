@@ -25,7 +25,7 @@
           </div>
           <button
             @click="$emit('close')"
-            class="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 rounded-xl transition-all active:scale-90"
+            class="w-11 h-11 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 rounded-xl transition-all active:scale-90"
             aria-label="Fechar carrinho"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +84,7 @@
             </div>
             <button
               @click="cart.remove(item.productId)"
-              class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 self-start active:scale-90 flex-shrink-0"
+              class="p-2.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200 self-start active:scale-90 flex-shrink-0"
               aria-label="Remover item"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

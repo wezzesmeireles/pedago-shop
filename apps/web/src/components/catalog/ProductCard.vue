@@ -29,24 +29,24 @@
       <div class="absolute top-1.5 left-1.5 flex flex-col gap-1">
         <span
           v-if="isFree"
-          class="bg-gradient-to-r from-emerald-500 to-green-400 text-white text-[9px] font-bold
+          class="bg-gradient-to-r from-emerald-500 to-green-400 text-white text-[10px] font-bold
                  px-1.5 py-0.5 rounded-full leading-none shadow"
         >GRÁTIS</span>
         <span
           v-else-if="product.comparePrice"
-          class="bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-bold
+          class="bg-gradient-to-r from-red-500 to-pink-500 text-white text-[10px] font-bold
                  px-1.5 py-0.5 rounded-full leading-none shadow"
         >OFERTA</span>
         <span
           v-else-if="product.isFeatured"
-          class="bg-gradient-to-r from-amber-400 to-yellow-300 text-yellow-900 text-[9px]
+          class="bg-gradient-to-r from-amber-400 to-yellow-300 text-yellow-900 text-[10px]
                  font-bold px-1.5 py-0.5 rounded-full leading-none shadow"
         >★ TOP</span>
       </div>
 
       <!-- Discount % badge -->
       <div v-if="product.comparePrice && !isFree" class="absolute top-1.5 right-1.5">
-        <span class="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow">
+        <span class="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow">
           -{{ discountPct }}%
         </span>
       </div>
@@ -64,9 +64,9 @@
     </RouterLink>
 
     <!-- Info -->
-    <div class="p-2.5 flex flex-col flex-1">
+    <div class="p-3 flex flex-col flex-1">
       <RouterLink :to="`/produto/${product.slug}`">
-        <h3 class="text-xs font-medium text-gray-700 leading-snug line-clamp-2 mb-2
+        <h3 class="text-xs sm:text-sm font-medium text-gray-700 leading-snug line-clamp-2 mb-2
                    group-hover:text-violet-600 transition-colors duration-200 min-h-[2.5rem]">
           {{ product.name }}
         </h3>
@@ -87,7 +87,7 @@
           ref="cartBtn"
           @click.prevent="addToCart"
           :disabled="justAdded"
-          class="w-full font-bold text-xs py-2 rounded-lg transition-all duration-200
+          class="w-full font-bold text-xs py-2.5 rounded-lg transition-all duration-200
                  flex items-center justify-center gap-1.5 active:scale-95
                  focus:outline-none focus:ring-2 focus:ring-offset-1 relative overflow-hidden"
           :class="justAdded
