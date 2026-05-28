@@ -95,9 +95,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import { useCartStore } from '@/stores/cart.store';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const route = useRoute();
 const cart = useCartStore();
@@ -106,20 +105,16 @@ const loading = ref(true);
 const awaitingPayment = ref(false);
 
 let pollInterval: ReturnType<typeof setInterval>;
-let realtimeChannel: RealtimeChannel | null = null;
+
+const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
 
 function downloadFile(_item: any, token: any) {
-  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download?token=${token.token}`;
-  window.open(url, '_blank');
-  token.download_count++;
+  window.open(`${apiBase}/downloads/${token.token}`, '_blank');
+  token.downloadCount = (token.downloadCount ?? 0) + 1;
 }
 
 async function loadOrder() {
-  const { data } = await supabase
-    .from('orders')
-    .select('*, order_items(*, products(file_key, cover_image_url), download_tokens(*))')
-    .eq('id', route.params.orderId as string)
-    .single();
+  const data = await api.get<any>(`/orders/${route.params.orderId}`);
   if (data) order.value = data;
   return data?.status;
 }
@@ -127,27 +122,14 @@ async function loadOrder() {
 function startWaiting(orderId: string) {
   awaitingPayment.value = true;
 
-  realtimeChannel = supabase
-    .channel(`success-order-${orderId}`)
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, async (payload) => {
-      if (payload.new?.status === 'PAID') {
-        clearInterval(pollInterval);
-        await loadOrder();
-        awaitingPayment.value = false;
-      }
-    })
-    .subscribe();
-
   let attempts = 0;
   pollInterval = setInterval(async () => {
     attempts++;
     try {
-      // Force server-side MP status check for this specific order
-      await supabase.functions.invoke('reconcile-orders', { body: { orderId } });
-      const { data } = await supabase.from('orders').select('status').eq('id', orderId).single();
+      const data = await api.get<any>(`/orders/${orderId}`);
       if (data?.status === 'PAID') {
         clearInterval(pollInterval);
-        await loadOrder();
+        order.value = data;
         awaitingPayment.value = false;
       }
     } catch {}
@@ -162,8 +144,6 @@ onMounted(async () => {
   cart.clear();
   const orderId = route.params.orderId as string;
   try {
-    // Immediately reconcile this specific order (MP may have just redirected back)
-    await supabase.functions.invoke('reconcile-orders', { body: { orderId } }).catch(() => {});
     const status = await loadOrder();
     loading.value = false;
     if (status === 'AWAITING_PAYMENT') {
@@ -176,6 +156,5 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearInterval(pollInterval);
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
 </script>

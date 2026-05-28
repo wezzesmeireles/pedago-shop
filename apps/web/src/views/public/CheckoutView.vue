@@ -286,10 +286,9 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import { useCartStore } from '@/stores/cart.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import PixLogo from '@/components/ui/PixLogo.vue';
 
 const router = useRouter();
@@ -315,7 +314,6 @@ const cardCheckMsg = ref<{ ok: boolean; text: string } | null>(null);
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
-let realtimeChannel: RealtimeChannel | null = null;
 
 const howToPay = [
   'Abra o app do seu banco',
@@ -342,34 +340,17 @@ async function createOrder() {
   creating.value = true;
   errorMessage.value = '';
   try {
-    const { data: funcData, error: funcErr } = await supabase.functions.invoke('create-order', {
-      body: {
-        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        paymentMethod: selectedMethod.value,
-      },
+    const funcData = await api.post<any>('/orders', {
+      items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      paymentMethod: selectedMethod.value,
     });
-
-    if (funcErr) {
-      let msg = 'Erro ao processar pagamento.';
-      try {
-        const errBody = await (funcErr as any).context?.json?.();
-        msg = errBody?.error ?? errBody?.message ?? funcErr.message ?? msg;
-      } catch {
-        msg = funcErr.message ?? msg;
-      }
-      throw new Error(msg);
-    }
-
-    if (funcData?.error || funcData?.message) {
-      throw new Error(funcData.error ?? funcData.message);
-    }
 
     if (!funcData?.order) throw new Error('Resposta inválida do servidor.');
 
     orderId.value = funcData.order.id;
 
     if (selectedMethod.value === 'CREDIT_CARD') {
-      const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
+      const url = funcData.payment?.initPoint ?? '';
       if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
       sessionStorage.setItem('pending_order_id', funcData.order.id);
       window.location.href = url;
@@ -393,8 +374,7 @@ async function checkCardPayment() {
   checkingCard.value = true;
   cardCheckMsg.value = null;
   try {
-    await supabase.functions.invoke('reconcile-orders', { body: { orderId: orderId.value } });
-    const { data } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
+    const data = await api.get<any>(`/orders/${orderId.value}`);
     if (data?.status === 'PAID') {
       cart.clear();
       router.push(`/checkout/success/${orderId.value}`);
@@ -418,31 +398,10 @@ function startCountdown() {
 function startPolling() {
   if (!orderId.value) return;
 
-  realtimeChannel = supabase
-    .channel(`order-${orderId.value}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId.value}` },
-      (payload) => {
-        const status = payload.new?.status;
-        if (status === 'PAID') {
-          clearInterval(countdownTimer!);
-          cart.clear();
-          router.push(`/checkout/success/${orderId.value}`);
-        } else if (['CANCELLED', 'EXPIRED'].includes(status ?? '')) {
-          clearInterval(countdownTimer!);
-          errorMessage.value = 'Pagamento cancelado ou expirado.';
-          step.value = 'confirm';
-        }
-      },
-    )
-    .subscribe();
-
   pollingTimer = setInterval(async () => {
     if (!orderId.value) return;
     try {
-      await supabase.functions.invoke('reconcile-orders', { body: {} });
-      const { data } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
+      const data = await api.get<any>(`/orders/${orderId.value}`);
       if (data?.status === 'PAID') {
         clearInterval(pollingTimer!);
         clearInterval(countdownTimer!);
@@ -458,7 +417,6 @@ function startPolling() {
 onUnmounted(() => {
   if (countdownTimer) clearInterval(countdownTimer);
   if (pollingTimer) clearInterval(pollingTimer);
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
 </script>
 

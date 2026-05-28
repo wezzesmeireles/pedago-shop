@@ -116,7 +116,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import AppModal from '@/components/ui/AppModal.vue';
 
 const categories = ref<any[]>([]);
@@ -135,7 +135,7 @@ function openCreate() {
 
 function openEdit(cat: any) {
   editing.value = cat;
-  Object.assign(form, { name: cat.name, slug: cat.slug, description: cat.description || '', imageUrl: cat.image_url || '' });
+  Object.assign(form, { name: cat.name, slug: cat.slug, description: cat.description || '', imageUrl: cat.imageUrl || '' });
   errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -144,15 +144,11 @@ async function save() {
   saving.value = true;
   errorMsg.value = '';
   try {
-    const payload = { name: form.name, slug: form.slug, description: form.description || null, image_url: form.imageUrl || null, updated_at: new Date().toISOString() };
+    const payload = { name: form.name, slug: form.slug, description: form.description || null, isActive: true };
     if (editing.value) {
-      const { error } = await supabase.from('categories').update(payload).eq('id', editing.value.id);
-      if (error) throw new Error(error.message);
+      await api.patch(`/categories/${editing.value.id}`, payload);
     } else {
-      const { data: existing } = await supabase.from('categories').select('id').eq('slug', form.slug).single();
-      if (existing) throw new Error('Slug já existe.');
-      const { error } = await supabase.from('categories').insert({ ...payload, is_active: true });
-      if (error) throw new Error(error.message);
+      await api.post('/categories', payload);
     }
     await loadCategories();
     modalOpen.value = false;
@@ -164,18 +160,13 @@ async function save() {
 }
 
 async function toggleActive(cat: any) {
-  await supabase.from('categories').update({ is_active: !cat.is_active, updated_at: new Date().toISOString() }).eq('id', cat.id);
+  await api.patch(`/categories/${cat.id}`, { isActive: !cat.isActive });
   await loadCategories();
 }
 
 async function loadCategories() {
-  const { data } = await supabase.from('categories').select('*, products(count)').order('sort_order').order('created_at');
-  categories.value = (data ?? []).map((c: any) => ({
-    ...c,
-    isActive: c.is_active,
-    imageUrl: c.image_url,
-    _count: { products: c.products?.[0]?.count ?? 0 },
-  }));
+  const data = await api.get<any[]>('/categories?all=true');
+  categories.value = data ?? [];
 }
 
 async function reorder(cat: any, direction: 'up' | 'down') {
@@ -185,8 +176,8 @@ async function reorder(cat: any, direction: 'up' | 'down') {
   const a = categories.value[idx];
   const b = categories.value[swapIdx];
   await Promise.all([
-    supabase.from('categories').update({ sort_order: swapIdx }).eq('id', a.id),
-    supabase.from('categories').update({ sort_order: idx }).eq('id', b.id),
+    api.patch(`/categories/${a.id}`, { sortOrder: swapIdx }),
+    api.patch(`/categories/${b.id}`, { sortOrder: idx }),
   ]);
   await loadCategories();
 }

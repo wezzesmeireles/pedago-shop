@@ -296,7 +296,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 
@@ -325,19 +325,10 @@ const dateFilterLabel = computed(() => {
 async function openDateFilterModal() {
   loadingDateFilterModal.value = true;
   try {
-    const dateFrom = getDateFrom();
-    let q: any = supabase
-      .from('orders')
-      .select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' });
-
-    if (statusFilter.value) q = q.eq('status', statusFilter.value);
-    if (dateFrom) q = q.gte('created_at', dateFrom);
-
-    const { data } = await q.order('created_at', { ascending: false });
-    dateFilterModalOrders.value = (data ?? []).map((o: any) => ({
-      ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at, paymentMethod: o.payment_method,
-      items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
-    }));
+    const params = new URLSearchParams({ limit: '200' });
+    if (statusFilter.value) params.set('status', statusFilter.value);
+    const result = await api.get<any>(`/orders/admin?${params}`);
+    dateFilterModalOrders.value = result?.orders ?? [];
   } finally {
     loadingDateFilterModal.value = false;
   }
@@ -409,24 +400,14 @@ async function loadOrders(page = 1) {
   loadingOrders.value = true;
   try {
     const limit = 20;
-    const from = (page - 1) * limit;
-    const dateFrom = getDateFrom();
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (statusFilter.value) params.set('status', statusFilter.value);
+    if (search.value) params.set('search', search.value);
 
-    let q: any = supabase
-      .from('orders')
-      .select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' });
-
-    if (statusFilter.value) q = q.eq('status', statusFilter.value);
-    if (search.value) q = q.or(`order_number.ilike.%${search.value}%,customer_email.ilike.%${search.value}%,customer_name.ilike.%${search.value}%`);
-    if (dateFrom) q = q.gte('created_at', dateFrom);
-
-    const { data, count } = await q.order('created_at', { ascending: false }).range(from, from + limit - 1);
-    orders.value = (data ?? []).map((o: any) => ({
-      ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at, paymentMethod: o.payment_method,
-      items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
-    }));
-    totalCount.value = count ?? 0;
-    totalPages.value = Math.ceil((count ?? 0) / limit);
+    const result = await api.get<any>(`/orders/admin?${params}`);
+    orders.value = result?.orders ?? [];
+    totalCount.value = result?.total ?? 0;
+    totalPages.value = Math.ceil((result?.total ?? 0) / limit);
     currentPage.value = page;
   } finally {
     loadingOrders.value = false;
@@ -436,28 +417,15 @@ async function loadOrders(page = 1) {
 async function openDetails(id: string) {
   detailsOpen.value = true; loadingDetail.value = true; selectedOrder.value = null;
   try {
-    const { data } = await supabase.from('orders').select('*, profiles(*), order_items(*, products(id, name, cover_image_url), download_tokens(*))').eq('id', id).single();
-    if (data) selectedOrder.value = {
-      ...data, orderNumber: data.order_number, totalAmount: data.total_amount,
-      customerName: data.customer_name, customerEmail: data.customer_email, createdAt: data.created_at,
-      items: (data.order_items ?? []).map((i: any) => ({
-        ...i, productName: i.product_name, unitPrice: i.unit_price,
-        product: i.products ? { coverImageUrl: i.products.cover_image_url } : null,
-        downloadTokens: (i.download_tokens ?? []).map((t: any) => ({ ...t, downloadCount: t.download_count, maxDownloads: t.max_downloads })),
-      })),
-    };
+    const data = await api.get<any>(`/orders/${id}`);
+    selectedOrder.value = data;
   } finally { loadingDetail.value = false; }
 }
 
 async function updateStatus(id: string, status: string) {
   updatingStatus.value = true;
   try {
-    if (status === 'PAID') {
-      // Use reconcile-orders to properly process payment (creates download tokens, notifies Telegram)
-      await reconcileOrder(id);
-      return;
-    }
-    await supabase.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    await api.patch(`/orders/${id}/status`, { status });
     selectedOrder.value = { ...selectedOrder.value, status };
     await loadOrders(currentPage.value);
   } finally { updatingStatus.value = false; }
@@ -467,12 +435,11 @@ async function reconcileOrder(orderId: string) {
   reconciling.value = true;
   reconcileMsg.value = null;
   try {
-    const { error } = await supabase.functions.invoke('reconcile-orders', { body: { orderId } });
-    if (error) throw error;
+    await api.post(`/orders/${orderId}/reconcile`);
     await loadOrders(currentPage.value);
     if (selectedOrder.value) await openDetails(selectedOrder.value.id);
     reconcileMsg.value = { ok: true, text: 'Verificação concluída. Status atualizado conforme o Mercado Pago.' };
-  } catch (e: any) {
+  } catch {
     reconcileMsg.value = { ok: false, text: 'Erro ao verificar pagamento. Tente novamente.' };
   } finally {
     reconciling.value = false;
@@ -484,11 +451,10 @@ async function reconcileAll() {
   reconciling.value = true;
   reconcileMsg.value = null;
   try {
-    const { error } = await supabase.functions.invoke('reconcile-orders', { body: {} });
-    if (error) throw error;
+    await api.post('/orders/reconcile-all');
     await loadOrders(currentPage.value);
     reconcileMsg.value = { ok: true, text: 'Todos os pedidos pendentes foram verificados junto ao Mercado Pago.' };
-  } catch (e: any) {
+  } catch {
     reconcileMsg.value = { ok: false, text: 'Erro ao reconciliar. Tente novamente.' };
   } finally {
     reconciling.value = false;

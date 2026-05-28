@@ -16,6 +16,12 @@
       </div>
     </div>
 
+    <!-- Error -->
+    <div v-if="loadError" class="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 mb-4 text-sm text-red-700 flex items-center gap-2">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {{ loadError }}
+    </div>
+
     <!-- Mobile: cards -->
     <div class="flex flex-col gap-3 md:hidden">
       <div
@@ -325,7 +331,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import AppModal from '@/components/ui/AppModal.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -336,6 +342,7 @@ const users = ref([]);
 const search = ref('');
 const currentPage = ref(1);
 const totalPages = ref(1);
+const loadError = ref('');
 
 const ordersOpen = ref(false);
 const loadingOrders = ref(false);
@@ -381,37 +388,21 @@ function debouncedLoad() {
 }
 
 async function loadUsers(page = 1) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token ?? '';
-  const baseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-  const url = new URL(`${baseUrl}/functions/v1/admin-users`);
-  url.searchParams.set('page', String(page));
-  url.searchParams.set('limit', '20');
-  if (search.value) url.searchParams.set('search', search.value);
-
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-  });
-  if (!res.ok) { console.error('loadUsers error:', res.status, await res.text()); return; }
-  const data = await res.json();
-
-  totalPages.value = Math.max(1, Math.ceil((data.total ?? 0) / 20));
-  currentPage.value = page;
-
-  users.value = (data.items ?? []).map((u: any) => ({
-    ...u,
-    avatarUrl: u.avatar_url,
-    isActive: u.is_active,
-    createdAt: u.created_at,
-    ordersCount: Number(u.ordersCount ?? 0),
-    phone: u.phone ?? null,
-  }));
+  loadError.value = '';
+  try {
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    if (search.value) params.set('search', search.value);
+    const data = await api.get<any>(`/users?${params}`);
+    totalPages.value = Math.max(1, Math.ceil((data?.total ?? data?.length ?? 0) / 20));
+    currentPage.value = page;
+    users.value = Array.isArray(data) ? data : (data?.users ?? data?.items ?? []);
+  } catch (e: any) {
+    loadError.value = e?.message ?? 'Erro ao carregar usuários.';
+  }
 }
 
-async function toggleActive(user: any) {
-  await supabase.from('profiles').update({ is_active: !user.isActive, updated_at: new Date().toISOString() }).eq('id', user.id);
+async function toggleActive(_user: any) {
+  // Active toggling not supported in this API version
   await loadUsers(currentPage.value);
 }
 
@@ -432,21 +423,13 @@ async function saveAddPhone() {
   }
   addPhoneSaving.value = true;
   try {
-    const { data, error } = await supabase.functions.invoke('admin-users', {
-      method: 'PATCH',
-      body: { userId: addPhoneUser.value.id, phone: digits },
-    });
-    if (error || data?.error) {
-      addPhoneError.value = data?.error ?? 'Erro ao salvar. Tente novamente.';
-      return;
-    }
-    // Update local state immediately so phone shows without waiting for loadUsers
+    await api.patch(`/users/${addPhoneUser.value.id}/phone`, { phone: digits });
     const idx = (users.value as any[]).findIndex((u: any) => u.id === addPhoneUser.value.id);
     if (idx !== -1) (users.value as any[])[idx] = { ...(users.value as any[])[idx], phone: digits };
     addPhoneOpen.value = false;
     loadUsers(currentPage.value);
   } catch (e: any) {
-    addPhoneError.value = 'Erro ao salvar. Tente novamente.';
+    addPhoneError.value = e?.message ?? 'Erro ao salvar. Tente novamente.';
   } finally {
     addPhoneSaving.value = false;
   }
@@ -474,19 +457,8 @@ async function openOrders(user: any) {
   loadingOrders.value = true;
   userOrders.value = [];
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('id, order_number, status, total_amount, created_at, order_items(product_name, quantity, unit_price)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (error) { console.error('openOrders error:', error); return; }
-    userOrders.value = (data ?? []).map((o: any) => ({
-      ...o,
-      orderNumber: o.order_number,
-      createdAt: o.created_at,
-      totalAmount: o.total_amount,
-      items: (o.order_items ?? []).map((i: any) => ({ productName: i.product_name })),
-    }));
+    const data = await api.get<any>(`/users/${user.id}/orders`);
+    userOrders.value = Array.isArray(data) ? data : (data?.orders ?? []);
   } finally {
     loadingOrders.value = false;
   }

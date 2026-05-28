@@ -12,6 +12,8 @@ build/
 .env.*.local
 apps/api/.env
 apps/web/.env
+apps/backend/.env
+docker/.env
 
 # Logs
 *.log

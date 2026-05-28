@@ -387,7 +387,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useHead } from '@vueuse/head';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
@@ -491,11 +491,8 @@ const testimonials = [
   { name: 'Carla M.', role: 'Prof. Ensino Fundamental', text: 'Atividades criativas e coloridas! As crianças amam e eu economizo muito tempo de preparação.' },
 ];
 
-// ── Recent purchases (Edge Function) ─────────────────────
+// ── Recent purchases ──────────────────────────────────────
 const recentPurchases = ref<any[]>([]);
-let realtimeChannel: any = null;
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 function relativeTime(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -507,31 +504,12 @@ function relativeTime(dateStr: string): string {
 
 async function loadRecentPurchases() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/recent-purchases`, {
-      headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
-    });
-    if (!res.ok) return;
-    const data = await res.json();
-    recentPurchases.value = data.map((p: any) => ({
+    const data = await api.get<any[]>('/orders/recent-public').catch(() => []);
+    recentPurchases.value = (data ?? []).map((p: any) => ({
       ...p,
       time: relativeTime(p.paidAt),
     }));
-  } catch (e) {
-    console.error('[recent-purchases]', e);
-  }
-}
-
-function subscribeRealtimePurchases() {
-  realtimeChannel = supabase
-    .channel('public-paid-orders')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
-      const newOrder = payload.new as any;
-      if (newOrder.status === 'PAID') {
-        // Refresh the full list from the edge function
-        loadRecentPurchases();
-      }
-    })
-    .subscribe();
+  } catch { /* silent */ }
 }
 
 const testimonialsExtra = [
@@ -595,38 +573,27 @@ onMounted(async () => {
   resetBannerTimer();
   setupReveal();
   loadRecentPurchases();
-  subscribeRealtimePurchases();
 
   await Promise.allSettled([
     (async () => {
       try {
-        const { data: prods, error } = await supabase
-          .from('products')
-          .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, category_id, categories(id, name, slug, is_active, sort_order)')
-          .eq('is_active', true)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false });
-        if (error) { console.error('categories fetch error:', error); return; }
+        const result = await api.get<any>('/products?limit=100');
+        const prods: any[] = result?.products ?? result ?? [];
         const catMap = new Map<string, any>();
-        for (const p of prods ?? []) {
-          const mapped = { ...p, coverImageUrl: (p as any).cover_image_url, comparePrice: (p as any).compare_price };
-          const cat = (p as any).categories;
-          if (!cat || !cat.is_active) continue;
+        for (const p of prods) {
+          const cat = p.category;
+          if (!cat || !cat.isActive) continue;
           if (!catMap.has(cat.id)) catMap.set(cat.id, { ...cat, products: [] });
-          if (catMap.get(cat.id)!.products.length < 6) catMap.get(cat.id)!.products.push(mapped);
+          if (catMap.get(cat.id)!.products.length < 6) catMap.get(cat.id)!.products.push(p);
         }
         categoriesWithProducts.value = Array.from(catMap.values())
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
       } catch (e) { console.error('categories section error:', e); }
     })(),
     (async () => {
       try {
-        const { data } = await supabase
-          .from('products')
-          .select('id, name, slug, price, compare_price, cover_image_url, sales_count, categories(id, name, slug)')
-          .eq('is_active', true).is('deleted_at', null)
-          .order('created_at', { ascending: false }).limit(24);
-        const mapped = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price }));
+        const result = await api.get<any>('/products?limit=24');
+        const mapped: any[] = result?.products ?? result ?? [];
         atividades.value = mapped;
         groupProduct.value = mapped.find((p: any) => p.name?.toLowerCase().includes('grupo') || Number(p.price) > 20) ?? null;
       } finally { loadingAtividades.value = false; }
@@ -637,7 +604,6 @@ onMounted(async () => {
 onUnmounted(() => {
   observer?.disconnect();
   if (bannerTimer) clearInterval(bannerTimer);
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
 </script>
 

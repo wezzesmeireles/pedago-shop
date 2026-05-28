@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import type { SiteConfigData } from '@sitepedagogico/shared';
 import { DEFAULT_SITE_CONFIG } from '@sitepedagogico/shared';
 
@@ -10,15 +10,12 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
 
   async function fetch() {
     try {
-      const { data } = await supabase.from('site_config').select('value').eq('key', 'global').single();
-      if (data?.value) {
-        const merged = { ...DEFAULT_SITE_CONFIG, ...(data.value as any) };
-        // If DB has no banners or empty banners, keep defaults
-        if (!merged.banners || merged.banners.length === 0) {
-          merged.banners = DEFAULT_SITE_CONFIG.banners;
-        }
-        config.value = merged;
+      const data = await api.get<Partial<SiteConfigData>>('/config');
+      const merged = { ...DEFAULT_SITE_CONFIG, ...data };
+      if (!merged.banners || merged.banners.length === 0) {
+        merged.banners = DEFAULT_SITE_CONFIG.banners;
       }
+      config.value = merged;
       loaded.value = true;
       applyTheme(config.value);
     } catch {
@@ -28,10 +25,7 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
 
   async function update(data: Partial<SiteConfigData>) {
     const merged = { ...config.value, ...data };
-    await supabase.from('site_config').upsert(
-      { key: 'global', value: merged as any, updated_at: new Date().toISOString() },
-      { onConflict: 'key' },
-    );
+    await api.put('/config', merged);
     config.value = merged;
     applyTheme(merged);
     return merged;

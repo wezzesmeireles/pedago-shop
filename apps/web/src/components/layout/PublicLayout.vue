@@ -501,7 +501,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import CartDrawer from '@/components/catalog/CartDrawer.vue';
 
 const auth = useAuthStore();
@@ -540,12 +540,12 @@ async function savePhone() {
     return;
   }
   savingPhone.value = true;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    await supabase.from('profiles').update({ phone: digits, updated_at: new Date().toISOString() }).eq('id', user.id);
+  try {
+    await api.patch('/users/me', { phone: digits });
     await auth.fetchMe();
+  } finally {
+    savingPhone.value = false;
   }
-  savingPhone.value = false;
 }
 
 const { config } = storeToRefs(siteConfigStore);

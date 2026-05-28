@@ -1,0 +1,162 @@
+# ═══════════════════════════════════════════════════════
+# Pedago Shop — Docker Compose Local (tudo em Docker)
+# Uso:
+#   cp docker/.env.local docker/.env
+#   docker compose -f docker/docker-compose.local.yml --env-file docker/.env up --build
+# ═══════════════════════════════════════════════════════
+
+services:
+
+  # ── Infraestrutura ─────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pedago}
+      POSTGRES_USER: ${POSTGRES_USER:-pedago}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pedago_dev}
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    networks:
+      - local-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pedago}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_dev} --appendonly yes
+    volumes:
+      - redis_local_data:/data
+    networks:
+      - local-network
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_dev}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio_local_data:/data
+    networks:
+      - local-network
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - local-network
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin123};
+        mc mb --ignore-existing local/product-covers;
+        mc mb --ignore-existing local/product-previews;
+        mc mb --ignore-existing local/product-files;
+        mc anonymous set public local/product-covers;
+        mc anonymous set public local/product-previews;
+        echo 'Buckets MinIO prontos.';
+        exit 0;
+      "
+
+  # ── Aplicação ──────────────────────────────────────────
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pedago}:${POSTGRES_PASSWORD:-pedago_dev}@postgres:5432/${POSTGRES_DB:-pedago}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_dev}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-local-placeholder}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-local-placeholder}
+      GOOGLE_CALLBACK_URL: http://localhost:3000/auth/google/callback
+      S3_ENDPOINT: minio
+      S3_PORT: 9000
+      S3_USE_SSL: "false"
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      S3_BUCKET_COVERS: product-covers
+      S3_BUCKET_PREVIEWS: product-previews
+      S3_BUCKET_FILES: product-files
+      S3_PUBLIC_URL: http://localhost:9000
+      FRONTEND_URL: http://localhost:5173
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-irSqvmtFF688RIGtbNoACnElJ02Dr5wX37HrWgD2ZNDi3yZwrmLcf9fO8oGzfzyL/uMsmfebtLLNB8mqeMW9xA==}
+      SUPABASE_URL: ${SUPABASE_URL:-https://hdldxgbvkjcoesmfoglm.supabase.co}
+      API_PORT: 3000
+      MERCADO_PAGO_ACCESS_TOKEN: ${MERCADO_PAGO_ACCESS_TOKEN:-}
+      MERCADO_PAGO_WEBHOOK_SECRET: ${MERCADO_PAGO_WEBHOOK_SECRET:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    command: sh -c "prisma db push --accept-data-loss && node dist/main"
+    networks:
+      - local-network
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3000
+        VITE_SUPABASE_URL: https://hdldxgbvkjcoesmfoglm.supabase.co
+        VITE_SUPABASE_ANON_KEY: sb_publishable_W64H0XMozN-8ll1QaaNPyw_JC7SkAhF
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - local-network
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_local_data:
+  redis_local_data:
+  minio_local_data:
+
+networks:
+  local-network:
+    driver: bridge

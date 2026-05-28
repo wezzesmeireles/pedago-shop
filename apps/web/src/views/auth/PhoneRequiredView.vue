@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import { useAuthStore } from '@/stores/auth.store';
 
 const router = useRouter();
@@ -60,26 +60,15 @@ async function save() {
   }
   saving.value = true;
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      phoneError.value = 'Sessão expirada. Faça login novamente.';
-      return;
-    }
-    const { error } = await supabase
-      .from('profiles')
-      .update({ phone: digits, updated_at: new Date().toISOString() })
-      .eq('id', user.id);
-    if (error) {
-      console.error('[phone-required] update error:', error);
-      phoneError.value = 'Erro ao salvar. Tente novamente.';
-      return;
-    }
+    await api.patch('/users/me', { phone: digits });
     await auth.fetchMe();
     if (!auth.user?.phone) {
       phoneError.value = 'Número não foi salvo. Tente novamente.';
       return;
     }
     router.push(redirect);
+  } catch (err: any) {
+    phoneError.value = err?.message || 'Erro ao salvar. Tente novamente.';
   } finally {
     saving.value = false;
   }

@@ -302,9 +302,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import AppModal from '@/components/ui/AppModal.vue';
-import { v4 as uuidv4 } from 'uuid';
 
 const products = ref<any[]>([]);
 const categories = ref<any[]>([]);
@@ -350,16 +349,8 @@ function autoSlug() {
   }
 }
 
-async function ensureUniqueSlug(base: string, excludeId?: string): Promise<string> {
-  let slug = base;
-  let suffix = 2;
-  while (true) {
-    let query = supabase.from('products').select('id').eq('slug', slug).is('deleted_at', null);
-    if (excludeId) query = query.neq('id', excludeId);
-    const { data } = await query.maybeSingle();
-    if (!data) return slug;
-    slug = `${base}-${suffix++}`;
-  }
+function ensureUniqueSlug(base: string, _excludeId?: string): string {
+  return base;
 }
 
 function openCreate() {
@@ -371,8 +362,8 @@ function openCreate() {
 
 function openEdit(product: any) {
   editingProduct.value = product;
-  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.category_id, isActive: product.is_active, isFeatured: product.is_featured, deliveryType: product.delivery_type || 'pdf', deliveryLink: product.delivery_link || '', youtubeUrl: product.youtube_url || '', instagramUrl: product.instagram_url || '' });
-  pdfFile.value = null; coverFile.value = null; coverPreview.value = product.cover_image_url || ''; existingFileKey.value = product.file_key || ''; errorMsg.value = '';
+  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, categoryId: product.categoryId, isActive: product.isActive, isFeatured: product.isFeatured, deliveryType: product.deliveryType || 'pdf', deliveryLink: product.deliveryLink || '', youtubeUrl: product.youtubeUrl || '', instagramUrl: product.instagramUrl || '' });
+  pdfFile.value = null; coverFile.value = null; coverPreview.value = product.coverImageUrl || ''; existingFileKey.value = product.fileKey || ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 
@@ -387,55 +378,36 @@ async function saveProduct() {
   saving.value = true;
   errorMsg.value = '';
   try {
-    let productId: string;
-    let coverUrl = editingProduct.value?.cover_image_url ?? '';
-    let fileKey = editingProduct.value?.file_key ?? '';
-    let fileSize = editingProduct.value?.file_size ?? 0;
+    let coverImageUrl = editingProduct.value?.coverImageUrl ?? '';
+    let fileKey = editingProduct.value?.fileKey ?? '';
 
-    // Upload cover image first
     if (coverFile.value) {
-      const ext = coverFile.value.name.split('.').pop() ?? 'jpg';
-      const path = `${uuidv4()}.${ext}`;
-      const { error } = await supabase.storage.from('product-covers').upload(path, coverFile.value, { contentType: coverFile.value.type });
-      if (error) throw new Error('Erro ao fazer upload da capa.');
-      const { data: urlData } = supabase.storage.from('product-covers').getPublicUrl(path);
-      coverUrl = urlData.publicUrl;
+      const result = await api.upload<{ url: string; key: string }>('/uploads/covers', coverFile.value);
+      coverImageUrl = result.url;
     }
 
-    // Upload PDF
     if (pdfFile.value) {
-      const path = `${uuidv4()}.pdf`;
-      const { error } = await supabase.storage.from('product-files').upload(path, pdfFile.value, { contentType: 'application/pdf' });
-      if (error) throw new Error('Erro ao fazer upload do PDF.');
-      fileKey = path;
-      fileSize = pdfFile.value.size;
+      const result = await api.upload<{ url: string; key: string }>('/uploads/files', pdfFile.value);
+      fileKey = result.key;
     }
 
-    const uniqueSlug = await ensureUniqueSlug(
-      toSlug(form.slug || form.name),
-      editingProduct.value?.id,
-    );
+    const uniqueSlug = ensureUniqueSlug(toSlug(form.slug || form.name), editingProduct.value?.id);
 
     const payload: any = {
       name: form.name, slug: uniqueSlug, description: form.description,
-      price: parseFloat(form.price), category_id: form.categoryId || null,
-      is_active: form.isActive, is_featured: form.isFeatured,
-      delivery_type: form.deliveryType,
-      delivery_link: form.deliveryType === 'link' ? form.deliveryLink : null,
-      youtube_url: form.youtubeUrl || null,
-      instagram_url: form.instagramUrl || null,
-      cover_image_url: coverUrl, file_key: fileKey, file_size: fileSize,
-      updated_at: new Date().toISOString(),
+      price: parseFloat(form.price), categoryId: form.categoryId || null,
+      isActive: form.isActive, isFeatured: form.isFeatured,
+      deliveryType: form.deliveryType,
+      deliveryLink: form.deliveryType === 'link' ? form.deliveryLink : null,
+      youtubeUrl: form.youtubeUrl || null,
+      instagramUrl: form.instagramUrl || null,
+      coverImageUrl, fileKey,
     };
 
     if (editingProduct.value) {
-      const { error } = await supabase.from('products').update(payload).eq('id', editingProduct.value.id);
-      if (error) throw new Error(error.message);
-      productId = editingProduct.value.id;
+      await api.patch(`/products/${editingProduct.value.id}`, payload);
     } else {
-      const { data, error } = await supabase.from('products').insert(payload).select().single();
-      if (error) throw new Error(error.message);
-      productId = data.id;
+      await api.post('/products', payload);
     }
 
     await loadData();
@@ -448,7 +420,7 @@ async function saveProduct() {
 }
 
 async function toggleActive(product: any) {
-  await supabase.from('products').update({ is_active: !product.is_active, updated_at: new Date().toISOString() }).eq('id', product.id);
+  await api.patch(`/products/${product.id}`, { isActive: !product.isActive });
   await loadData();
 }
 
@@ -461,8 +433,7 @@ async function deleteProduct() {
   if (!productToDelete.value) return;
   deleting.value = true;
   try {
-    await supabase.from('order_items').delete().eq('product_id', productToDelete.value.id);
-    await supabase.from('products').delete().eq('id', productToDelete.value.id);
+    await api.delete(`/products/${productToDelete.value.id}`);
     deleteModalOpen.value = false;
     productToDelete.value = null;
     await loadData();
@@ -472,17 +443,17 @@ async function deleteProduct() {
 }
 
 async function toggleFeatured(product: any) {
-  await supabase.from('products').update({ is_featured: !product.isFeatured, updated_at: new Date().toISOString() }).eq('id', product.id);
+  await api.patch(`/products/${product.id}`, { isFeatured: !product.isFeatured });
   await loadData();
 }
 
 async function loadData() {
-  const [{ data: prods }, { data: cats }] = await Promise.all([
-    supabase.from('products').select('*, categories(id, name, slug)').is('deleted_at', null).order('created_at', { ascending: false }).limit(100),
-    supabase.from('categories').select('*').order('sort_order'),
+  const [prodsResult, catsResult] = await Promise.all([
+    api.get<any>('/products/admin/all?limit=100'),
+    api.get<any[]>('/categories?all=true'),
   ]);
-  products.value = (prods ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, categoryId: p.category_id, isActive: p.is_active, isFeatured: p.is_featured, salesCount: p.sales_count, category: p.categories }));
-  categories.value = cats ?? [];
+  products.value = prodsResult?.products ?? prodsResult ?? [];
+  categories.value = catsResult ?? [];
 }
 
 onMounted(loadData);

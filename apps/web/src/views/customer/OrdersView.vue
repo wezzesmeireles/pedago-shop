@@ -205,7 +205,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 
 const orders = ref<any[]>([]);
@@ -248,33 +248,9 @@ async function loadPage(page: number) {
   if (page < 1 || page > totalPages.value) return;
   loading.value = true;
   try {
-    const from = (page - 1) * LIMIT;
-    const to = from + LIMIT - 1;
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data, count } = await supabase
-      .from('orders')
-      .select('*, order_items(id, product_name, unit_price, quantity, products(id, name, cover_image_url, slug), download_tokens(*))', { count: 'exact' })
-      .eq('user_id', user!.id)
-      .eq('status', 'PAID')
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    orders.value = (data ?? []).map((o: any) => ({
-      ...o,
-      orderNumber: o.order_number,
-      totalAmount: o.total_amount,
-      createdAt: o.created_at,
-      paidAt: o.paid_at,
-      paymentMethod: o.payment_method,
-      items: (o.order_items ?? []).map((i: any) => ({
-        ...i,
-        productName: i.product_name,
-        unitPrice: i.unit_price,
-        product: i.products ? { coverImageUrl: i.products.cover_image_url } : null,
-        downloadTokens: i.download_tokens ?? [],
-      })),
-    }));
-    totalPages.value = Math.ceil((count ?? 0) / LIMIT);
+    const data = await api.get<any[]>('/orders');
+    orders.value = data ?? [];
+    totalPages.value = 1;
     currentPage.value = page;
   } finally {
     loading.value = false;

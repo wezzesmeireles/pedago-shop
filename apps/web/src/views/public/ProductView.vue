@@ -155,7 +155,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useHead } from '@vueuse/head';
 import { useRoute, useRouter } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -260,11 +260,7 @@ async function claimFree() {
   claiming.value = true;
   claimError.value = '';
   try {
-    const { data, error } = await supabase.functions.invoke('create-order', {
-      body: { items: [{ productId: product.value.id, quantity: 1 }], paymentMethod: 'FREE' },
-    });
-    if (error) throw new Error(error.message);
-    if (data?.error) throw new Error(data.error);
+    await api.post('/orders', { items: [{ productId: product.value.id, quantity: 1 }], paymentMethod: 'FREE' });
     router.push('/minha-conta/downloads');
   } catch (e: any) {
     console.error('[claimFree]', e);
@@ -276,33 +272,20 @@ async function claimFree() {
 
 onMounted(async () => {
   try {
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, slug, description, rich_content, price, compare_price, cover_image_url, preview_images, page_count, file_size, tags, is_featured, sales_count, youtube_url, instagram_url, categories(id, name, slug)')
-      .eq('slug', route.params.slug as string)
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .single();
+    const data = await api.get<any>(`/products/${route.params.slug}`);
     if (data) {
       product.value = {
         ...data,
-        coverImageUrl: data.cover_image_url,
-        comparePrice: data.compare_price,
-        richContent: data.rich_content,
-        pageCount: data.page_count,
-        fileSize: data.file_size,
-        isFeatured: data.is_featured,
-        salesCount: data.sales_count,
-        youtubeEmbedId: extractYoutubeId(data.youtube_url),
-        instagramUrl: data.instagram_url || null,
+        richContent: data.richContent ?? data.description,
+        youtubeEmbedId: extractYoutubeId(data.youtubeUrl),
       };
-      if (data.instagram_url) loadInstagramEmbed();
+      if (data.instagramUrl) loadInstagramEmbed();
     } else {
       product.value = null;
     }
-    activeImage.value = data?.cover_image_url ?? '';
+    activeImage.value = data?.coverImageUrl ?? '';
   } catch {
-    //
+    product.value = null;
   } finally {
     loading.value = false;
   }
