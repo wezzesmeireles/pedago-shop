@@ -1,30 +1,30 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 
 export const useCatalogStore = defineStore('catalog', () => {
   const categories = ref<any[]>([]);
   const featuredProducts = ref<any[]>([]);
 
   async function fetchCategories() {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order');
-    categories.value = data ?? [];
+    try {
+      categories.value = await api.get<any[]>('/categories');
+    } catch {
+      categories.value = [];
+    }
   }
 
   async function fetchFeatured() {
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, categories(id, name, slug)')
-      .eq('is_featured', true)
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .order('sort_order')
-      .limit(8);
-    featuredProducts.value = data ?? [];
+    try {
+      const result = await api.get<{ products: any[]; total: number }>(
+        '/products?featured=true&limit=8',
+      );
+      featuredProducts.value = Array.isArray(result)
+        ? result
+        : (result as any).products ?? [];
+    } catch {
+      featuredProducts.value = [];
+    }
   }
 
   return { categories, featuredProducts, fetchCategories, fetchFeatured };

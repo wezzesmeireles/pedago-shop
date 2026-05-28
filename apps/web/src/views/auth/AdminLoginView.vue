@@ -107,7 +107,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { supabase } from '@/lib/supabase';
-import { invokeFunction } from '@/services/api';
+import { api } from '@/lib/apiClient';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -124,8 +124,8 @@ onMounted(async () => {
     return;
   }
   try {
-    const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'ADMIN');
-    setupMode.value = (count ?? 0) === 0;
+    const result = await api.get<{ hasAdmin: boolean }>('/auth/has-admin');
+    setupMode.value = !result.hasAdmin;
   } catch {
     setupMode.value = false;
   }
@@ -136,20 +136,26 @@ async function handleSubmit() {
   loading.value = true;
   try {
     if (setupMode.value) {
-      await invokeFunction('create-admin', { name: form.name, email: form.email, password: form.password });
-      await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: { data: { full_name: form.name } },
+      });
+      if (signUpError) throw signUpError;
+    }
+    await auth.login(form.email, form.password);
+    if (setupMode.value) {
+      await api.post('/auth/setup-admin');
       await auth.fetchMe();
-    } else {
-      await auth.login(form.email, form.password);
-      if (!auth.isAdmin) {
-        await auth.logout();
-        errorMsg.value = 'Acesso negado. Esta conta não tem permissão de administrador.';
-        return;
-      }
+    }
+    if (!auth.isAdmin) {
+      await auth.logout();
+      errorMsg.value = 'Acesso negado. Esta conta não tem permissão de administrador.';
+      return;
     }
     router.replace('/admin/dashboard');
   } catch (err: any) {
-    const msg = err?.response?.data?.message || err?.message || 'Erro ao fazer login.';
+    const msg = err?.message || 'Erro ao fazer login.';
     errorMsg.value = Array.isArray(msg) ? msg.join(', ') : msg;
   } finally {
     loading.value = false;

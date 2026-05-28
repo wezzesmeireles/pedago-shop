@@ -330,7 +330,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 
 const loading = ref(true);
 const saving = ref(false);
@@ -342,8 +342,8 @@ const showWebhookSecret = ref(false);
 const showTgToken = ref(false);
 const testingTg = ref(false);
 
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const apiUrl = `${supabaseUrl}/functions/v1/mp-webhook`;
+const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
+const apiUrl = `${apiBase}/webhooks/mercadopago`;
 
 interface TgRecipient { id: string; name: string; chatId: string; testing?: boolean; testResult?: string }
 
@@ -388,14 +388,12 @@ async function testRecipient(r: TgRecipient) {
 
 onMounted(async () => {
   try {
-    const { data } = await supabase.from('site_config').select('value').eq('key', 'global').single();
-    if (data?.value) {
-      const v = data.value as any;
+    const v = await api.get<any>('/config');
+    if (v) {
       form.value.mercadoPagoAccessToken = v.mercadoPagoAccessToken ?? '';
       form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';
       form.value.mercadoPagoWebhookSecret = v.mercadoPagoWebhookSecret ?? '';
       form.value.telegramBotToken = v.telegramBotToken ?? '';
-      // migrate old single chatId to recipients list
       if (v.telegramRecipients?.length) {
         form.value.telegramRecipients = v.telegramRecipients.map((r: any) => ({ ...r, testing: false, testResult: '' }));
       } else if (v.telegramChatId) {
@@ -414,20 +412,13 @@ async function save() {
   error.value = '';
   savedAt.value = false;
   try {
-    const { data: existing } = await supabase.from('site_config').select('value').eq('key', 'global').single();
-    const current = (existing?.value as any) ?? {};
-    const merged = {
-      ...current,
+    await api.put('/config', {
       mercadoPagoAccessToken: form.value.mercadoPagoAccessToken,
       mercadoPagoPixKey: form.value.mercadoPagoPixKey,
       mercadoPagoWebhookSecret: form.value.mercadoPagoWebhookSecret,
       telegramBotToken: form.value.telegramBotToken,
       telegramRecipients: form.value.telegramRecipients.map(({ id, name, chatId }) => ({ id, name, chatId })),
-    };
-    await supabase.from('site_config').upsert(
-      { key: 'global', value: merged, updated_at: new Date().toISOString() },
-      { onConflict: 'key' },
-    );
+    });
     savedAt.value = true;
     setTimeout(() => (savedAt.value = false), 3000);
   } catch {

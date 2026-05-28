@@ -1,0 +1,17 @@
+{
+  "name": "scripts",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "migrate": "tsx migrate-from-supabase.ts",
+    "migrate:storage": "tsx migrate-storage.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
+    "minio": "^8.0.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.3",
+    "@prisma/client": "workspace:*"
+  }
+}

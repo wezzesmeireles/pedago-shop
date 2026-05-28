@@ -346,7 +346,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
@@ -451,33 +451,10 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1073741824).toFixed(2)} GB`;
 }
 
-async function listFolderSize(bucket: string, prefix: string): Promise<{ bytes: number; count: number }> {
-  const { data } = await supabase.storage.from(bucket).list(prefix || undefined, { limit: 1000 });
-  if (!data) return { bytes: 0, count: 0 };
-  let bytes = 0, count = 0;
-  await Promise.all(data.map(async item => {
-    if (item.id) {
-      bytes += (item.metadata as any)?.size ?? 0;
-      count += 1;
-    } else {
-      const sub = await listFolderSize(bucket, prefix ? `${prefix}/${item.name}` : item.name);
-      bytes += sub.bytes;
-      count += sub.count;
-    }
-  }));
-  return { bytes, count };
-}
-
 async function loadStorage() {
   storageLoading.value = true;
   try {
-    await Promise.all(storageBuckets.value.map(async bucket => {
-      const { bytes, count } = await listFolderSize(bucket.name, '');
-      bucket.bytes = bytes;
-      bucket.count = count;
-    }));
-  } catch (e) {
-    console.error('Storage load error', e);
+    // Storage stats not available via NestJS API — hide/skip
   } finally {
     storageLoading.value = false;
   }
@@ -485,46 +462,30 @@ async function loadStorage() {
 
 onMounted(async () => {
   try {
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
-
-    const [{ data: totalRev }, { data: dayRev }, { data: weekRev }, { data: monthRev }, { data: yearRev }, { count: totalOrders }, { count: monthOrders }, { count: pending }, { count: users }, { data: topProds }, { data: recent }] = await Promise.all([
-      supabase.from('orders').select('total_amount').eq('status', 'PAID'),
-      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfDay),
-      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfWeek),
-      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfMonth),
-      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfYear),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID'),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID').gte('created_at', startOfMonth),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'AWAITING_PAYMENT'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'CUSTOMER'),
-      supabase.from('products').select('id, name, sales_count, cover_image_url, price').is('deleted_at', null).order('sales_count', { ascending: false }).limit(5),
-      supabase.from('orders').select('*, profiles(name), order_items(product_name)').order('created_at', { ascending: false }).limit(6),
+    const [kpis, recentResult, topProdsResult] = await Promise.all([
+      api.get<any>('/orders/stats'),
+      api.get<any>('/orders/admin?limit=6'),
+      api.get<any>('/products/admin/all?limit=5&sort=salesCount'),
     ]);
 
     stats.value = {
-      revenue: { total: sum(totalRev ?? []), day: sum(dayRev ?? []), week: sum(weekRev ?? []), month: sum(monthRev ?? []), year: sum(yearRev ?? []) },
-      orders: { total: totalOrders ?? 0, month: monthOrders ?? 0, pending: pending ?? 0 },
-      users: { total: users ?? 0 },
+      revenue: {
+        total: kpis.revenue ?? 0,
+        day: kpis.revenueDay ?? 0,
+        week: kpis.revenueWeek ?? 0,
+        month: kpis.revenueMonth ?? 0,
+        year: kpis.revenueYear ?? 0,
+      },
+      orders: { total: kpis.ordersCount ?? 0, month: kpis.ordersMonth ?? 0, pending: kpis.ordersPending ?? 0 },
+      users: { total: kpis.usersTotal ?? kpis.customersCount ?? 0 },
     };
-    topProducts.value = (topProds ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, salesCount: p.sales_count }));
-    recentOrders.value = (recent ?? []).map((o: any) => ({ ...o, orderNumber: o.order_number, totalAmount: o.total_amount, user: o.profiles, customerName: o.customer_name }));
-
-    // Monthly chart — last 6 months
-    const months = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      return { label: d.toLocaleDateString('pt-BR', { month: 'short' }), start: d.toISOString(), end: new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString() };
-    });
-    const revs = await Promise.all(months.map(m => supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', m.start).lt('paid_at', m.end)));
-    monthlyRevenue.value = months.map((m, i) => ({ label: m.label, value: sum((revs[i]?.data ?? []) as any[]) }));
+    topProducts.value = topProdsResult?.products ?? [];
+    recentOrders.value = recentResult?.orders ?? [];
+    monthlyRevenue.value = kpis.monthlyRevenue ?? [];
   } finally {
     loading.value = false;
   }
 
-  // Load storage independently so it doesn't block the main stats
   loadStorage();
 });
 </script>

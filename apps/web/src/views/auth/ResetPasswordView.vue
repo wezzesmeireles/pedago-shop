@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- Invalid/expired token -->
     <div v-if="tokenError" class="text-center py-4">
       <div class="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
         <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -15,7 +14,6 @@
       </RouterLink>
     </div>
 
-    <!-- Reset form -->
     <div v-else-if="!done">
       <div class="flex items-center gap-3 mb-6">
         <div class="w-12 h-12 bg-primary-100 rounded-2xl flex items-center justify-center flex-shrink-0">
@@ -29,7 +27,11 @@
         </div>
       </div>
 
-      <form @submit.prevent="handleReset" class="space-y-4">
+      <div v-if="!ready" class="flex justify-center py-8">
+        <div class="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full"></div>
+      </div>
+
+      <form v-else @submit.prevent="handleReset" class="space-y-4">
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nova Senha</label>
           <div class="relative">
@@ -53,8 +55,6 @@
               </svg>
             </button>
           </div>
-
-          <!-- Strength indicator -->
           <div class="flex gap-1 mt-2">
             <div v-for="i in 4" :key="i" :class="['h-1 flex-1 rounded-full transition-colors', i <= strength ? strengthColor : 'bg-slate-200']"></div>
           </div>
@@ -85,7 +85,6 @@
       </form>
     </div>
 
-    <!-- Success state -->
     <div v-else class="text-center py-4">
       <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
         <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -103,17 +102,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { supabase } from '@/lib/supabase';
 import AppButton from '@/components/ui/AppButton.vue';
 
-const router = useRouter();
 const password = ref('');
 const confirm = ref('');
 const showPassword = ref(false);
 const loading = ref(false);
 const done = ref(false);
+const ready = ref(false);
 const tokenError = ref(false);
 const errors = ref({ password: '', confirm: '', general: '' });
 
@@ -142,12 +140,26 @@ const strengthTextColor = computed(() => {
   return 'text-emerald-600';
 });
 
-onMounted(async () => {
-  // Supabase puts recovery tokens in the URL hash — exchange them for a session
-  const { data, error } = await supabase.auth.getSession();
-  if (error || !data.session) {
-    tokenError.value = true;
-  }
+let unsubscribe: (() => void) | null = null;
+
+onMounted(() => {
+  const { data } = supabase.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      ready.value = true;
+    } else if (event === 'SIGNED_OUT') {
+      tokenError.value = true;
+    }
+  });
+  unsubscribe = data.subscription.unsubscribe;
+
+  // Give Supabase a moment to process the URL hash
+  setTimeout(() => {
+    if (!ready.value) tokenError.value = true;
+  }, 3000);
+});
+
+onUnmounted(() => {
+  unsubscribe?.();
 });
 
 async function handleReset() {
@@ -171,8 +183,6 @@ async function handleReset() {
     const raw = (err?.message || '').toLowerCase();
     if (raw.includes('same password') || raw.includes('different from'))
       errors.value.general = 'A nova senha deve ser diferente da senha atual.';
-    else if (raw.includes('weak') || raw.includes('too short'))
-      errors.value.general = 'Senha muito fraca. Use pelo menos 8 caracteres com letras e números.';
     else
       errors.value.general = 'Erro ao redefinir a senha. Solicite um novo link.';
   } finally {

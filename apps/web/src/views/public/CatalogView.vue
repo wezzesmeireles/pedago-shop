@@ -121,7 +121,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import { useCatalogStore } from '@/stores/catalog.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
 
@@ -167,33 +167,20 @@ async function fetchProducts(page = 1) {
   loading.value = true;
   try {
     const limit = 12;
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (filters.search) params.set('search', filters.search);
+    if (filters.category) params.set('category', filters.category);
+    if (filters.onlyFree) params.set('free', 'true');
+    if (filters.sort) params.set('sort', filters.sort);
 
-    // Resolve category slug → id
-    let categoryId: string | null = null;
-    if (filters.category) {
-      const { data: cat } = await supabase.from('categories').select('id').eq('slug', filters.category).single();
-      categoryId = cat?.id ?? null;
-    }
-
-    let q = supabase
-      .from('products')
-      .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, tags, categories(id, name, slug)', { count: 'exact' })
-      .eq('is_active', true).is('deleted_at', null).range(from, to);
-
-    if (filters.search) q = q.ilike('name', `%${filters.search}%`);
-    if (categoryId) q = q.eq('category_id', categoryId);
-    if (filters.onlyFree) q = q.eq('price', 0);
-
-    if (filters.sort === 'price_asc') q = q.order('price', { ascending: true });
-    else if (filters.sort === 'price_desc') q = q.order('price', { ascending: false });
-    else if (filters.sort === 'popular') q = q.order('sales_count', { ascending: false });
-    else q = q.order('created_at', { ascending: false });
-
-    const { data, count } = await q;
-    products.value = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price, isFeatured: p.is_featured, salesCount: p.sales_count }));
-    const total = count ?? 0;
+    const result = await api.get<{ products: any[]; total: number; page: number; limit: number }>(
+      `/products?${params}`,
+    );
+    products.value = result.products ?? [];
+    const total = result.total ?? 0;
     pagination.value = { page, limit, total, totalPages: Math.ceil(total / limit) };
   } finally {
     loading.value = false;

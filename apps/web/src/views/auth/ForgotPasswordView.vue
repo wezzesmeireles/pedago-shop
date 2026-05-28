@@ -33,7 +33,6 @@
       </form>
     </div>
 
-    <!-- Sent state -->
     <div v-else class="text-center py-4">
       <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
         <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +71,7 @@ async function handleSubmit() {
   loading.value = true;
   try {
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.value.trim(), {
-      redirectTo: window.location.origin + '/auth/reset-senha',
+      redirectTo: `${window.location.origin}/auth/reset-senha`,
     });
     if (err) throw err;
     sent.value = true;
@@ -80,8 +79,6 @@ async function handleSubmit() {
     const raw = (err?.message || '').toLowerCase();
     if (raw.includes('rate limit') || raw.includes('too many'))
       error.value = 'Muitas tentativas. Aguarde alguns minutos.';
-    else if (raw.includes('user not found') || raw.includes('no user'))
-      error.value = 'Nenhuma conta encontrada com este email.';
     else
       error.value = 'Erro ao enviar o link. Tente novamente.';
   } finally {

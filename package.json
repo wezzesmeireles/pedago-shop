@@ -2,10 +2,29 @@
   "name": "sitepedagogico",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build"
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter backend dev",
+    "dev": "pnpm --parallel --filter web --filter backend dev",
+    "build": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build",
+    "build:api": "pnpm --filter backend build",
+    "docker:dev": "docker compose -f docker/docker-compose.dev.yml up",
+    "docker:staging": "docker compose -f docker/docker-compose.staging.yml up -d",
+    "migrate:supabase": "pnpm --filter scripts migrate",
+    "db:migrate": "pnpm --filter backend prisma:migrate",
+    "db:studio": "pnpm --filter backend prisma:studio"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "core-js",
+      "esbuild",
+      "prisma"
+    ]
   }
 }

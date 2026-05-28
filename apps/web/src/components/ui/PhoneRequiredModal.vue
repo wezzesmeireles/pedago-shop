@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useAuthStore } from '@/stores/auth.store';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/apiClient';
 import { useRoute } from 'vue-router';
 
 const auth = useAuthStore();
@@ -89,15 +89,8 @@ async function save() {
   }
   saving.value = true;
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ phone: digits, updated_at: new Date().toISOString() })
-        .eq('id', user.id);
-      // Atualiza o store sem recarregar a página
-      if (auth.user) auth.user.phone = digits;
-    }
+    await api.patch('/users/me', { phone: digits });
+    if (auth.user) auth.user.phone = digits;
   } finally {
     saving.value = false;
   }
