@@ -35,23 +35,28 @@ export default async ({ req, res, log, error }) => {
 
   // Validate products are available and compute total
   let totalAmount = 0
-  const orderItems = items.map((item, idx) => {
-    const p = products[idx]
-    if (!p.isActive || p.deletedAt) {
-      throw new Error(`Product ${p.name} is unavailable`)
-    }
-    totalAmount += p.price * (item.quantity ?? 1)
-    return { product: p, quantity: item.quantity ?? 1 }
-  })
+  let orderItems
+  try {
+    orderItems = items.map((item, idx) => {
+      const p = products[idx]
+      if (!p.isActive || p.deletedAt) {
+        throw new Error(`Product ${p.name} is unavailable`)
+      }
+      totalAmount += p.price * (item.quantity ?? 1)
+      return { product: p, quantity: item.quantity ?? 1 }
+    })
+  } catch (validationErr) {
+    return res.json({ error: validationErr.message }, 400)
+  }
 
   const isFree = totalAmount === 0
   const orderId = ID.unique()
   const now = new Date().toISOString()
 
-  // Generate order number: ORD-YYYY-NNNNNN
+  // Generate order number: ORD-YYYY-NNNNNN (based on orderId to avoid race condition)
   const year = new Date().getFullYear()
-  const countResult = await db.listDocuments(DB, 'orders', [])
-  const orderNumber = `ORD-${year}-${String(countResult.total + 1).padStart(6, '0')}`
+  const shortId = orderId.replace(/-/g, '').slice(0, 8).toUpperCase()
+  const orderNumber = `ORD-${year}-${shortId}`
 
   let mpResult = null
   let status = 'AWAITING_PAYMENT'
