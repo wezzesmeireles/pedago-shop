@@ -24,7 +24,7 @@ export default async ({ req, res, log }) => {
     { customerName: 'Ana C.', totalAmount: 19.9, paidAt: new Date().toISOString() },
   ]
 
-  const purchases = ordersResult.total >= 3
+  const purchases = ordersResult.documents.length >= 3
     ? ordersResult.documents.map(o => ({
         customerName: maskName(o.customerName),
         totalAmount: o.totalAmount,
