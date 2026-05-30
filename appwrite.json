@@ -1,0 +1,102 @@
+{
+  "projectId": "6a1af05e0030b967a508",
+  "projectName": "pedago-shop",
+  "functions": [
+    {
+      "functionId": "register-user",
+      "name": "register-user",
+      "runtime": "node-21.0",
+      "entrypoint": "src/main.js",
+      "execute": [],
+      "events": [],
+      "schedule": "",
+      "timeout": 15,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/register-user"
+    },
+    {
+      "functionId": "create-order",
+      "name": "create-order",
+      "runtime": "node-21.0",
+      "entrypoint": "src/main.js",
+      "execute": [],
+      "events": [],
+      "schedule": "",
+      "timeout": 30,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/create-order"
+    },
+    {
+      "functionId": "mp-webhook",
+      "name": "mp-webhook",
+      "runtime": "node-21.0",
+      "entrypoint": "src/main.js",
+      "execute": ["any"],
+      "events": [],
+      "schedule": "",
+      "timeout": 30,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/mp-webhook"
+    },
+    {
+      "functionId": "download",
+      "name": "download",
+      "runtime": "node-21.0",
+      "entrypoint": "src/main.js",
+      "execute": ["any"],
+      "events": [],
+      "schedule": "",
+      "timeout": 30,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/download"
+    },
+    {
+      "functionId": "admin-users",
+      "name": "admin-users",
+      "runtime": "node-21.0",
+      "entrypoint": "src/main.js",
+      "execute": [],
+      "events": [],
+      "schedule": "",
+      "timeout": 15,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/admin-users"
+    },
+    {
+      "functionId": "create-admin",
+      "name": "create-admin",
+      "runtime": "node-21.0",
+      "entrypoint": "src/main.js",
+      "execute": [],
+      "events": [],
+      "schedule": "",
+      "timeout": 15,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/create-admin"
+    },
+    {
+      "functionId": "recent-purchases",
+      "name": "recent-purchases",
+      "runtime": "node-21.0",
+      "entrypoint": "src/main.js",
+      "execute": ["any"],
+      "events": [],
+      "schedule": "",
+      "timeout": 15,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/recent-purchases"
+    },
+    {
+      "functionId": "reconcile-orders",
+      "name": "reconcile-orders",
+      "runtime": "node-21.0",
+      "entrypoint": "src/main.js",
+      "execute": [],
+      "events": [],
+      "schedule": "0 */6 * * *",
+      "timeout": 60,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/reconcile-orders"
+    }
+  ]
+}
