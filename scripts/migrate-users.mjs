@@ -71,11 +71,14 @@ async function migrateUser(user) {
     }
 
     console.log(`✓ ${email}`)
+    return false
   } catch (err) {
     if (err.code === 409) {
       console.log(`⏭ ${email} — already exists`)
+      return false
     } else {
       console.error(`✗ ${email}: ${err.message}`)
+      return true
     }
   }
 }
@@ -86,8 +89,15 @@ async function main() {
   const allUsers = await fetchAllUsers()
   console.log(`Found ${allUsers.length} users. Migrating to Appwrite…\n`)
 
+  let failCount = 0
+
   for (const user of allUsers) {
-    await migrateUser(user)
+    if (await migrateUser(user)) failCount++
+  }
+
+  if (failCount > 0) {
+    console.error(`\n⚠ ${failCount} user(s) failed to migrate. Check output above.`)
+    process.exit(1)
   }
 
   console.log('\nUser migration complete.')

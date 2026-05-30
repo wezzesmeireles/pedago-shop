@@ -31,6 +31,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
+// ── Error counter ─────────────────────────────────────────────────────────────
+let errors = 0
+
 // ── Upsert helper (idempotent) ────────────────────────────────────────────────
 async function upsertDoc(collectionId, id, data) {
   try {
@@ -41,16 +44,26 @@ async function upsertDoc(collectionId, id, data) {
       await db.updateDocument(DB, collectionId, id, data)
       process.stdout.write('u')
     } else {
+      errors++
       console.error(`\n✗ ${collectionId}/${id}: ${err.message}`)
     }
   }
 }
 
-// ── Fetch all rows from a Supabase table ─────────────────────────────────────
+// ── Fetch all rows from a Supabase table (paginated) ─────────────────────────
 async function fetchAll(table) {
-  const { data, error } = await supabase.from(table).select('*')
-  if (error) throw new Error(`Failed to fetch ${table}: ${error.message}`)
-  return data ?? []
+  const allRows = []
+  const pageSize = 1000
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase.from(table).select('*').range(from, from + pageSize - 1)
+    if (error) throw new Error(`fetchAll ${table}: ${error.message}`)
+    if (!data?.length) break
+    allRows.push(...data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+  return allRows
 }
 
 // ── 1. categories ─────────────────────────────────────────────────────────────
@@ -219,6 +232,10 @@ async function main() {
   await migrateSiteConfig()
 
   console.log('\nDatabase migration complete.')
+  if (errors > 0) {
+    console.error(`\n⚠ Migration completed with ${errors} errors. Check output above.`)
+    process.exit(1)
+  }
 }
 
 main().catch((err) => {

@@ -34,46 +34,63 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 // ── Sanitize filename → Appwrite-safe file ID (max 36 chars) ─────────────────
 function sanitizeFileId(name) {
-  return name
-    .replace(/[^a-zA-Z0-9.\-_]/g, '-')
-    .slice(0, 36)
+  // Remove extension, replace non-alphanumeric with hyphens, collapse multiple hyphens
+  const base = name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_]/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
+  // Ensure starts with a letter or digit
+  const safe = /^[a-zA-Z0-9]/.test(base) ? base : 'f-' + base
+  // Truncate to 36 chars
+  return safe.slice(0, 36) || 'file'
 }
 
 // ── Download a URL into a Buffer ──────────────────────────────────────────────
 function downloadBuffer(url) {
   return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http
-
-    const request = (targetUrl) => {
-      client.get(targetUrl, (res) => {
-        // Follow redirects
+    const makeRequest = (targetUrl) => {
+      const lib = targetUrl.startsWith('https') ? https : http
+      lib.get(targetUrl, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          return request(res.headers.location)
+          makeRequest(res.headers.location)
+          return
         }
         if (res.statusCode !== 200) {
-          return reject(new Error(`HTTP ${res.statusCode} for ${targetUrl}`))
+          reject(new Error(`HTTP ${res.statusCode} for ${targetUrl}`))
+          return
         }
         const chunks = []
-        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('data', c => chunks.push(c))
         res.on('end', () => resolve(Buffer.concat(chunks)))
         res.on('error', reject)
       }).on('error', reject)
     }
-
-    request(url)
+    makeRequest(url)
   })
+}
+
+// ── List all files in Supabase storage bucket (paginated) ────────────────────
+async function listAllFiles() {
+  const allFiles = []
+  const pageSize = 100
+  let offset = 0
+  while (true) {
+    const { data, error } = await supabase.storage.from('product-files').list('', { limit: pageSize, offset })
+    if (error) throw new Error(`Storage list error: ${error.message}`)
+    if (!data?.length) break
+    allFiles.push(...data)
+    if (data.length < pageSize) break
+    offset += pageSize
+  }
+  return allFiles
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
   console.log('Listing files in Supabase storage bucket "product-files"…')
 
-  const { data: files, error } = await supabase.storage
-    .from('product-files')
-    .list('', { limit: 1000 })
-
-  if (error) {
-    console.error('✗ Failed to list files:', error.message)
+  let files
+  try {
+    files = await listAllFiles()
+  } catch (err) {
+    console.error('✗ Failed to list files:', err.message)
     process.exit(1)
   }
 
@@ -102,15 +119,19 @@ async function main() {
       const fileId = sanitizeFileId(file.name)
 
       // Upload to Appwrite
-      await storage.createFile(
-        'product-files',
-        fileId,
-        InputFile.fromBuffer(buffer, file.name),
-      )
-
-      const sizeKB = (buffer.length / 1024).toFixed(1)
-      console.log(`✓ ${file.name} (${sizeKB}KB)`)
-      migrated++
+      const inputFile = InputFile.fromBuffer(buffer, file.name)
+      try {
+        await storage.createFile('product-files', fileId, inputFile)
+        migrated++
+        console.log(`✓ ${file.name} (${Math.round(buffer.length / 1024)}KB)`)
+      } catch (uploadErr) {
+        if (uploadErr.code === 409) {
+          console.log(`⏭  ${file.name} — already exists`)
+        } else {
+          errors++
+          console.error(`✗ ${file.name}: ${uploadErr.message}`)
+        }
+      }
     } catch (err) {
       console.error(`✗ ${file.name}: ${err.message}`)
       errors++
@@ -118,6 +139,9 @@ async function main() {
   }
 
   console.log(`\nStorage migration complete. Total: ${migrated} files migrated, ${errors} errors.`)
+  if (errors > 0) {
+    process.exit(1)
+  }
 }
 
 main().catch((err) => {
