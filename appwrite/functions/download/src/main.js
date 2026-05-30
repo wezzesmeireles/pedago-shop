@@ -43,9 +43,9 @@ export default async ({ req, res, log, error }) => {
     lastDownloadAt: now.toISOString(),
   })
 
-  // If delivery is an external link, redirect
+  // If delivery is an external link, return it for redirect
   if (tokenDoc.deliveryLink) {
-    return res.redirect(tokenDoc.deliveryLink, 302)
+    return res.json({ type: 'link', url: tokenDoc.deliveryLink })
   }
 
   // Delivery is a stored file — fetch product to get fileKey
@@ -57,23 +57,10 @@ export default async ({ req, res, log, error }) => {
     return res.json({ error: 'File not available' }, 404)
   }
 
-  // Stream file from Appwrite Storage using server API key
-  const fileUrl = `${process.env.APPWRITE_ENDPOINT}/storage/buckets/product-files/files/${product.fileKey}/download?project=${process.env.APPWRITE_FUNCTION_PROJECT_ID}`
-  const fileResp = await fetch(fileUrl, {
-    headers: { 'X-Appwrite-Key': process.env.APPWRITE_API_KEY },
-  })
-
-  if (!fileResp.ok) {
-    error(`Storage fetch failed: ${fileResp.status} for fileKey ${product.fileKey}`)
-    return res.json({ error: 'File not found in storage' }, 404)
-  }
-
-  const buffer = await fileResp.arrayBuffer()
-  const filename = `${product.name.replace(/[^a-zA-Z0-9\s-]/g, '').trim()}.pdf`
-
-  return res.binary(Buffer.from(buffer), 200, {
-    'Content-Type': 'application/pdf',
-    'Content-Disposition': `attachment; filename="${filename}"`,
-    'Cache-Control': 'no-store',
+  // Return file info for client-side download from Appwrite Storage
+  return res.json({
+    type: 'storage',
+    fileId: product.fileKey,
+    filename: `${product.name.replace(/[^a-zA-Z0-9\s-]/g, '').trim()}.pdf`,
   })
 }

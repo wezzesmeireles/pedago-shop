@@ -358,12 +358,12 @@ async function createWebhookEvents() {
 
 async function createStorageBucket() {
   console.log('\n🪣  Storage bucket');
-  await idempotent('bucket "product-files" (private)', () =>
+  await idempotent('bucket "product-files" (authenticated users read)', () =>
     storage.createBucket(
       'product-files',
       'product-files',
-      [], // no public permissions — private bucket
-      false, // fileSecurity
+      [Permission.read(Role.users())],  // authenticated users can read/download
+      false, // fileSecurity: false (bucket-level permissions apply)
       true,  // enabled
     )
   );
