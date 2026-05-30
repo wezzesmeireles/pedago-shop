@@ -501,7 +501,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
-import { supabase } from '@/lib/supabase';
+import { account, databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 import CartDrawer from '@/components/catalog/CartDrawer.vue';
 
 const auth = useAuthStore();
@@ -540,12 +541,25 @@ async function savePhone() {
     return;
   }
   savingPhone.value = true;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    await supabase.from('profiles').update({ phone: digits, updated_at: new Date().toISOString() }).eq('id', user.id);
-    await auth.fetchMe();
+  try {
+    const authUser = await account.get();
+    if (authUser) {
+      const result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+        Query.equal('userId', authUser.$id),
+        Query.limit(1),
+      ]);
+      const profileDoc = result.documents[0];
+      if (profileDoc) {
+        await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileDoc.$id, {
+          phone: digits,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      await auth.fetchMe();
+    }
+  } finally {
+    savingPhone.value = false;
   }
-  savingPhone.value = false;
 }
 
 const { config } = storeToRefs(siteConfigStore);
