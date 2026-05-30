@@ -17,7 +17,7 @@ export default async ({ req, res, log, error }) => {
     return res.json({ error: 'Invalid JSON body' }, 400)
   }
 
-  const { email, password, name, phone } = body ?? {}
+  const { email, password, name, phone } = body
   if (!email || !password || !name) {
     return res.json({ error: 'email, password and name are required' }, 400)
   }
@@ -32,21 +32,16 @@ export default async ({ req, res, log, error }) => {
   }
 
   const now = new Date().toISOString()
-  try {
-    await db.createDocument(DB, 'profiles', user.$id, {
-      userId: user.$id,
-      name,
-      email,
-      phone: phone ?? '',
-      role: 'CUSTOMER',
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    })
-  } catch (err) {
-    error(`Profile creation failed for ${user.$id}: ${err.message}`)
-    // User created but profile failed — log but return success so client can proceed
-  }
+  await db.createDocument(DB, 'profiles', user.$id, {
+    userId: user.$id,
+    name,
+    email,
+    phone: phone ?? '',
+    role: 'CUSTOMER',
+    isActive: true,
+    createdAt: now,
+    updatedAt: now,
+  })
 
   return res.json({ id: user.$id, email: user.email }, 201)
 }

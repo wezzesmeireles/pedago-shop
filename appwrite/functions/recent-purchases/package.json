@@ -1,1 +1,7 @@
-{ "name": "recent-purchases", "version": "1.0.0", "type": "module", "main": "src/main.js", "dependencies": { "node-appwrite": "^16.0.0" } }
+{
+  "name": "recent-purchases",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^16.0.0"
+  }
+}

@@ -1,4 +1,4 @@
-import { Client, Users, Databases, Query, Account } from 'node-appwrite'
+import { Client, Users, Databases, Query } from 'node-appwrite'
 
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -10,40 +10,14 @@ export default async ({ req, res, log, error }) => {
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
-  // Check caller is admin
-  const callerToken = req.headers?.['x-appwrite-session'] ?? req.headers?.['authorization']?.replace('Bearer ', '')
-  if (!callerToken) {
-    return res.json({ error: 'Unauthorized' }, 401)
-  }
-
-  const userClient = new Client()
-    .setEndpoint(process.env.APPWRITE_ENDPOINT)
-    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-    .setSession(callerToken)
-
-  try {
-    const userAccount = new Account(userClient)
-    const caller = await userAccount.get()
-    const callerProfiles = await db.listDocuments(DB, 'profiles', [
-      Query.equal('userId', caller.$id),
-      Query.equal('role', 'ADMIN'),
-      Query.limit(1),
-    ])
-    if (callerProfiles.total === 0) {
-      return res.json({ error: 'Forbidden' }, 403)
-    }
-  } catch {
-    return res.json({ error: 'Unauthorized' }, 401)
-  }
-
   if (req.method === 'PATCH') {
     let body
     try {
       body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
     } catch {
-      return res.json({ error: 'Invalid JSON' }, 400)
+      return res.json({ error: 'Invalid JSON body' }, 400)
     }
-    const { userId, phone } = body ?? {}
+    const { userId, phone } = body
     if (!userId) return res.json({ error: 'userId required' }, 400)
 
     const profilesResult = await db.listDocuments(DB, 'profiles', [
@@ -60,16 +34,17 @@ export default async ({ req, res, log, error }) => {
     return res.json({ ok: true })
   }
 
-  // GET: list users with search, limit, offset
+  // GET: list users
   const search = req.query?.search ?? ''
-  const limit = Math.min(parseInt(req.query?.limit ?? '50'), 100)
+  const limit = parseInt(req.query?.limit ?? '50')
   const offset = parseInt(req.query?.offset ?? '0')
 
-  const [appwriteUsers, profilesResult, ordersResult] = await Promise.all([
-    users.list([], search || undefined, limit, offset),
-    db.listDocuments(DB, 'profiles', [Query.limit(500)]),
-    db.listDocuments(DB, 'orders', [Query.limit(2000)]),
-  ])
+  const queries = [Query.limit(limit), Query.offset(offset)]
+  if (search) queries.push(Query.search('name', search))
+
+  const appwriteUsers = await users.list(queries)
+  const profilesResult = await db.listDocuments(DB, 'profiles', [Query.limit(500)])
+  const ordersResult = await db.listDocuments(DB, 'orders', [Query.limit(500)])
 
   const result = appwriteUsers.users.map(u => {
     const profile = profilesResult.documents.find(p => p.userId === u.$id)
