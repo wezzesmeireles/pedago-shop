@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { Query, OAuthProvider } from 'appwrite';
+import { account, databases, functions, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 
 interface User {
   id: string;
@@ -19,40 +20,33 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'ADMIN');
 
   async function init() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) await fetchMe();
-
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        if (!user.value) await fetchMe();
-      } else {
-        user.value = null;
-      }
-    });
+    try {
+      await account.getSession('current');
+      await fetchMe();
+    } catch {
+      user.value = null;
+    }
   }
 
   async function fetchMe() {
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const authUser = await account.get();
       if (!authUser) { user.value = null; return; }
 
-      // Role from app_metadata (set by admin SQL or edge functions)
-      const metaRole = authUser.app_metadata?.role as string | undefined;
+      const result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+        Query.equal('userId', authUser.$id),
+        Query.limit(1),
+      ]);
+      const profile = result.documents[0] as Record<string, any> | undefined;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, name, role, avatar_url, phone')
-        .eq('id', authUser.id)
-        .single();
-
-      const role = (profile?.role ?? metaRole ?? 'CUSTOMER') as 'ADMIN' | 'CUSTOMER';
+      const role = (profile?.role ?? 'CUSTOMER') as 'ADMIN' | 'CUSTOMER';
 
       user.value = {
-        id: authUser.id,
-        name: profile?.name ?? authUser.user_metadata?.name ?? authUser.email ?? '',
+        id: authUser.$id,
+        name: profile?.name ?? authUser.name ?? authUser.email ?? '',
         email: authUser.email ?? '',
         role,
-        avatarUrl: profile?.avatar_url,
+        avatarUrl: profile?.avatarUrl,
         phone: profile?.phone ?? undefined,
       };
     } catch (e) {
@@ -63,21 +57,17 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(email: string, password: string) {
     loading.value = true;
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        console.error('[login error]', error.code, error.message);
-        throw error; // preserve AuthApiError with .code property
-      }
+      const session = await account.createEmailPasswordSession(email, password);
       await fetchMe().catch(() => {});
-      
+
       // Check if user has phone
-      if (data.session?.user.id) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('phone')
-          .eq('id', data.session.user.id)
-          .single();
-        
+      if (session.userId) {
+        const result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+          Query.equal('userId', session.userId),
+          Query.limit(1),
+        ]);
+        const profile = result.documents[0] as Record<string, any> | undefined;
+
         if (!profile?.phone) {
           return { needsPhone: true };
         }
@@ -87,43 +77,71 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function loginWithGoogle() {
+    const successUrl = `${window.location.origin}/auth/google-callback`;
+    const failUrl = `${window.location.origin}/login`;
+    account.createOAuth2Session(OAuthProvider.Google, successUrl, failUrl);
+  }
+
   async function register(name: string, email: string, password: string, phone?: string) {
     loading.value = true;
     try {
-      // Use edge function with service role — bypasses captcha/rate limits on signUp
-      const { data: fnData, error: fnError } = await supabase.functions.invoke('register-user', {
-        body: { name, email, password, phone },
-      });
+      // Use Appwrite function with server role — bypasses rate limits
+      let fnExecution: Record<string, any> | null = null;
+      let fnError: Error | null = null;
+      try {
+        fnExecution = await functions.createExecution({
+          functionId: 'register-user',
+          body: JSON.stringify({ name, email, password, phone }),
+        });
+      } catch (e: any) {
+        fnError = e;
+      }
 
-      if (fnError) {
-        let errMsg = '';
-        let errStatus = 0;
-        try {
-          const ctx = (fnError as any).context;
-          errStatus = ctx?.status ?? 0;
-          const body = await ctx?.json();
-          errMsg = (body?.message ?? '').toLowerCase();
-        } catch { /**/ }
-        if (!errMsg) errMsg = (fnError.message ?? '').toLowerCase();
+      const fnResponseCode = fnExecution?.responseStatusCode ?? 0;
+      const fnResponseBody = (() => {
+        try { return JSON.parse(fnExecution?.responseBody ?? '{}'); } catch { return {}; }
+      })();
+
+      if (fnError || (fnResponseCode && fnResponseCode >= 400)) {
+        const errMsg = (fnResponseBody?.message ?? fnError?.message ?? '').toLowerCase();
+        const errStatus = fnResponseCode || 0;
         console.error('[register-user fn error]', errStatus, errMsg);
 
         // 409 = already exists
         if (errStatus === 409 || errMsg.includes('already') || errMsg.includes('registered')) {
-          const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-          if (!signInErr) { await fetchMe(); return; }
-          throw new Error('Este email já está cadastrado. Tente fazer login.');
+          try {
+            await account.createEmailPasswordSession(email, password);
+            await fetchMe();
+            return;
+          } catch {
+            throw new Error('Este email já está cadastrado. Tente fazer login.');
+          }
         }
         throw new Error('Erro ao criar conta. Tente novamente.');
       }
 
       // Account created — sign in immediately
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInErr) throw new Error('Conta criada com sucesso! Faça login para continuar.');
+      try {
+        await account.createEmailPasswordSession(email, password);
+      } catch {
+        throw new Error('Conta criada com sucesso! Faça login para continuar.');
+      }
       await fetchMe();
 
       // Fallback: se a edge function não salvou o phone, salvar do client diretamente
       if (phone && user.value && !user.value.phone) {
-        await supabase.from('profiles').update({ phone, updated_at: new Date().toISOString() }).eq('id', user.value.id);
+        const profileResult = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+          Query.equal('userId', user.value.id),
+          Query.limit(1),
+        ]);
+        const profileDoc = profileResult.documents[0];
+        if (profileDoc) {
+          await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileDoc.$id, {
+            phone,
+            updatedAt: new Date().toISOString(),
+          });
+        }
         await fetchMe();
       }
     } finally {
@@ -132,7 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    await supabase.auth.signOut();
+    await account.deleteSession('current');
     user.value = null;
   }
 
@@ -140,5 +158,5 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null;
   }
 
-  return { user, loading, isLoggedIn, isAdmin, init, fetchMe, login, register, logout, clearUser };
+  return { user, loading, isLoggedIn, isAdmin, init, fetchMe, login, loginWithGoogle, register, logout, clearUser };
 });
