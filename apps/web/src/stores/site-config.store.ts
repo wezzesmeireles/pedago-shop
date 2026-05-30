@@ -45,10 +45,11 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
         }
         config.value = merged;
       }
-      loaded.value = true;
       applyTheme(config.value);
     } catch {
       applyTheme(DEFAULT_SITE_CONFIG);
+    } finally {
+      loaded.value = true;
     }
   }
 

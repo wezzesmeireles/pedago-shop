@@ -19,5 +19,11 @@ export async function invokeFunction<T = any>(functionId: string, payload?: obje
     } catch {}
     throw new Error(errBody.error ?? `Function ${functionId} failed with status ${execution.responseStatusCode}`);
   }
-  return JSON.parse(execution.responseBody) as T;
+  const body = execution.responseBody;
+  if (!body || body.trim() === '') return null as T;
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    return body as T;
+  }
 }
