@@ -83,6 +83,17 @@ async function idempotent(label, fn) {
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function waitForAttributes(db, dbId, collectionId, expectedCount, timeoutMs = 30000) {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const attrs = await db.listAttributes(dbId, collectionId)
+    const ready = attrs.attributes.filter(a => a.status === 'available').length
+    if (ready >= expectedCount) return
+    await new Promise(r => setTimeout(r, 1000))
+  }
+  console.warn(`  ⚠ Timed out waiting for attributes on ${collectionId} — proceeding anyway`)
+}
+
 // ── Database ─────────────────────────────────────────────────────────────────
 
 async function ensureDatabase() {
@@ -159,7 +170,7 @@ async function createProfiles() {
   await addDatetime(COL,'createdAt', false);
   await addDatetime(COL,'updatedAt', false);
 
-  await delay(500);
+  await waitForAttributes(db, DB_ID, COL, 9);
   // No custom indexes beyond the default $id
 }
 
@@ -181,7 +192,7 @@ async function createCategories() {
   await addDatetime(COL,'createdAt',   false);
   await addDatetime(COL,'updatedAt',   false);
 
-  await delay(500);
+  await waitForAttributes(db, DB_ID, COL, 7);
   await addIndex(COL, 'slug_unique', IndexType.Unique, ['slug']);
 }
 
@@ -222,7 +233,7 @@ async function createProducts() {
   await addDatetime(COL,'createdAt',      false);
   await addDatetime(COL,'updatedAt',      false);
 
-  await delay(500);
+  await waitForAttributes(db, DB_ID, COL, 19);
   await addIndex(COL, 'slug_unique',    IndexType.Unique, ['slug']);
   await addIndex(COL, 'isActive_key',   IndexType.Key,    ['isActive']);
   await addIndex(COL, 'isFeatured_key', IndexType.Key,    ['isFeatured']);
@@ -234,7 +245,7 @@ async function createOrders() {
   console.log(`\n🗂  Collection: ${COL}`);
 
   await idempotent(`collection "${COL}"`, () =>
-    db.createCollection(DB_ID, COL, 'Orders')
+    db.createCollection(DB_ID, COL, 'Orders', [])
   );
 
   await addString(COL,  'orderNumber',     30,    true);
@@ -253,7 +264,7 @@ async function createOrders() {
   await addDatetime(COL,'createdAt',       false);
   await addDatetime(COL,'updatedAt',       false);
 
-  await delay(500);
+  await waitForAttributes(db, DB_ID, COL, 15);
   await addIndex(COL, 'userId_key',         IndexType.Key,    ['userId']);
   await addIndex(COL, 'status_key',         IndexType.Key,    ['status']);
   await addIndex(COL, 'orderNumber_unique', IndexType.Unique, ['orderNumber']);
@@ -265,7 +276,7 @@ async function createOrderItems() {
   console.log(`\n🗂  Collection: ${COL}`);
 
   await idempotent(`collection "${COL}"`, () =>
-    db.createCollection(DB_ID, COL, 'Order Items')
+    db.createCollection(DB_ID, COL, 'Order Items', [])
   );
 
   await addString(COL,  'orderId',      36,   true);
@@ -273,10 +284,10 @@ async function createOrderItems() {
   await addString(COL,  'productName',  255,  false);
   await addFloat(COL,   'unitPrice',    false);
   await addInteger(COL, 'quantity',     false);
-  await addString(COL,  'deliveryType', 10,   false);
+  await addEnum(COL,    'deliveryType', ['LINK', 'FILE'], false);
   await addString(COL,  'deliveryLink', 1024, false);
 
-  await delay(500);
+  await waitForAttributes(db, DB_ID, COL, 7);
   await addIndex(COL, 'orderId_key',   IndexType.Key, ['orderId']);
   await addIndex(COL, 'productId_key', IndexType.Key, ['productId']);
 }
@@ -286,7 +297,7 @@ async function createDownloadTokens() {
   console.log(`\n🗂  Collection: ${COL}`);
 
   await idempotent(`collection "${COL}"`, () =>
-    db.createCollection(DB_ID, COL, 'Download Tokens')
+    db.createCollection(DB_ID, COL, 'Download Tokens', [])
   );
 
   await addString(COL,  'token',          100,  true);
@@ -299,7 +310,7 @@ async function createDownloadTokens() {
   await addDatetime(COL,'revokedAt',      false);
   await addString(COL,  'deliveryLink',   1024, false);
 
-  await delay(500);
+  await waitForAttributes(db, DB_ID, COL, 9);
   await addIndex(COL, 'token_unique',      IndexType.Unique, ['token']);
   await addIndex(COL, 'orderId_key',       IndexType.Key,    ['orderId']);
   await addIndex(COL, 'orderItemId_key',   IndexType.Key,    ['orderItemId']);
@@ -319,7 +330,7 @@ async function createSiteConfig() {
   await addString(COL,  'value',     65535, true);
   await addDatetime(COL,'updatedAt', false);
 
-  await delay(500);
+  await waitForAttributes(db, DB_ID, COL, 3);
   await addIndex(COL, 'key_unique', IndexType.Unique, ['key']);
 }
 
@@ -339,7 +350,7 @@ async function createWebhookEvents() {
   await addString(COL,  'errorMessage', 1000,  false);
   await addDatetime(COL,'createdAt',    false);
 
-  await delay(500);
+  await waitForAttributes(db, DB_ID, COL, 7);
   await addIndex(COL, 'eventId_key', IndexType.Key, ['eventId']);
 }
 
