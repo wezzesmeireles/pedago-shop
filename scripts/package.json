@@ -1,0 +1,14 @@
+{
+  "name": "pedago-shop-scripts",
+  "version": "1.0.0",
+  "description": "Migration and provisioning scripts for pedago-shop",
+  "type": "module",
+  "scripts": {
+    "provision": "node provision-appwrite.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.4.5",
+    "node-appwrite": "^13.0.0"
+  }
+}
