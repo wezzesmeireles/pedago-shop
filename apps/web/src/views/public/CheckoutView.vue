@@ -284,8 +284,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
@@ -294,6 +294,7 @@ import { useSiteConfigStore } from '@/stores/site-config.store';
 import PixLogo from '@/components/ui/PixLogo.vue';
 
 const router = useRouter();
+const route = useRoute();
 const cart = useCartStore();
 const siteConfig = useSiteConfigStore();
 
@@ -408,7 +409,7 @@ function startPolling() {
   pollingTimer = setInterval(async () => {
     if (!orderId.value) return;
     try {
-      await invokeFunction('reconcile-orders', {}).catch(() => {});
+      await invokeFunction('reconcile-orders', { orderId: orderId.value }).catch(() => {});
       const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId.value);
       if (order?.status === 'PAID') {
         clearInterval(pollingTimer!);
@@ -424,6 +425,16 @@ function startPolling() {
     } catch {}
   }, 5000);
 }
+
+onMounted(async () => {
+  const pendingOrderId = sessionStorage.getItem('pending_order_id')
+  if (pendingOrderId && route.query.collection_id) {
+    // Returned from MP card payment
+    orderId.value = pendingOrderId
+    step.value = 'card'
+    sessionStorage.removeItem('pending_order_id')
+  }
+})
 
 onUnmounted(() => {
   if (countdownTimer) clearInterval(countdownTimer);

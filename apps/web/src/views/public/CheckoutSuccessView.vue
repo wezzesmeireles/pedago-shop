@@ -95,7 +95,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { databases, DB_ID, COLLECTIONS, account, functions } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
@@ -111,9 +111,61 @@ let pollInterval: ReturnType<typeof setInterval>;
 const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
 
-function downloadFile(_item: any, token: any) {
-  const url = `${endpoint}/functions/download/executions?token=${token.token}&project=${projectId}`;
-  window.open(url, '_blank');
+async function triggerDownload(token: string, fallbackFilename: string) {
+  try {
+    // Step 1: Call download function to validate token + get file info
+    const execution = await functions.createExecution(
+      'download',
+      '',
+      false,
+      `/?token=${encodeURIComponent(token)}`,
+      'GET' as any,
+      {},
+    )
+
+    if (execution.responseStatusCode >= 400) {
+      let errMsg = 'Download failed'
+      try { errMsg = JSON.parse(execution.responseBody)?.error ?? errMsg } catch {}
+      throw new Error(errMsg)
+    }
+
+    const data = JSON.parse(execution.responseBody)
+
+    // Step 2: Handle response
+    if (data.type === 'link') {
+      window.open(data.url, '_blank')
+      return
+    }
+
+    // Step 3: Download from Appwrite Storage with user session auth
+    const session = await account.getSession('current')
+    const fileUrl = `${endpoint}/storage/buckets/product-files/files/${data.fileId}/download?project=${encodeURIComponent(projectId)}`
+    const response = await fetch(fileUrl, {
+      headers: {
+        'X-Appwrite-Project': projectId,
+        'X-Appwrite-Session': session.$id,
+      },
+    })
+
+    if (!response.ok) throw new Error(`Storage fetch failed: ${response.status}`)
+
+    const blob = await response.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = data.filename ?? fallbackFilename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(blobUrl)
+  } catch (err: any) {
+    console.error('Download error:', err)
+    alert(err.message ?? 'Erro ao baixar arquivo')
+  }
+}
+
+async function downloadFile(_item: any, token: any) {
+  await triggerDownload(token.token, 'download.pdf');
   token.download_count++;
 }
 
