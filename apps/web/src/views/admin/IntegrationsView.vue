@@ -330,7 +330,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { useSiteConfigStore } from '@/stores/site-config.store';
+
+const siteConfigStore = useSiteConfigStore();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -342,8 +344,11 @@ const showWebhookSecret = ref(false);
 const showTgToken = ref(false);
 const testingTg = ref(false);
 
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const apiUrl = `${supabaseUrl}/functions/v1/mp-webhook`;
+const appwriteEndpoint = (import.meta as any).env?.VITE_APPWRITE_ENDPOINT || '';
+const appwriteProjectId = (import.meta as any).env?.VITE_APPWRITE_PROJECT_ID || '';
+const apiUrl = appwriteEndpoint && appwriteProjectId
+  ? `${appwriteEndpoint}/v1/functions/mp-webhook/executions`
+  : '';
 
 interface TgRecipient { id: string; name: string; chatId: string; testing?: boolean; testResult?: string }
 
@@ -388,19 +393,18 @@ async function testRecipient(r: TgRecipient) {
 
 onMounted(async () => {
   try {
-    const { data } = await supabase.from('site_config').select('value').eq('key', 'global').single();
-    if (data?.value) {
-      const v = data.value as any;
-      form.value.mercadoPagoAccessToken = v.mercadoPagoAccessToken ?? '';
-      form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';
-      form.value.mercadoPagoWebhookSecret = v.mercadoPagoWebhookSecret ?? '';
-      form.value.telegramBotToken = v.telegramBotToken ?? '';
-      // migrate old single chatId to recipients list
-      if (v.telegramRecipients?.length) {
-        form.value.telegramRecipients = v.telegramRecipients.map((r: any) => ({ ...r, testing: false, testResult: '' }));
-      } else if (v.telegramChatId) {
-        form.value.telegramRecipients = [{ id: crypto.randomUUID(), name: 'Admin', chatId: v.telegramChatId, testing: false, testResult: '' }];
-      }
+    // Ensure config is loaded
+    if (!siteConfigStore.loaded) await siteConfigStore.fetch();
+    const v = siteConfigStore.config as any;
+    form.value.mercadoPagoAccessToken = v.mercadoPagoAccessToken ?? '';
+    form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';
+    form.value.mercadoPagoWebhookSecret = v.mercadoPagoWebhookSecret ?? '';
+    form.value.telegramBotToken = v.telegramBotToken ?? '';
+    // migrate old single chatId to recipients list
+    if (v.telegramRecipients?.length) {
+      form.value.telegramRecipients = v.telegramRecipients.map((r: any) => ({ ...r, testing: false, testResult: '' }));
+    } else if (v.telegramChatId) {
+      form.value.telegramRecipients = [{ id: crypto.randomUUID(), name: 'Admin', chatId: v.telegramChatId, testing: false, testResult: '' }];
     }
   } catch {
     // use defaults
@@ -414,20 +418,14 @@ async function save() {
   error.value = '';
   savedAt.value = false;
   try {
-    const { data: existing } = await supabase.from('site_config').select('value').eq('key', 'global').single();
-    const current = (existing?.value as any) ?? {};
-    const merged = {
-      ...current,
+    await siteConfigStore.update({
+      ...siteConfigStore.config,
       mercadoPagoAccessToken: form.value.mercadoPagoAccessToken,
       mercadoPagoPixKey: form.value.mercadoPagoPixKey,
       mercadoPagoWebhookSecret: form.value.mercadoPagoWebhookSecret,
       telegramBotToken: form.value.telegramBotToken,
       telegramRecipients: form.value.telegramRecipients.map(({ id, name, chatId }) => ({ id, name, chatId })),
-    };
-    await supabase.from('site_config').upsert(
-      { key: 'global', value: merged, updated_at: new Date().toISOString() },
-      { onConflict: 'key' },
-    );
+    } as any);
     savedAt.value = true;
     setTimeout(() => (savedAt.value = false), 3000);
   } catch {

@@ -296,7 +296,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { Query } from 'appwrite';
+import { invokeFunction } from '@/services/api';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import AppModal from '@/components/ui/AppModal.vue';
 
@@ -322,22 +324,35 @@ const dateFilterLabel = computed(() => {
   return labels[dateFilter.value] || dateFilter.value;
 });
 
+function mapOrder(o: any) {
+  return {
+    ...o,
+    id: o.$id,
+    orderNumber: o.orderNumber,
+    totalAmount: o.totalAmount,
+    customerName: o.customerName,
+    customerEmail: o.customerEmail,
+    createdAt: o.$createdAt,
+    paymentMethod: o.paymentMethod,
+    items: (o.items ?? []).map((i: any) => ({
+      ...i,
+      id: i.$id,
+      productName: i.productName,
+      unitPrice: i.unitPrice,
+    })),
+  };
+}
+
 async function openDateFilterModal() {
   loadingDateFilterModal.value = true;
   try {
     const dateFrom = getDateFrom();
-    let q: any = supabase
-      .from('orders')
-      .select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' });
+    const queries: any[] = [Query.orderDesc('$createdAt'), Query.limit(500)];
+    if (statusFilter.value) queries.push(Query.equal('status', statusFilter.value));
+    if (dateFrom) queries.push(Query.greaterThanEqual('$createdAt', dateFrom));
 
-    if (statusFilter.value) q = q.eq('status', statusFilter.value);
-    if (dateFrom) q = q.gte('created_at', dateFrom);
-
-    const { data } = await q.order('created_at', { ascending: false });
-    dateFilterModalOrders.value = (data ?? []).map((o: any) => ({
-      ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at, paymentMethod: o.payment_method,
-      items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
-    }));
+    const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
+    dateFilterModalOrders.value = result.documents.map(mapOrder);
   } finally {
     loadingDateFilterModal.value = false;
   }
@@ -409,24 +424,22 @@ async function loadOrders(page = 1) {
   loadingOrders.value = true;
   try {
     const limit = 20;
-    const from = (page - 1) * limit;
+    const offset = (page - 1) * limit;
     const dateFrom = getDateFrom();
 
-    let q: any = supabase
-      .from('orders')
-      .select('*, profiles(name), order_items(product_name, quantity, unit_price)', { count: 'exact' });
+    const queries: any[] = [Query.orderDesc('$createdAt'), Query.limit(limit), Query.offset(offset)];
+    if (statusFilter.value) queries.push(Query.equal('status', statusFilter.value));
+    if (search.value) queries.push(Query.or([
+      Query.contains('orderNumber', search.value),
+      Query.contains('customerEmail', search.value),
+      Query.contains('customerName', search.value),
+    ]));
+    if (dateFrom) queries.push(Query.greaterThanEqual('$createdAt', dateFrom));
 
-    if (statusFilter.value) q = q.eq('status', statusFilter.value);
-    if (search.value) q = q.or(`order_number.ilike.%${search.value}%,customer_email.ilike.%${search.value}%,customer_name.ilike.%${search.value}%`);
-    if (dateFrom) q = q.gte('created_at', dateFrom);
-
-    const { data, count } = await q.order('created_at', { ascending: false }).range(from, from + limit - 1);
-    orders.value = (data ?? []).map((o: any) => ({
-      ...o, orderNumber: o.order_number, totalAmount: o.total_amount, customerName: o.customer_name, createdAt: o.created_at, paymentMethod: o.payment_method,
-      items: (o.order_items ?? []).map((i: any) => ({ ...i, productName: i.product_name, unitPrice: i.unit_price })),
-    }));
-    totalCount.value = count ?? 0;
-    totalPages.value = Math.ceil((count ?? 0) / limit);
+    const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
+    orders.value = result.documents.map(mapOrder) as any;
+    totalCount.value = result.total;
+    totalPages.value = Math.ceil(result.total / limit);
     currentPage.value = page;
   } finally {
     loadingOrders.value = false;
@@ -436,15 +449,47 @@ async function loadOrders(page = 1) {
 async function openDetails(id: string) {
   detailsOpen.value = true; loadingDetail.value = true; selectedOrder.value = null;
   try {
-    const { data } = await supabase.from('orders').select('*, profiles(*), order_items(*, products(id, name, cover_image_url), download_tokens(*))').eq('id', id).single();
-    if (data) selectedOrder.value = {
-      ...data, orderNumber: data.order_number, totalAmount: data.total_amount,
-      customerName: data.customer_name, customerEmail: data.customer_email, createdAt: data.created_at,
-      items: (data.order_items ?? []).map((i: any) => ({
-        ...i, productName: i.product_name, unitPrice: i.unit_price,
-        product: i.products ? { coverImageUrl: i.products.cover_image_url } : null,
-        downloadTokens: (i.download_tokens ?? []).map((t: any) => ({ ...t, downloadCount: t.download_count, maxDownloads: t.max_downloads })),
-      })),
+    const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, id);
+    // Load order items with download tokens
+    const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
+      Query.equal('orderId', id),
+      Query.limit(50),
+    ]);
+    const itemsWithTokens = await Promise.all(itemsResult.documents.map(async (item: any) => {
+      const tokensResult = await databases.listDocuments(DB_ID, COLLECTIONS.DOWNLOAD_TOKENS, [
+        Query.equal('orderItemId', item.$id),
+        Query.limit(10),
+      ]);
+      let product = null;
+      if (item.productId) {
+        try {
+          const p = await databases.getDocument(DB_ID, COLLECTIONS.PRODUCTS, item.productId);
+          product = { coverImageUrl: p.coverImageUrl };
+        } catch {}
+      }
+      return {
+        ...item,
+        id: item.$id,
+        productName: item.productName,
+        unitPrice: item.unitPrice,
+        product,
+        downloadTokens: tokensResult.documents.map((t: any) => ({
+          ...t,
+          id: t.$id,
+          downloadCount: t.downloadCount,
+          maxDownloads: t.maxDownloads,
+        })),
+      };
+    }));
+    selectedOrder.value = {
+      ...order,
+      id: order.$id,
+      orderNumber: order.orderNumber,
+      totalAmount: order.totalAmount,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      createdAt: order.$createdAt,
+      items: itemsWithTokens,
     };
   } finally { loadingDetail.value = false; }
 }
@@ -457,7 +502,7 @@ async function updateStatus(id: string, status: string) {
       await reconcileOrder(id);
       return;
     }
-    await supabase.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    await databases.updateDocument(DB_ID, COLLECTIONS.ORDERS, id, { status });
     selectedOrder.value = { ...selectedOrder.value, status };
     await loadOrders(currentPage.value);
   } finally { updatingStatus.value = false; }
@@ -467,8 +512,7 @@ async function reconcileOrder(orderId: string) {
   reconciling.value = true;
   reconcileMsg.value = null;
   try {
-    const { error } = await supabase.functions.invoke('reconcile-orders', { body: { orderId } });
-    if (error) throw error;
+    await invokeFunction('reconcile-orders', { orderId });
     await loadOrders(currentPage.value);
     if (selectedOrder.value) await openDetails(selectedOrder.value.id);
     reconcileMsg.value = { ok: true, text: 'Verificação concluída. Status atualizado conforme o Mercado Pago.' };
@@ -484,8 +528,7 @@ async function reconcileAll() {
   reconciling.value = true;
   reconcileMsg.value = null;
   try {
-    const { error } = await supabase.functions.invoke('reconcile-orders', { body: {} });
-    if (error) throw error;
+    await invokeFunction('reconcile-orders', {});
     await loadOrders(currentPage.value);
     reconcileMsg.value = { ok: true, text: 'Todos os pedidos pendentes foram verificados junto ao Mercado Pago.' };
   } catch (e: any) {

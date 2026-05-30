@@ -249,7 +249,8 @@
 import { reactive, ref, onMounted } from 'vue';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import type { SiteConfigData } from '@sitepedagogico/shared';
-import { supabase } from '@/lib/supabase';
+import { storage, BUCKETS } from '@/lib/appwrite';
+import { ID } from 'appwrite';
 
 const siteConfigStore = useSiteConfigStore();
 const saving = ref(false);
@@ -320,12 +321,13 @@ function applyLiveColors() {
 async function uploadAsset(event: Event, field: keyof SiteConfigData) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  const ext = file.name.split('.').pop();
-  const path = `site/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const { error } = await supabase.storage.from('product-covers').upload(path, file, { upsert: true });
-  if (error) { alert('Erro ao enviar imagem.'); return; }
-  const { data: urlData } = supabase.storage.from('product-covers').getPublicUrl(path);
-  (form as any)[field] = urlData.publicUrl;
+  try {
+    const uploaded = await storage.createFile(BUCKETS.PRODUCT_FILES, ID.unique(), file);
+    const url = storage.getFilePreview(BUCKETS.PRODUCT_FILES, uploaded.$id).toString();
+    (form as any)[field] = url;
+  } catch {
+    alert('Erro ao enviar imagem.');
+  }
 }
 
 async function uploadBannerImage(event: Event, idx: number) {
@@ -342,12 +344,13 @@ async function uploadBannerImage(event: Event, idx: number) {
   };
   img.src = objectUrl;
 
-  const ext = file.name.split('.').pop();
-  const path = `site/banner-${idx + 1}-${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from('product-covers').upload(path, file, { upsert: true });
-  if (error) { alert('Erro ao enviar imagem.'); return; }
-  const { data: urlData } = supabase.storage.from('product-covers').getPublicUrl(path);
-  form.banners[idx].imageUrl = urlData.publicUrl;
+  try {
+    const uploaded = await storage.createFile(BUCKETS.PRODUCT_FILES, ID.unique(), file);
+    const url = storage.getFilePreview(BUCKETS.PRODUCT_FILES, uploaded.$id).toString();
+    form.banners[idx].imageUrl = url;
+  } catch {
+    alert('Erro ao enviar imagem.');
+  }
 }
 
 async function saveConfig() {

@@ -325,7 +325,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { Query } from 'appwrite';
+import { invokeFunction } from '@/services/api';
 import AppModal from '@/components/ui/AppModal.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -381,37 +383,24 @@ function debouncedLoad() {
 }
 
 async function loadUsers(page = 1) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token ?? '';
-  const baseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const limit = 20;
+  const data = await invokeFunction('admin-users', { page, limit, search: search.value || undefined });
 
-  const url = new URL(`${baseUrl}/functions/v1/admin-users`);
-  url.searchParams.set('page', String(page));
-  url.searchParams.set('limit', '20');
-  if (search.value) url.searchParams.set('search', search.value);
-
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
-  });
-  if (!res.ok) { console.error('loadUsers error:', res.status, await res.text()); return; }
-  const data = await res.json();
-
-  totalPages.value = Math.max(1, Math.ceil((data.total ?? 0) / 20));
+  totalPages.value = Math.max(1, Math.ceil(((data as any).total ?? 0) / limit));
   currentPage.value = page;
 
-  users.value = (data.items ?? []).map((u: any) => ({
+  users.value = ((data as any).items ?? []).map((u: any) => ({
     ...u,
-    avatarUrl: u.avatar_url,
-    isActive: u.is_active,
-    createdAt: u.created_at,
+    avatarUrl: u.avatarUrl ?? u.avatar_url,
+    isActive: u.isActive ?? u.is_active,
+    createdAt: u.createdAt ?? u.created_at,
     ordersCount: Number(u.ordersCount ?? 0),
     phone: u.phone ?? null,
   }));
 }
 
 async function toggleActive(user: any) {
-  await supabase.from('profiles').update({ is_active: !user.isActive, updated_at: new Date().toISOString() }).eq('id', user.id);
+  await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, user.id, { isActive: !user.isActive });
   await loadUsers(currentPage.value);
 }
 
@@ -432,12 +421,9 @@ async function saveAddPhone() {
   }
   addPhoneSaving.value = true;
   try {
-    const { data, error } = await supabase.functions.invoke('admin-users', {
-      method: 'PATCH',
-      body: { userId: addPhoneUser.value.id, phone: digits },
-    });
-    if (error || data?.error) {
-      addPhoneError.value = data?.error ?? 'Erro ao salvar. Tente novamente.';
+    const result = await invokeFunction('admin-users', { _method: 'PATCH', userId: addPhoneUser.value.id, phone: digits });
+    if ((result as any)?.error) {
+      addPhoneError.value = (result as any).error ?? 'Erro ao salvar. Tente novamente.';
       return;
     }
     // Update local state immediately so phone shows without waiting for loadUsers
@@ -474,19 +460,21 @@ async function openOrders(user: any) {
   loadingOrders.value = true;
   userOrders.value = [];
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('id, order_number, status, total_amount, created_at, order_items(product_name, quantity, unit_price)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    if (error) { console.error('openOrders error:', error); return; }
-    userOrders.value = (data ?? []).map((o: any) => ({
+    const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
+      Query.equal('userId', user.id),
+      Query.orderDesc('$createdAt'),
+      Query.limit(50),
+    ]);
+    userOrders.value = result.documents.map((o: any) => ({
       ...o,
-      orderNumber: o.order_number,
-      createdAt: o.created_at,
-      totalAmount: o.total_amount,
-      items: (o.order_items ?? []).map((i: any) => ({ productName: i.product_name })),
-    }));
+      id: o.$id,
+      orderNumber: o.orderNumber,
+      createdAt: o.$createdAt,
+      totalAmount: o.totalAmount,
+      items: (o.items ?? []).map((i: any) => ({ productName: i.productName })),
+    })) as any;
+  } catch (e) {
+    console.error('openOrders error:', e);
   } finally {
     loadingOrders.value = false;
   }

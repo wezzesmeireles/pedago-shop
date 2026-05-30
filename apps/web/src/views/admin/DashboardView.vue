@@ -346,7 +346,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { databases, storage, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { Query } from 'appwrite';
+import { invokeFunction } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
@@ -427,7 +429,7 @@ function formatPriceShort(p: number) {
   return `R$${p.toFixed(0)}`;
 }
 
-const sum = (rows: any[]) => (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_amount), 0);
+const sum = (docs: any[]) => (docs ?? []).reduce((s: number, r: any) => s + Number(r.totalAmount), 0);
 
 // ── Storage monitoring ──────────────────────────────────────
 const PLAN_LIMIT_BYTES = 1073741824; // 1 GB free tier
@@ -451,28 +453,21 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1073741824).toFixed(2)} GB`;
 }
 
-async function listFolderSize(bucket: string, prefix: string): Promise<{ bytes: number; count: number }> {
-  const { data } = await supabase.storage.from(bucket).list(prefix || undefined, { limit: 1000 });
-  if (!data) return { bytes: 0, count: 0 };
-  let bytes = 0, count = 0;
-  await Promise.all(data.map(async item => {
-    if (item.id) {
-      bytes += (item.metadata as any)?.size ?? 0;
-      count += 1;
-    } else {
-      const sub = await listFolderSize(bucket, prefix ? `${prefix}/${item.name}` : item.name);
-      bytes += sub.bytes;
-      count += sub.count;
-    }
-  }));
-  return { bytes, count };
+async function getBucketSize(bucketId: string): Promise<{ bytes: number; count: number }> {
+  try {
+    const result = await storage.listFiles(bucketId, [Query.limit(500)]);
+    const bytes = result.files.reduce((s, f) => s + (f.sizeOriginal ?? 0), 0);
+    return { bytes, count: result.total };
+  } catch {
+    return { bytes: 0, count: 0 };
+  }
 }
 
 async function loadStorage() {
   storageLoading.value = true;
   try {
     await Promise.all(storageBuckets.value.map(async bucket => {
-      const { bytes, count } = await listFolderSize(bucket.name, '');
+      const { bytes, count } = await getBucketSize(bucket.name);
       bucket.bytes = bytes;
       bucket.count = count;
     }));
@@ -491,35 +486,62 @@ onMounted(async () => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
 
-    const [{ data: totalRev }, { data: dayRev }, { data: weekRev }, { data: monthRev }, { data: yearRev }, { count: totalOrders }, { count: monthOrders }, { count: pending }, { count: users }, { data: topProds }, { data: recent }] = await Promise.all([
-      supabase.from('orders').select('total_amount').eq('status', 'PAID'),
-      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfDay),
-      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfWeek),
-      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfMonth),
-      supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', startOfYear),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID'),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'PAID').gte('created_at', startOfMonth),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'AWAITING_PAYMENT'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'CUSTOMER'),
-      supabase.from('products').select('id, name, sales_count, cover_image_url, price').is('deleted_at', null).order('sales_count', { ascending: false }).limit(5),
-      supabase.from('orders').select('*, profiles(name), order_items(product_name)').order('created_at', { ascending: false }).limit(6),
+    const [totalRevResult, dayRevResult, weekRevResult, monthRevResult, yearRevResult,
+      totalOrdersResult, monthOrdersResult, pendingResult, usersResult,
+      topProdsResult, recentResult] = await Promise.all([
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.limit(5000)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('paidAt', startOfDay), Query.limit(5000)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('paidAt', startOfWeek), Query.limit(5000)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('paidAt', startOfMonth), Query.limit(5000)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('paidAt', startOfYear), Query.limit(5000)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('$createdAt', startOfMonth), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
+      invokeFunction('recent-purchases'),
     ]);
 
     stats.value = {
-      revenue: { total: sum(totalRev ?? []), day: sum(dayRev ?? []), week: sum(weekRev ?? []), month: sum(monthRev ?? []), year: sum(yearRev ?? []) },
-      orders: { total: totalOrders ?? 0, month: monthOrders ?? 0, pending: pending ?? 0 },
-      users: { total: users ?? 0 },
+      revenue: {
+        total: sum(totalRevResult.documents),
+        day: sum(dayRevResult.documents),
+        week: sum(weekRevResult.documents),
+        month: sum(monthRevResult.documents),
+        year: sum(yearRevResult.documents),
+      },
+      orders: { total: totalOrdersResult.total, month: monthOrdersResult.total, pending: pendingResult.total },
+      users: { total: usersResult.total },
     };
-    topProducts.value = (topProds ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, salesCount: p.sales_count }));
-    recentOrders.value = (recent ?? []).map((o: any) => ({ ...o, orderNumber: o.order_number, totalAmount: o.total_amount, user: o.profiles, customerName: o.customer_name }));
+    topProducts.value = topProdsResult.documents.map((p: any) => ({
+      ...p,
+      id: p.$id,
+      coverImageUrl: p.coverImageUrl,
+      salesCount: p.salesCount,
+    }));
+    const recent = (recentResult as any)?.orders ?? recentResult ?? [];
+    recentOrders.value = (Array.isArray(recent) ? recent : []).map((o: any) => ({
+      ...o,
+      id: o.$id ?? o.id,
+      orderNumber: o.orderNumber,
+      totalAmount: o.totalAmount,
+      customerName: o.customerName,
+    }));
 
     // Monthly chart — last 6 months
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
       return { label: d.toLocaleDateString('pt-BR', { month: 'short' }), start: d.toISOString(), end: new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString() };
     });
-    const revs = await Promise.all(months.map(m => supabase.from('orders').select('total_amount').eq('status', 'PAID').gte('paid_at', m.start).lt('paid_at', m.end)));
-    monthlyRevenue.value = months.map((m, i) => ({ label: m.label, value: sum((revs[i]?.data ?? []) as any[]) }));
+    const revs = await Promise.all(months.map(m =>
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
+        Query.equal('status', 'PAID'),
+        Query.greaterThanEqual('paidAt', m.start),
+        Query.lessThan('paidAt', m.end),
+        Query.limit(5000),
+      ])
+    ));
+    monthlyRevenue.value = months.map((m, i) => ({ label: m.label, value: sum(revs[i].documents) }));
   } finally {
     loading.value = false;
   }

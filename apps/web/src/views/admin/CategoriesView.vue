@@ -116,7 +116,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { Query, ID } from 'appwrite';
 import AppModal from '@/components/ui/AppModal.vue';
 
 const categories = ref<any[]>([]);
@@ -135,7 +136,7 @@ function openCreate() {
 
 function openEdit(cat: any) {
   editing.value = cat;
-  Object.assign(form, { name: cat.name, slug: cat.slug, description: cat.description || '', imageUrl: cat.image_url || '' });
+  Object.assign(form, { name: cat.name, slug: cat.slug, description: cat.description || '', imageUrl: cat.imageUrl || '' });
   errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -144,15 +145,18 @@ async function save() {
   saving.value = true;
   errorMsg.value = '';
   try {
-    const payload = { name: form.name, slug: form.slug, description: form.description || null, image_url: form.imageUrl || null, updated_at: new Date().toISOString() };
+    const payload: any = {
+      name: form.name, slug: form.slug,
+      description: form.description || null,
+      imageUrl: form.imageUrl || null,
+    };
     if (editing.value) {
-      const { error } = await supabase.from('categories').update(payload).eq('id', editing.value.id);
-      if (error) throw new Error(error.message);
+      await databases.updateDocument(DB_ID, COLLECTIONS.CATEGORIES, editing.value.$id, payload);
     } else {
-      const { data: existing } = await supabase.from('categories').select('id').eq('slug', form.slug).single();
-      if (existing) throw new Error('Slug já existe.');
-      const { error } = await supabase.from('categories').insert({ ...payload, is_active: true });
-      if (error) throw new Error(error.message);
+      // Check slug uniqueness
+      const existing = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.equal('slug', form.slug), Query.limit(1)]);
+      if (existing.total > 0) throw new Error('Slug já existe.');
+      await databases.createDocument(DB_ID, COLLECTIONS.CATEGORIES, ID.unique(), { ...payload, isActive: true });
     }
     await loadCategories();
     modalOpen.value = false;
@@ -164,29 +168,43 @@ async function save() {
 }
 
 async function toggleActive(cat: any) {
-  await supabase.from('categories').update({ is_active: !cat.is_active, updated_at: new Date().toISOString() }).eq('id', cat.id);
+  await databases.updateDocument(DB_ID, COLLECTIONS.CATEGORIES, cat.$id, { isActive: !cat.isActive });
   await loadCategories();
 }
 
 async function loadCategories() {
-  const { data } = await supabase.from('categories').select('*, products(count)').order('sort_order').order('created_at');
-  categories.value = (data ?? []).map((c: any) => ({
-    ...c,
-    isActive: c.is_active,
-    imageUrl: c.image_url,
-    _count: { products: c.products?.[0]?.count ?? 0 },
+  const result = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
+    Query.orderAsc('sortOrder'),
+    Query.orderAsc('$createdAt'),
+    Query.limit(100),
+  ]);
+  // Get product counts per category
+  const cats = await Promise.all(result.documents.map(async (c: any) => {
+    const prodCount = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+      Query.equal('categoryId', c.$id),
+      Query.isNull('deletedAt'),
+      Query.limit(1),
+    ]);
+    return {
+      ...c,
+      id: c.$id,
+      isActive: c.isActive,
+      imageUrl: c.imageUrl,
+      _count: { products: prodCount.total },
+    };
   }));
+  categories.value = cats;
 }
 
 async function reorder(cat: any, direction: 'up' | 'down') {
-  const idx = categories.value.findIndex(c => c.id === cat.id);
+  const idx = categories.value.findIndex(c => c.$id === cat.$id);
   const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
   if (swapIdx < 0 || swapIdx >= categories.value.length) return;
   const a = categories.value[idx];
   const b = categories.value[swapIdx];
   await Promise.all([
-    supabase.from('categories').update({ sort_order: swapIdx }).eq('id', a.id),
-    supabase.from('categories').update({ sort_order: idx }).eq('id', b.id),
+    databases.updateDocument(DB_ID, COLLECTIONS.CATEGORIES, a.$id, { sortOrder: swapIdx }),
+    databases.updateDocument(DB_ID, COLLECTIONS.CATEGORIES, b.$id, { sortOrder: idx }),
   ]);
   await loadCategories();
 }
