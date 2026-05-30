@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { account } from '@/lib/appwrite';
 import AppButton from '@/components/ui/AppButton.vue';
 
 const email = ref('');
@@ -71,10 +71,10 @@ async function handleSubmit() {
   error.value = '';
   loading.value = true;
   try {
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email.value.trim(), {
-      redirectTo: window.location.origin + '/auth/reset-senha',
-    });
-    if (err) throw err;
+    await account.createRecovery(
+      email.value.trim(),
+      `${window.location.origin}/auth/reset-senha`,
+    );
     sent.value = true;
   } catch (err: any) {
     const raw = (err?.message || '').toLowerCase();

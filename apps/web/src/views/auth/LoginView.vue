@@ -76,7 +76,6 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import AppInput from '@/components/ui/AppInput.vue';
 import AppButton from '@/components/ui/AppButton.vue';
-import { supabase } from '@/lib/supabase';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -88,7 +87,7 @@ const form = reactive({ email: '', password: '' });
 const errors = reactive({ email: '', password: '', general: '' });
 
 async function loginGoogle() {
-  await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/auth/google-callback' } });
+  await auth.loginWithGoogle();
 }
 
 async function handleLogin() {

@@ -8,30 +8,23 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { account } from '@/lib/appwrite';
 import { useAuthStore } from '@/stores/auth.store';
 
 const router = useRouter();
 const auth = useAuthStore();
 
 onMounted(async () => {
-  const { data } = await supabase.auth.getSession();
-  if (!data.session) {
-    router.push('/auth/login');
-    return;
-  }
-  await auth.fetchMe();
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('phone')
-    .eq('id', data.session.user.id)
-    .single();
-
-  if (!profile?.phone) {
-    router.push({ name: 'phone-required' });
-  } else {
-    router.push('/');
+  try {
+    await account.get(); // Verify session exists
+    await auth.fetchMe(); // Populate store
+    if (!auth.user?.phone) {
+      router.push({ name: 'phone-required' });
+    } else {
+      router.push('/');
+    }
+  } catch {
+    router.push('/auth/login?error=oauth_failed');
   }
 });
 </script>

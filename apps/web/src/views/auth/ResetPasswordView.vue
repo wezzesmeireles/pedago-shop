@@ -104,11 +104,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { useRouter, useRoute } from 'vue-router';
+import { account } from '@/lib/appwrite';
 import AppButton from '@/components/ui/AppButton.vue';
 
 const router = useRouter();
+const route = useRoute();
 const password = ref('');
 const confirm = ref('');
 const showPassword = ref(false);
@@ -142,10 +143,11 @@ const strengthTextColor = computed(() => {
   return 'text-emerald-600';
 });
 
-onMounted(async () => {
-  // Supabase puts recovery tokens in the URL hash — exchange them for a session
-  const { data, error } = await supabase.auth.getSession();
-  if (error || !data.session) {
+onMounted(() => {
+  // Appwrite passes userId and secret as query params in the recovery link
+  const userId = route.query.userId as string | undefined;
+  const secret = route.query.secret as string | undefined;
+  if (!userId || !secret) {
     tokenError.value = true;
   }
 });
@@ -162,10 +164,12 @@ async function handleReset() {
     return;
   }
 
+  const userId = route.query.userId as string;
+  const secret = route.query.secret as string;
+
   loading.value = true;
   try {
-    const { error } = await supabase.auth.updateUser({ password: password.value });
-    if (error) throw error;
+    await account.updateRecovery(userId, secret, password.value);
     done.value = true;
   } catch (err: any) {
     const raw = (err?.message || '').toLowerCase();

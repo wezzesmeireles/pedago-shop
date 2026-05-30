@@ -105,8 +105,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { Query } from 'appwrite';
+import { account, databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useAuthStore } from '@/stores/auth.store';
-import { supabase } from '@/lib/supabase';
 import { invokeFunction } from '@/services/api';
 
 const auth = useAuthStore();
@@ -124,8 +125,11 @@ onMounted(async () => {
     return;
   }
   try {
-    const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'ADMIN');
-    setupMode.value = (count ?? 0) === 0;
+    const result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+      Query.equal('role', 'ADMIN'),
+      Query.limit(1),
+    ]);
+    setupMode.value = result.total === 0;
   } catch {
     setupMode.value = false;
   }
@@ -137,7 +141,7 @@ async function handleSubmit() {
   try {
     if (setupMode.value) {
       await invokeFunction('create-admin', { name: form.name, email: form.email, password: form.password });
-      await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
+      await account.createEmailPasswordSession(form.email, form.password);
       await auth.fetchMe();
     } else {
       await auth.login(form.email, form.password);

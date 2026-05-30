@@ -38,7 +38,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { Query } from 'appwrite';
+import { account, databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useAuthStore } from '@/stores/auth.store';
 
 const router = useRouter();
@@ -60,26 +61,34 @@ async function save() {
   }
   saving.value = true;
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const authUser = await account.get().catch(() => null);
+    if (!authUser) {
       phoneError.value = 'Sessão expirada. Faça login novamente.';
       return;
     }
-    const { error } = await supabase
-      .from('profiles')
-      .update({ phone: digits, updated_at: new Date().toISOString() })
-      .eq('id', user.id);
-    if (error) {
-      console.error('[phone-required] update error:', error);
+    const profileResult = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+      Query.equal('userId', authUser.$id),
+      Query.limit(1),
+    ]);
+    const profileDoc = profileResult.documents[0];
+    if (!profileDoc) {
+      console.error('[phone-required] profile not found for userId:', authUser.$id);
       phoneError.value = 'Erro ao salvar. Tente novamente.';
       return;
     }
+    await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileDoc.$id, {
+      phone: digits,
+      updatedAt: new Date().toISOString(),
+    });
     await auth.fetchMe();
     if (!auth.user?.phone) {
       phoneError.value = 'Número não foi salvo. Tente novamente.';
       return;
     }
     router.push(redirect);
+  } catch (err: any) {
+    console.error('[phone-required] update error:', err);
+    phoneError.value = 'Erro ao salvar. Tente novamente.';
   } finally {
     saving.value = false;
   }
