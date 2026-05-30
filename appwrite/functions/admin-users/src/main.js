@@ -1,4 +1,4 @@
-import { Client, Users, Databases, Query } from 'node-appwrite'
+import { Client, Users, Databases, Query, Account } from 'node-appwrite'
 
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -9,6 +9,32 @@ export default async ({ req, res, log, error }) => {
   const users = new Users(client)
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
+
+  // Check caller is admin
+  const callerToken = req.headers?.['x-appwrite-session'] ?? req.headers?.['authorization']?.replace('Bearer ', '')
+  if (!callerToken) {
+    return res.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const userClient = new Client()
+    .setEndpoint(process.env.APPWRITE_ENDPOINT)
+    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
+    .setSession(callerToken)
+
+  try {
+    const userAccount = new Account(userClient)
+    const caller = await userAccount.get()
+    const callerProfiles = await db.listDocuments(DB, 'profiles', [
+      Query.equal('userId', caller.$id),
+      Query.equal('role', 'ADMIN'),
+      Query.limit(1),
+    ])
+    if (callerProfiles.total === 0) {
+      return res.json({ error: 'Forbidden' }, 403)
+    }
+  } catch {
+    return res.json({ error: 'Unauthorized' }, 401)
+  }
 
   if (req.method === 'PATCH') {
     let body

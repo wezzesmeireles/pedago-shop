@@ -24,6 +24,10 @@ export default async ({ req, res, log, error }) => {
   let pendingOrders
   if (specificOrderId) {
     const order = await db.getDocument(DB, 'orders', specificOrderId)
+    if (order.status !== 'AWAITING_PAYMENT' || !order.mpPaymentId) {
+      log(`Order ${specificOrderId} is ${order.status} — skipping reconciliation`)
+      return res.json({ reconciled: 0, errors: 0, total: 0 })
+    }
     pendingOrders = [order]
   } else {
     const result = await db.listDocuments(DB, 'orders', [
