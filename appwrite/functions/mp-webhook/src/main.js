@@ -70,86 +70,97 @@ export default async ({ req, res, log, error }) => {
 
   let webhookStatus = 'processed'
 
-  if (!order) {
-    log(`No order found for mpPaymentId ${paymentId}`)
-    webhookStatus = 'skipped'
-  } else if (payment.status === 'approved' && order.status !== 'PAID') {
-    // Mark order PAID
-    await db.updateDocument(DB, 'orders', order.$id, {
-      status: 'PAID',
-      mpStatus: 'approved',
-      paidAt: now,
-      updatedAt: now,
-    })
-
-    // Fetch order items
-    const itemsResult = await db.listDocuments(DB, 'order_items', [
-      Query.equal('orderId', order.$id),
-    ])
-
-    // Create download token per item
-    const tokenExpiry = new Date()
-    tokenExpiry.setFullYear(tokenExpiry.getFullYear() + 30)
-    for (const item of itemsResult.documents) {
-      await db.createDocument(DB, 'download_tokens', ID.unique(), {
-        token: crypto.randomUUID(),
-        orderId: order.$id,
-        orderItemId: item.$id,
-        maxDownloads: 5,
-        downloadCount: 0,
-        expiresAt: tokenExpiry.toISOString(),
-        deliveryLink: item.deliveryLink ?? null,
-      })
-      // Increment product salesCount
-      try {
-        const prod = await db.getDocument(DB, 'products', item.productId)
-        await db.updateDocument(DB, 'products', item.productId, {
-          salesCount: (prod.salesCount ?? 0) + 1,
-          updatedAt: now,
-        })
-      } catch (salesErr) {
-        log(`salesCount update failed for ${item.productId}: ${salesErr.message}`)
-      }
-    }
-
-    // Telegram notification
-    await sendTelegramNotification(db, DB, `✅ Pagamento confirmado!\nPedido: ${order.orderNumber}\nCliente: ${order.customerEmail}\nValor: R$ ${order.totalAmount?.toFixed(2)}`, log)
-
-  } else if (['rejected', 'cancelled'].includes(payment.status)) {
-    if (order.status === 'AWAITING_PAYMENT') {
+  try {
+    if (!order) {
+      log(`No order found for mpPaymentId ${paymentId}`)
+      webhookStatus = 'skipped'
+    } else if (payment.status === 'approved' && order.status !== 'PAID') {
+      // Mark order PAID
       await db.updateDocument(DB, 'orders', order.$id, {
-        status: 'CANCELLED',
-        mpStatus: payment.status,
+        status: 'PAID',
+        mpStatus: 'approved',
+        paidAt: now,
         updatedAt: now,
       })
-    }
-    await sendTelegramNotification(db, DB, `❌ Pagamento ${payment.status}\nPedido: ${order.orderNumber}`, log)
 
-  } else if (payment.status === 'refunded') {
-    await db.updateDocument(DB, 'orders', order.$id, {
-      status: 'REFUNDED',
-      mpStatus: 'refunded',
-      updatedAt: now,
-    })
-    // Revoke all download tokens for this order
-    const tokensResult = await db.listDocuments(DB, 'download_tokens', [
-      Query.equal('orderId', order.$id),
-    ])
-    for (const t of tokensResult.documents) {
-      await db.updateDocument(DB, 'download_tokens', t.$id, { revokedAt: now })
+      // Fetch order items
+      const itemsResult = await db.listDocuments(DB, 'order_items', [
+        Query.equal('orderId', order.$id),
+      ])
+
+      // Create download token per item
+      const tokenExpiry = new Date()
+      tokenExpiry.setFullYear(tokenExpiry.getFullYear() + 30)
+      for (const item of itemsResult.documents) {
+        await db.createDocument(DB, 'download_tokens', ID.unique(), {
+          token: crypto.randomUUID(),
+          orderId: order.$id,
+          orderItemId: item.$id,
+          maxDownloads: 5,
+          downloadCount: 0,
+          expiresAt: tokenExpiry.toISOString(),
+          deliveryLink: item.deliveryLink ?? null,
+        })
+        // Increment product salesCount
+        try {
+          const prod = await db.getDocument(DB, 'products', item.productId)
+          await db.updateDocument(DB, 'products', item.productId, {
+            salesCount: (prod.salesCount ?? 0) + 1,
+            updatedAt: now,
+          })
+        } catch (salesErr) {
+          log(`salesCount update failed for ${item.productId}: ${salesErr.message}`)
+        }
+      }
+
+      // Telegram notification
+      await sendTelegramNotification(db, DB, `✅ Pagamento confirmado!\nPedido: ${order.orderNumber}\nCliente: ${order.customerEmail}\nValor: R$ ${order.totalAmount?.toFixed(2)}`, log)
+
+    } else if (['rejected', 'cancelled'].includes(payment.status)) {
+      if (order.status === 'AWAITING_PAYMENT') {
+        await db.updateDocument(DB, 'orders', order.$id, {
+          status: 'CANCELLED',
+          mpStatus: payment.status,
+          updatedAt: now,
+        })
+      }
+      await sendTelegramNotification(db, DB, `❌ Pagamento ${payment.status}\nPedido: ${order.orderNumber}`, log)
+
+    } else if (payment.status === 'refunded') {
+      await db.updateDocument(DB, 'orders', order.$id, {
+        status: 'REFUNDED',
+        mpStatus: 'refunded',
+        updatedAt: now,
+      })
+      // Revoke all download tokens for this order
+      const tokensResult = await db.listDocuments(DB, 'download_tokens', [
+        Query.equal('orderId', order.$id),
+        Query.limit(500),
+      ])
+      for (const t of tokensResult.documents) {
+        await db.updateDocument(DB, 'download_tokens', t.$id, { revokedAt: now })
+      }
+      await sendTelegramNotification(db, DB, `↩️ Reembolso processado\nPedido: ${order.orderNumber}`, log)
     }
-    await sendTelegramNotification(db, DB, `↩️ Reembolso processado\nPedido: ${order.orderNumber}`, log)
+  } catch (processingErr) {
+    error(`Processing error for ${paymentId}: ${processingErr.message}`)
+    webhookStatus = 'failed'
+  } finally {
+    // Always write the event log
+    try {
+      await db.createDocument(DB, 'webhook_events', ID.unique(), {
+        source: 'mercadopago',
+        eventId: paymentId,
+        eventType,
+        payload: typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {}),
+        status: webhookStatus,
+        errorMessage: webhookStatus === 'failed' ? 'See function logs' : null,
+        createdAt: now,
+      })
+    } catch (logErr) {
+      error(`Failed to log webhook event: ${logErr.message}`)
+    }
   }
-
-  // Log webhook event for idempotency
-  await db.createDocument(DB, 'webhook_events', ID.unique(), {
-    source: 'mercadopago',
-    eventId: paymentId,
-    eventType,
-    payload: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
-    status: webhookStatus,
-    createdAt: now,
-  })
 
   return res.json({ ok: true })
 }
