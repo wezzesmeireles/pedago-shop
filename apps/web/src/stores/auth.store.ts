@@ -57,21 +57,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(email: string, password: string) {
     loading.value = true;
     try {
-      const session = await account.createEmailPasswordSession(email, password);
+      await account.createEmailPasswordSession(email, password);
       await fetchMe().catch(() => {});
 
-      // Check if user has phone
-      if (session.userId) {
-        const result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
-          Query.equal('userId', session.userId),
-          Query.limit(1),
-        ]);
-        const profile = result.documents[0] as Record<string, any> | undefined;
-
-        if (!profile?.phone) {
-          return { needsPhone: true };
-        }
+      if (!user.value?.phone) {
+        return { needsPhone: true };
       }
+      return { needsPhone: false };
     } finally {
       loading.value = false;
     }
@@ -80,7 +72,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function loginWithGoogle() {
     const successUrl = `${window.location.origin}/auth/google-callback`;
     const failUrl = `${window.location.origin}/login`;
-    account.createOAuth2Session(OAuthProvider.Google, successUrl, failUrl);
+    return account.createOAuth2Session(OAuthProvider.Google, successUrl, failUrl);
   }
 
   async function register(name: string, email: string, password: string, phone?: string) {
@@ -150,8 +142,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    await account.deleteSession('current');
-    user.value = null;
+    try {
+      await account.deleteSession('current');
+    } finally {
+      user.value = null;
+      // isLoggedIn and isAdmin are computed from user.value — no separate reset needed
+    }
   }
 
   function clearUser() {
