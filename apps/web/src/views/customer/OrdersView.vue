@@ -205,7 +205,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS, account } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 
 const orders = ref<any[]>([]);
@@ -248,33 +249,39 @@ async function loadPage(page: number) {
   if (page < 1 || page > totalPages.value) return;
   loading.value = true;
   try {
-    const from = (page - 1) * LIMIT;
-    const to = from + LIMIT - 1;
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data, count } = await supabase
-      .from('orders')
-      .select('*, order_items(id, product_name, unit_price, quantity, products(id, name, cover_image_url, slug), download_tokens(*))', { count: 'exact' })
-      .eq('user_id', user!.id)
-      .eq('status', 'PAID')
-      .order('created_at', { ascending: false })
-      .range(from, to);
+    const offset = (page - 1) * LIMIT;
+    const currentUser = await account.get();
 
-    orders.value = (data ?? []).map((o: any) => ({
-      ...o,
-      orderNumber: o.order_number,
-      totalAmount: o.total_amount,
-      createdAt: o.created_at,
-      paidAt: o.paid_at,
-      paymentMethod: o.payment_method,
-      items: (o.order_items ?? []).map((i: any) => ({
-        ...i,
-        productName: i.product_name,
-        unitPrice: i.unit_price,
-        product: i.products ? { coverImageUrl: i.products.cover_image_url } : null,
-        downloadTokens: i.download_tokens ?? [],
-      })),
-    }));
-    totalPages.value = Math.ceil((count ?? 0) / LIMIT);
+    const ordersResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
+      Query.equal('userId', currentUser.$id),
+      Query.equal('status', 'PAID'),
+      Query.orderDesc('$createdAt'),
+      Query.limit(LIMIT),
+      Query.offset(offset),
+    ]);
+
+    // Fetch items for each order
+    const ordersWithItems = await Promise.all(
+      ordersResult.documents.map(async (o: any) => {
+        const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
+          Query.equal('orderId', o.$id),
+        ]);
+        return {
+          ...o,
+          id: o.$id,
+          items: itemsResult.documents.map((i: any) => ({
+            ...i,
+            id: i.$id,
+            productName: i.productName,
+            unitPrice: i.unitPrice,
+            product: i.coverImageUrl ? { coverImageUrl: i.coverImageUrl } : null,
+          })),
+        };
+      }),
+    );
+
+    orders.value = ordersWithItems;
+    totalPages.value = Math.ceil(ordersResult.total / LIMIT);
     currentPage.value = page;
   } finally {
     loading.value = false;

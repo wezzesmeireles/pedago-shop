@@ -95,9 +95,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { invokeFunction } from '@/services/api';
+import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const route = useRoute();
 const cart = useCartStore();
@@ -106,46 +107,65 @@ const loading = ref(true);
 const awaitingPayment = ref(false);
 
 let pollInterval: ReturnType<typeof setInterval>;
-let realtimeChannel: RealtimeChannel | null = null;
+
+const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
+const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
 
 function downloadFile(_item: any, token: any) {
-  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download?token=${token.token}`;
+  const url = `${endpoint}/functions/download/executions?token=${token.token}&project=${projectId}`;
   window.open(url, '_blank');
   token.download_count++;
 }
 
 async function loadOrder() {
-  const { data } = await supabase
-    .from('orders')
-    .select('*, order_items(*, products(file_key, cover_image_url), download_tokens(*))')
-    .eq('id', route.params.orderId as string)
-    .single();
-  if (data) order.value = data;
-  return data?.status;
+  const orderDoc = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, route.params.orderId as string);
+  if (!orderDoc) return null;
+
+  // Fetch order items
+  const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
+    Query.equal('orderId', orderDoc.$id),
+  ]);
+
+  // For each item, fetch its download tokens
+  const itemsWithTokens = await Promise.all(
+    itemsResult.documents.map(async (item: any) => {
+      const tokensResult = await databases.listDocuments(DB_ID, COLLECTIONS.DOWNLOAD_TOKENS, [
+        Query.equal('orderItemId', item.$id),
+        Query.isNull('revokedAt'),
+      ]);
+      return {
+        ...item,
+        id: item.$id,
+        product_name: item.productName,
+        download_tokens: tokensResult.documents.map((t: any) => ({
+          ...t,
+          id: t.$id,
+          download_count: t.downloadCount,
+          max_downloads: t.maxDownloads,
+          delivery_link: t.deliveryLink ?? null,
+        })),
+      };
+    }),
+  );
+
+  order.value = {
+    ...orderDoc,
+    order_number: orderDoc.orderNumber,
+    order_items: itemsWithTokens,
+  };
+  return orderDoc.status;
 }
 
 function startWaiting(orderId: string) {
   awaitingPayment.value = true;
 
-  realtimeChannel = supabase
-    .channel(`success-order-${orderId}`)
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, async (payload) => {
-      if (payload.new?.status === 'PAID') {
-        clearInterval(pollInterval);
-        await loadOrder();
-        awaitingPayment.value = false;
-      }
-    })
-    .subscribe();
-
   let attempts = 0;
   pollInterval = setInterval(async () => {
     attempts++;
     try {
-      // Force server-side MP status check for this specific order
-      await supabase.functions.invoke('reconcile-orders', { body: { orderId } });
-      const { data } = await supabase.from('orders').select('status').eq('id', orderId).single();
-      if (data?.status === 'PAID') {
+      await invokeFunction('reconcile-orders', { orderId }).catch(() => {});
+      const orderDoc = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId);
+      if (orderDoc?.status === 'PAID') {
         clearInterval(pollInterval);
         await loadOrder();
         awaitingPayment.value = false;
@@ -162,8 +182,7 @@ onMounted(async () => {
   cart.clear();
   const orderId = route.params.orderId as string;
   try {
-    // Immediately reconcile this specific order (MP may have just redirected back)
-    await supabase.functions.invoke('reconcile-orders', { body: { orderId } }).catch(() => {});
+    await invokeFunction('reconcile-orders', { orderId }).catch(() => {});
     const status = await loadOrder();
     loading.value = false;
     if (status === 'AWAITING_PAYMENT') {
@@ -176,6 +195,5 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearInterval(pollInterval);
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
 </script>

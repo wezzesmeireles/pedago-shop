@@ -286,10 +286,11 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { invokeFunction } from '@/services/api';
+import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import PixLogo from '@/components/ui/PixLogo.vue';
 
 const router = useRouter();
@@ -315,7 +316,6 @@ const cardCheckMsg = ref<{ ok: boolean; text: string } | null>(null);
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 let pollingTimer: ReturnType<typeof setInterval> | null = null;
-let realtimeChannel: RealtimeChannel | null = null;
 
 const howToPay = [
   'Abra o app do seu banco',
@@ -342,23 +342,10 @@ async function createOrder() {
   creating.value = true;
   errorMessage.value = '';
   try {
-    const { data: funcData, error: funcErr } = await supabase.functions.invoke('create-order', {
-      body: {
-        items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        paymentMethod: selectedMethod.value,
-      },
+    const funcData = await invokeFunction('create-order', {
+      items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      paymentMethod: selectedMethod.value,
     });
-
-    if (funcErr) {
-      let msg = 'Erro ao processar pagamento.';
-      try {
-        const errBody = await (funcErr as any).context?.json?.();
-        msg = errBody?.error ?? errBody?.message ?? funcErr.message ?? msg;
-      } catch {
-        msg = funcErr.message ?? msg;
-      }
-      throw new Error(msg);
-    }
 
     if (funcData?.error || funcData?.message) {
       throw new Error(funcData.error ?? funcData.message);
@@ -393,9 +380,9 @@ async function checkCardPayment() {
   checkingCard.value = true;
   cardCheckMsg.value = null;
   try {
-    await supabase.functions.invoke('reconcile-orders', { body: { orderId: orderId.value } });
-    const { data } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
-    if (data?.status === 'PAID') {
+    await invokeFunction('reconcile-orders', { orderId: orderId.value }).catch(() => {});
+    const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId.value);
+    if (order?.status === 'PAID') {
       cart.clear();
       router.push(`/checkout/success/${orderId.value}`);
     } else {
@@ -418,38 +405,21 @@ function startCountdown() {
 function startPolling() {
   if (!orderId.value) return;
 
-  realtimeChannel = supabase
-    .channel(`order-${orderId.value}`)
-    .on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId.value}` },
-      (payload) => {
-        const status = payload.new?.status;
-        if (status === 'PAID') {
-          clearInterval(countdownTimer!);
-          cart.clear();
-          router.push(`/checkout/success/${orderId.value}`);
-        } else if (['CANCELLED', 'EXPIRED'].includes(status ?? '')) {
-          clearInterval(countdownTimer!);
-          errorMessage.value = 'Pagamento cancelado ou expirado.';
-          step.value = 'confirm';
-        }
-      },
-    )
-    .subscribe();
-
   pollingTimer = setInterval(async () => {
     if (!orderId.value) return;
     try {
-      await supabase.functions.invoke('reconcile-orders', { body: {} });
-      const { data } = await supabase.from('orders').select('status').eq('id', orderId.value).single();
-      if (data?.status === 'PAID') {
+      await invokeFunction('reconcile-orders', {}).catch(() => {});
+      const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId.value);
+      if (order?.status === 'PAID') {
         clearInterval(pollingTimer!);
         clearInterval(countdownTimer!);
         cart.clear();
         router.push(`/checkout/success/${orderId.value}`);
-      } else if (['CANCELLED', 'EXPIRED'].includes(data?.status ?? '')) {
+      } else if (['CANCELLED', 'EXPIRED'].includes(order?.status ?? '')) {
         clearInterval(pollingTimer!);
+        clearInterval(countdownTimer!);
+        errorMessage.value = 'Pagamento cancelado ou expirado.';
+        step.value = 'confirm';
       }
     } catch {}
   }, 5000);
@@ -458,7 +428,6 @@ function startPolling() {
 onUnmounted(() => {
   if (countdownTimer) clearInterval(countdownTimer);
   if (pollingTimer) clearInterval(pollingTimer);
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
 </script>
 

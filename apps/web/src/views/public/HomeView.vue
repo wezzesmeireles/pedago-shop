@@ -387,7 +387,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useHead } from '@vueuse/head';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
@@ -491,11 +492,8 @@ const testimonials = [
   { name: 'Carla M.', role: 'Prof. Ensino Fundamental', text: 'Atividades criativas e coloridas! As crianças amam e eu economizo muito tempo de preparação.' },
 ];
 
-// ── Recent purchases (Edge Function) ─────────────────────
+// ── Recent purchases (Appwrite Function) ─────────────────
 const recentPurchases = ref<any[]>([]);
-let realtimeChannel: any = null;
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
 
 function relativeTime(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -507,31 +505,27 @@ function relativeTime(dateStr: string): string {
 
 async function loadRecentPurchases() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/recent-purchases`, {
-      headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+    const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
+    const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
+    const res = await fetch(`${endpoint}/functions/recent-purchases/executions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Appwrite-Project': projectId,
+      },
+      body: JSON.stringify({}),
     });
     if (!res.ok) return;
-    const data = await res.json();
-    recentPurchases.value = data.map((p: any) => ({
+    const execution = await res.json();
+    let data: any[] = [];
+    try { data = JSON.parse(execution.responseBody ?? '[]'); } catch {}
+    recentPurchases.value = (Array.isArray(data) ? data : []).map((p: any) => ({
       ...p,
       time: relativeTime(p.paidAt),
     }));
   } catch (e) {
     console.error('[recent-purchases]', e);
   }
-}
-
-function subscribeRealtimePurchases() {
-  realtimeChannel = supabase
-    .channel('public-paid-orders')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, (payload) => {
-      const newOrder = payload.new as any;
-      if (newOrder.status === 'PAID') {
-        // Refresh the full list from the edge function
-        loadRecentPurchases();
-      }
-    })
-    .subscribe();
 }
 
 const testimonialsExtra = [
@@ -595,38 +589,59 @@ onMounted(async () => {
   resetBannerTimer();
   setupReveal();
   loadRecentPurchases();
-  subscribeRealtimePurchases();
 
   await Promise.allSettled([
     (async () => {
       try {
-        const { data: prods, error } = await supabase
-          .from('products')
-          .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, category_id, categories(id, name, slug, is_active, sort_order)')
-          .eq('is_active', true)
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false });
-        if (error) { console.error('categories fetch error:', error); return; }
+        // Fetch all active categories for the section layout
+        const catResult = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
+          Query.equal('isActive', true),
+          Query.orderAsc('sortOrder'),
+          Query.limit(100),
+        ]);
+        const catDocs = catResult.documents;
         const catMap = new Map<string, any>();
-        for (const p of prods ?? []) {
-          const mapped = { ...p, coverImageUrl: (p as any).cover_image_url, comparePrice: (p as any).compare_price };
-          const cat = (p as any).categories;
-          if (!cat || !cat.is_active) continue;
-          if (!catMap.has(cat.id)) catMap.set(cat.id, { ...cat, products: [] });
-          if (catMap.get(cat.id)!.products.length < 6) catMap.get(cat.id)!.products.push(mapped);
+        for (const cat of catDocs) {
+          catMap.set(cat.$id, { ...cat, id: cat.$id, products: [] });
+        }
+
+        // Fetch products and place them into their category buckets
+        const prodResult = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+          Query.equal('isActive', true),
+          Query.isNull('deletedAt'),
+          Query.orderDesc('$createdAt'),
+          Query.limit(100),
+        ]);
+        for (const p of prodResult.documents) {
+          const mapped = {
+            ...p,
+            id: p.$id,
+            coverImageUrl: p.coverImageUrl,
+            comparePrice: p.comparePrice,
+          };
+          const catId = p.categoryId;
+          if (!catId || !catMap.has(catId)) continue;
+          if (catMap.get(catId)!.products.length < 6) catMap.get(catId)!.products.push(mapped);
         }
         categoriesWithProducts.value = Array.from(catMap.values())
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+          .filter((c) => c.products.length > 0)
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
       } catch (e) { console.error('categories section error:', e); }
     })(),
     (async () => {
       try {
-        const { data } = await supabase
-          .from('products')
-          .select('id, name, slug, price, compare_price, cover_image_url, sales_count, categories(id, name, slug)')
-          .eq('is_active', true).is('deleted_at', null)
-          .order('created_at', { ascending: false }).limit(24);
-        const mapped = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price }));
+        const prodResult = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+          Query.equal('isActive', true),
+          Query.isNull('deletedAt'),
+          Query.orderDesc('$createdAt'),
+          Query.limit(24),
+        ]);
+        const mapped = prodResult.documents.map((p: any) => ({
+          ...p,
+          id: p.$id,
+          coverImageUrl: p.coverImageUrl,
+          comparePrice: p.comparePrice,
+        }));
         atividades.value = mapped;
         groupProduct.value = mapped.find((p: any) => p.name?.toLowerCase().includes('grupo') || Number(p.price) > 20) ?? null;
       } finally { loadingAtividades.value = false; }
@@ -637,7 +652,6 @@ onMounted(async () => {
 onUnmounted(() => {
   observer?.disconnect();
   if (bannerTimer) clearInterval(bannerTimer);
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
 });
 </script>
 

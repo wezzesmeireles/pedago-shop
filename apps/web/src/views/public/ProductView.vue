@@ -155,7 +155,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { useHead } from '@vueuse/head';
 import { useRoute, useRouter } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { invokeFunction } from '@/services/api';
+import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -260,10 +262,10 @@ async function claimFree() {
   claiming.value = true;
   claimError.value = '';
   try {
-    const { data, error } = await supabase.functions.invoke('create-order', {
-      body: { items: [{ productId: product.value.id, quantity: 1 }], paymentMethod: 'FREE' },
+    const data = await invokeFunction('create-order', {
+      items: [{ productId: product.value.id, quantity: 1 }],
+      paymentMethod: 'FREE',
     });
-    if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
     router.push('/minha-conta/downloads');
   } catch (e: any) {
@@ -276,31 +278,33 @@ async function claimFree() {
 
 onMounted(async () => {
   try {
-    const { data } = await supabase
-      .from('products')
-      .select('id, name, slug, description, rich_content, price, compare_price, cover_image_url, preview_images, page_count, file_size, tags, is_featured, sales_count, youtube_url, instagram_url, categories(id, name, slug)')
-      .eq('slug', route.params.slug as string)
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .single();
+    const result = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+      Query.equal('slug', route.params.slug as string),
+      Query.equal('isActive', true),
+      Query.isNull('deletedAt'),
+      Query.limit(1),
+    ]);
+    const data = result.documents[0];
     if (data) {
       product.value = {
         ...data,
-        coverImageUrl: data.cover_image_url,
-        comparePrice: data.compare_price,
-        richContent: data.rich_content,
-        pageCount: data.page_count,
-        fileSize: data.file_size,
-        isFeatured: data.is_featured,
-        salesCount: data.sales_count,
-        youtubeEmbedId: extractYoutubeId(data.youtube_url),
-        instagramUrl: data.instagram_url || null,
+        id: data.$id,
+        coverImageUrl: data.coverImageUrl,
+        comparePrice: data.comparePrice,
+        richContent: data.richContent,
+        pageCount: data.pageCount,
+        fileSize: data.fileSize,
+        isFeatured: data.isFeatured,
+        salesCount: data.salesCount,
+        youtubeEmbedId: extractYoutubeId(data.youtubeUrl ?? null),
+        instagramUrl: data.instagramUrl || null,
+        category: data.categoryId ? { id: data.categoryId, name: data.categoryName ?? '', slug: data.categorySlug ?? '' } : null,
       };
-      if (data.instagram_url) loadInstagramEmbed();
+      if (data.instagramUrl) loadInstagramEmbed();
     } else {
       product.value = null;
     }
-    activeImage.value = data?.cover_image_url ?? '';
+    activeImage.value = data?.coverImageUrl ?? '';
   } catch {
     //
   } finally {

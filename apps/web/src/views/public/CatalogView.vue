@@ -121,7 +121,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { Query } from 'appwrite';
 import { useCatalogStore } from '@/stores/catalog.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
 
@@ -167,33 +168,44 @@ async function fetchProducts(page = 1) {
   loading.value = true;
   try {
     const limit = 12;
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
+    const offset = (page - 1) * limit;
 
-    // Resolve category slug → id
+    // Resolve category slug → $id if filtering by category
     let categoryId: string | null = null;
     if (filters.category) {
-      const { data: cat } = await supabase.from('categories').select('id').eq('slug', filters.category).single();
-      categoryId = cat?.id ?? null;
+      const catResult = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
+        Query.equal('slug', filters.category),
+        Query.limit(1),
+      ]);
+      categoryId = catResult.documents[0]?.$id ?? null;
     }
 
-    let q = supabase
-      .from('products')
-      .select('id, name, slug, price, compare_price, cover_image_url, is_featured, sales_count, tags, categories(id, name, slug)', { count: 'exact' })
-      .eq('is_active', true).is('deleted_at', null).range(from, to);
+    const queries: string[] = [
+      Query.equal('isActive', true),
+      Query.isNull('deletedAt'),
+      Query.limit(limit),
+      Query.offset(offset),
+    ];
 
-    if (filters.search) q = q.ilike('name', `%${filters.search}%`);
-    if (categoryId) q = q.eq('category_id', categoryId);
-    if (filters.onlyFree) q = q.eq('price', 0);
+    if (filters.search) queries.push(Query.search('name', filters.search));
+    if (categoryId) queries.push(Query.equal('categoryId', categoryId));
+    if (filters.onlyFree) queries.push(Query.equal('price', 0));
 
-    if (filters.sort === 'price_asc') q = q.order('price', { ascending: true });
-    else if (filters.sort === 'price_desc') q = q.order('price', { ascending: false });
-    else if (filters.sort === 'popular') q = q.order('sales_count', { ascending: false });
-    else q = q.order('created_at', { ascending: false });
+    if (filters.sort === 'price_asc') queries.push(Query.orderAsc('price'));
+    else if (filters.sort === 'price_desc') queries.push(Query.orderDesc('price'));
+    else if (filters.sort === 'popular') queries.push(Query.orderDesc('salesCount'));
+    else queries.push(Query.orderDesc('$createdAt'));
 
-    const { data, count } = await q;
-    products.value = (data ?? []).map((p: any) => ({ ...p, coverImageUrl: p.cover_image_url, comparePrice: p.compare_price, isFeatured: p.is_featured, salesCount: p.sales_count }));
-    const total = count ?? 0;
+    const result = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, queries);
+    products.value = result.documents.map((p: any) => ({
+      ...p,
+      id: p.$id,
+      coverImageUrl: p.coverImageUrl,
+      comparePrice: p.comparePrice,
+      isFeatured: p.isFeatured,
+      salesCount: p.salesCount,
+    }));
+    const total = result.total;
     pagination.value = { page, limit, total, totalPages: Math.ceil(total / limit) };
   } finally {
     loading.value = false;
