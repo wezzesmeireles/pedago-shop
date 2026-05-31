@@ -51,8 +51,8 @@
           </div>
         </div>
 
-        <!-- Método de pagamento -->
-        <div class="mb-5">
+        <!-- Método de pagamento (apenas se não for grátis) -->
+        <div v-if="cart.total > 0" class="mb-5">
           <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Como pagar</h2>
           <div class="grid grid-cols-2 gap-3">
             <!-- PIX -->
@@ -106,7 +106,8 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
           </svg>
-          <template v-if="creating">{{ selectedMethod === 'PIX' ? 'Gerando PIX...' : 'Processando...' }}</template>
+          <template v-if="creating">{{ cart.total === 0 ? 'Processando...' : selectedMethod === 'PIX' ? 'Gerando PIX...' : 'Processando...' }}</template>
+          <template v-else-if="cart.total === 0">✅ Obter Grátis</template>
           <template v-else-if="selectedMethod === 'PIX'">
             <PixLogo class="w-5 h-5" color="white" />
             Gerar PIX — {{ fmt(cart.total) }}
@@ -343,9 +344,11 @@ async function createOrder() {
   creating.value = true;
   errorMessage.value = '';
   try {
+    // Free products bypass payment selection
+    const paymentMethod = cart.total === 0 ? 'FREE' : selectedMethod.value;
     const funcData = await invokeFunction('create-order', {
       items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-      paymentMethod: selectedMethod.value,
+      paymentMethod,
     });
 
     if (funcData?.error || funcData?.message) {
@@ -354,12 +357,21 @@ async function createOrder() {
 
     if (!funcData?.order) throw new Error('Resposta inválida do servidor.');
 
-    orderId.value = funcData.order.id;
+    const oid = funcData.order.$id ?? funcData.order.id;
+    orderId.value = oid;
+
+    // Free product — go straight to success
+    if (cart.total === 0) {
+      cart.clear();
+      router.push({ name: 'checkout-success', params: { orderId: oid } });
+      return;
+    }
 
     if (selectedMethod.value === 'CREDIT_CARD') {
       const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
       if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
       sessionStorage.setItem('pending_order_id', funcData.order.id);
+      sessionStorage.setItem('mp_checkout_url', url);
       window.location.href = url;
       return;
     }
@@ -431,8 +443,10 @@ onMounted(async () => {
   if (pendingOrderId && route.query.collection_id) {
     // Returned from MP card payment
     orderId.value = pendingOrderId
+    cardInitPoint.value = sessionStorage.getItem('mp_checkout_url') ?? ''
     step.value = 'card'
     sessionStorage.removeItem('pending_order_id')
+    sessionStorage.removeItem('mp_checkout_url')
   }
 })
 

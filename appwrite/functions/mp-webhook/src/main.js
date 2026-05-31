@@ -10,32 +10,63 @@ export default async ({ req, res, log, error }) => {
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
+  // Parse body safely
+  let payload
+  try {
+    payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+  } catch {
+    return res.json({ ok: true }) // MP needs 2xx to stop retrying
+  }
+
   // Validate Mercado Pago signature
   const rawSignature = req.headers['x-signature']
   const requestId = req.headers['x-request-id']
   if (rawSignature && process.env.MERCADO_PAGO_WEBHOOK_SECRET) {
-    const parts = Object.fromEntries(rawSignature.split(',').map(p => p.split('=')))
-    const ts = parts['ts']
-    const v1 = parts['v1']
-    const manifest = `id:${req.query?.['data.id']};request-id:${requestId};ts:${ts};`
-    const hmac = crypto.createHmac('sha256', process.env.MERCADO_PAGO_WEBHOOK_SECRET)
-      .update(manifest).digest('hex')
-    if (hmac !== v1) {
-      error('Invalid webhook signature')
-      return res.json({ error: 'Invalid signature' }, 401)
+    try {
+      const parts = Object.fromEntries(rawSignature.split(',').map(p => p.split('=')))
+      const ts = parts['ts']
+      const v1 = parts['v1']
+      const manifest = `id:${req.query?.['data.id']};request-id:${requestId};ts:${ts};`
+      const hmac = crypto.createHmac('sha256', process.env.MERCADO_PAGO_WEBHOOK_SECRET)
+        .update(manifest).digest('hex')
+      if (hmac !== v1) {
+        error('Invalid webhook signature')
+        return res.json({ error: 'Invalid signature' }, 401)
+      }
+    } catch (err) {
+      log('Signature validation error: ' + err.message)
     }
   }
 
-  const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
   const eventType = payload?.type
   const paymentId = payload?.data?.id?.toString()
 
   if (!paymentId) return res.json({ ok: true })
 
+  // Idempotency check — skip if already processed
+  const existingEvent = await db.listDocuments(DB, 'webhook_events', [
+    Query.equal('eventId', paymentId),
+    Query.equal('source', 'mercadopago'),
+    Query.equal('status', 'processed'),
+    Query.limit(1),
+  ])
+  if (existingEvent.total > 0) {
+    log(`Duplicate webhook for paymentId ${paymentId}, skipping`)
+    return res.json({ ok: true })
+  }
+
   const now = new Date().toISOString()
 
+  // Read MP token from site_config
+  let mpToken = process.env.MERCADO_PAGO_ACCESS_TOKEN
+  try {
+    const cfg = await db.getDocument(DB, 'site_config', 'global')
+    const siteConfig = JSON.parse(cfg.value)
+    if (siteConfig.mercadoPagoAccessToken) mpToken = siteConfig.mercadoPagoAccessToken
+  } catch {}
+
   const mpResp = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-    headers: { 'Authorization': `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN}` },
+    headers: { 'Authorization': `Bearer ${mpToken}` },
   })
   const payment = await mpResp.json()
 
@@ -44,7 +75,10 @@ export default async ({ req, res, log, error }) => {
     Query.limit(1),
   ])
   const order = ordersResult.documents[0]
-  if (!order) return res.json({ ok: true })
+  if (!order) {
+    log(`No order found for mpPaymentId ${paymentId}`)
+    return res.json({ ok: true })
+  }
 
   if (payment.status === 'approved' && order.status !== 'PAID') {
     await db.updateDocument(DB, 'orders', order.$id, {
@@ -53,25 +87,61 @@ export default async ({ req, res, log, error }) => {
 
     const itemsResult = await db.listDocuments(DB, 'order_items', [
       Query.equal('orderId', order.$id),
+      Query.limit(100),
     ])
+
     const tokenExpiry = new Date()
     tokenExpiry.setFullYear(tokenExpiry.getFullYear() + 30)
+
     for (const item of itemsResult.documents) {
-      await db.createDocument(DB, 'download_tokens', ID.unique(), {
-        token: crypto.randomUUID(),
-        orderId: order.$id,
-        orderItemId: item.$id,
-        maxDownloads: 5,
-        downloadCount: 0,
-        expiresAt: tokenExpiry.toISOString(),
-        deliveryLink: item.deliveryLink ?? null,
-      })
-      const prod = await db.getDocument(DB, 'products', item.productId)
-      await db.updateDocument(DB, 'products', item.productId, {
-        salesCount: (prod.salesCount ?? 0) + 1,
-        updatedAt: now,
-      })
+      // Check if token already exists for this item (extra idempotency guard)
+      const existingToken = await db.listDocuments(DB, 'download_tokens', [
+        Query.equal('orderItemId', item.$id),
+        Query.limit(1),
+      ])
+      if (existingToken.total === 0) {
+        await db.createDocument(DB, 'download_tokens', ID.unique(), {
+          token: crypto.randomUUID(),
+          orderId: order.$id,
+          orderItemId: item.$id,
+          maxDownloads: 5,
+          downloadCount: 0,
+          expiresAt: tokenExpiry.toISOString(),
+          deliveryLink: item.deliveryLink ?? null,
+        })
+      }
+
+      try {
+        const prod = await db.getDocument(DB, 'products', item.productId)
+        await db.updateDocument(DB, 'products', item.productId, {
+          salesCount: (prod.salesCount ?? 0) + 1,
+          updatedAt: now,
+        })
+      } catch {}
     }
+
+    // Telegram notifications
+    try {
+      const cfg = await db.getDocument(DB, 'site_config', 'global')
+      const siteConfig = JSON.parse(cfg.value)
+      if (siteConfig.telegramBotToken) {
+        const recipients = siteConfig.telegramRecipients ?? []
+        const chatIds = recipients.length > 0
+          ? recipients.map(r => r.chatId)
+          : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
+        const msg = `✅ Pagamento aprovado!\nPedido: ${order.orderNumber}\nCliente: ${order.customerEmail}\nValor: R$ ${order.totalAmount?.toFixed(2)}`
+        for (const chatId of chatIds) {
+          await fetch(`https://api.telegram.org/bot${siteConfig.telegramBotToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: msg }),
+          })
+        }
+      }
+    } catch (err) {
+      log('Telegram notification failed: ' + err.message)
+    }
+
   } else if (['rejected', 'cancelled'].includes(payment.status)) {
     await db.updateDocument(DB, 'orders', order.$id, {
       status: 'CANCELLED', mpStatus: payment.status, updatedAt: now,
@@ -82,6 +152,7 @@ export default async ({ req, res, log, error }) => {
     })
     const tokensResult = await db.listDocuments(DB, 'download_tokens', [
       Query.equal('orderId', order.$id),
+      Query.limit(100),
     ])
     for (const t of tokensResult.documents) {
       await db.updateDocument(DB, 'download_tokens', t.$id, { revokedAt: now })

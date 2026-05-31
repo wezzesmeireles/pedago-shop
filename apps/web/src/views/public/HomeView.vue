@@ -521,7 +521,7 @@ async function loadRecentPurchases() {
     try { data = JSON.parse(execution.responseBody ?? '[]'); } catch {}
     recentPurchases.value = (Array.isArray(data) ? data : []).map((p: any) => ({
       ...p,
-      time: relativeTime(p.paidAt),
+      time: p.paidAt ? relativeTime(p.paidAt) : 'recentemente',
     }));
   } catch (e) {
     console.error('[recent-purchases]', e);

@@ -93,7 +93,7 @@
               <span class="w-5 h-5 bg-violet-100 text-violet-700 rounded-full text-xs flex items-center justify-center font-bold flex-shrink-0 mt-0.5">4</span>
               <div>
                 Em <span class="font-medium">URIs de redirecionamento autorizados</span>, adicione:
-                <code class="block bg-white border border-slate-200 rounded-lg px-3 py-1.5 mt-1 text-xs break-all">https://[seu-projeto].supabase.co/auth/v1/callback</code>
+                <code class="block bg-white border border-slate-200 rounded-lg px-3 py-1.5 mt-1 text-xs break-all">http://appwrite-q2wgfrs7htkwuue2632gat0k.wsgestao.digital/v1/account/sessions/oauth2/callback/google/6a1af05e0030b967a508</code>
               </div>
             </li>
             <li class="flex gap-3">
@@ -290,14 +290,52 @@
             <h2 class="font-semibold text-slate-900">Google OAuth</h2>
             <p class="text-xs text-slate-500">Login com conta Google</p>
           </div>
-          <span class="ml-auto text-xs px-2.5 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-700">Supabase Auth</span>
+          <div class="ml-auto">
+            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', form.googleClientId && form.googleClientSecret ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
+              {{ form.googleClientId && form.googleClientSecret ? 'Configurado' : 'Não configurado' }}
+            </span>
+          </div>
         </div>
-        <div class="p-4 sm:p-6">
-          <div class="bg-violet-50 rounded-xl p-4 flex gap-3 text-sm text-violet-700">
-            <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div class="p-4 sm:p-6 space-y-4">
+          <!-- Tutorial inline -->
+          <div class="bg-sky-50 border border-sky-100 rounded-xl p-4 text-sm text-sky-800 space-y-2">
+            <p class="font-semibold flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Como configurar
+            </p>
+            <ol class="space-y-1 text-xs text-sky-700 list-decimal list-inside">
+              <li>Acesse <strong>console.cloud.google.com</strong> → APIs e Serviços → Credenciais → Criar ID do cliente OAuth</li>
+              <li>Tipo: <strong>Aplicativo da Web</strong></li>
+              <li>Em <strong>URIs de redirecionamento autorizados</strong>, adicione a URI abaixo</li>
+              <li>Copie o <strong>Client ID</strong> e <strong>Client Secret</strong> gerados</li>
+              <li>Cole nos campos abaixo e salve</li>
+              <li>No painel do <strong>Appwrite</strong> → Auth → OAuth2 → Google → habilite e insira as mesmas credenciais</li>
+            </ol>
+          </div>
+
+          <!-- Redirect URI -->
+          <div class="bg-violet-50 rounded-xl p-3 flex gap-2 text-xs text-violet-700">
+            <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>URI de redirecionamento autorizado:<br><code class="block bg-violet-100 px-2 py-1 mt-1 rounded font-mono break-all">{{ appwriteEndpoint }}/account/sessions/oauth2/callback/google/{{ appwriteProjectId }}</code></span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <p class="font-semibold mb-1">Configurado via Supabase Auth</p>
-              <p class="text-xs text-violet-600">O Google OAuth é configurado diretamente no painel do Supabase em <strong>Authentication → Providers → Google</strong>. Não requer configuração aqui.</p>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Client ID</label>
+              <input v-model="form.googleClientId" type="text" placeholder="xxxx.apps.googleusercontent.com"
+                class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Client Secret</label>
+              <div class="relative">
+                <input v-model="form.googleClientSecret" :type="showGoogleSecret ? 'text' : 'password'"
+                  placeholder="GOCSPX-..."
+                  class="w-full border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono" />
+                <button @click="showGoogleSecret = !showGoogleSecret" type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                  <svg v-if="showGoogleSecret" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -342,9 +380,10 @@ const tutorialOpen = ref(true);
 const showMpToken = ref(false);
 const showWebhookSecret = ref(false);
 const showTgToken = ref(false);
+const showGoogleSecret = ref(false);
 const testingTg = ref(false);
 
-const appwriteEndpoint = (import.meta as any).env?.VITE_APPWRITE_ENDPOINT || '';
+const appwriteEndpoint = ((import.meta as any).env?.VITE_APPWRITE_ENDPOINT || '').replace(/\/v1$/, '');
 const appwriteProjectId = (import.meta as any).env?.VITE_APPWRITE_PROJECT_ID || '';
 const apiUrl = appwriteEndpoint && appwriteProjectId
   ? `${appwriteEndpoint}/v1/functions/mp-webhook/executions`
@@ -358,6 +397,8 @@ const form = ref({
   mercadoPagoWebhookSecret: '',
   telegramBotToken: '',
   telegramRecipients: [] as TgRecipient[],
+  googleClientId: '',
+  googleClientSecret: '',
 });
 
 function addRecipient() {
@@ -400,6 +441,8 @@ onMounted(async () => {
     form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';
     form.value.mercadoPagoWebhookSecret = v.mercadoPagoWebhookSecret ?? '';
     form.value.telegramBotToken = v.telegramBotToken ?? '';
+    form.value.googleClientId = v.googleClientId ?? '';
+    form.value.googleClientSecret = v.googleClientSecret ?? '';
     // migrate old single chatId to recipients list
     if (v.telegramRecipients?.length) {
       form.value.telegramRecipients = v.telegramRecipients.map((r: any) => ({ ...r, testing: false, testResult: '' }));
@@ -425,6 +468,8 @@ async function save() {
       mercadoPagoWebhookSecret: form.value.mercadoPagoWebhookSecret,
       telegramBotToken: form.value.telegramBotToken,
       telegramRecipients: form.value.telegramRecipients.map(({ id, name, chatId }) => ({ id, name, chatId })),
+      googleClientId: form.value.googleClientId,
+      googleClientSecret: form.value.googleClientSecret,
     } as any);
     savedAt.value = true;
     setTimeout(() => (savedAt.value = false), 3000);

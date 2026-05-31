@@ -137,12 +137,6 @@
       </div>
     </div>
 
-    <!-- Description -->
-    <div v-if="product?.richContent" class="mt-12">
-      <h2 class="text-2xl font-bold text-gray-900 mb-4">Descrição Completa</h2>
-      <div class="prose max-w-none" v-html="product.richContent"></div>
-    </div>
-
     <!-- Not found -->
     <div v-else-if="!loading" class="text-center py-20">
       <p class="text-gray-500 text-xl">Produto não encontrado.</p>
@@ -245,6 +239,8 @@ function addToCart() {
 }
 
 function buyNow() {
+  // Clear existing quantity before adding to avoid double-add on repeat clicks
+  cart.remove(product.value.$id);
   addToCart();
   if (!auth.isLoggedIn) {
     router.push({ name: 'login', query: { redirect: '/checkout' } });

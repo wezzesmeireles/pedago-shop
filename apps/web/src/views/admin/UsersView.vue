@@ -384,17 +384,18 @@ function debouncedLoad() {
 
 async function loadUsers(page = 1) {
   const limit = 20;
-  const data = await invokeFunction('admin-users', { page, limit, search: search.value || undefined });
+  const offset = (page - 1) * limit;
+  const data = await invokeFunction('admin-users', { limit, offset, search: search.value || undefined });
 
   totalPages.value = Math.max(1, Math.ceil(((data as any).total ?? 0) / limit));
   currentPage.value = page;
 
-  users.value = ((data as any).items ?? []).map((u: any) => ({
+  users.value = ((data as any).users ?? []).map((u: any) => ({
     ...u,
     avatarUrl: u.avatarUrl ?? u.avatar_url,
     isActive: u.isActive ?? u.is_active,
     createdAt: u.createdAt ?? u.created_at,
-    ordersCount: Number(u.ordersCount ?? 0),
+    ordersCount: Number(u.orderCount ?? u.ordersCount ?? 0),
     phone: u.phone ?? null,
   }));
 }

@@ -322,8 +322,8 @@ async function uploadAsset(event: Event, field: keyof SiteConfigData) {
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
   try {
-    const uploaded = await storage.createFile(BUCKETS.PRODUCT_FILES, ID.unique(), file);
-    const url = storage.getFilePreview(BUCKETS.PRODUCT_FILES, uploaded.$id).toString();
+    const uploaded = await storage.createFile(BUCKETS.PRODUCT_COVERS, ID.unique(), file);
+    const url = storage.getFilePreview(BUCKETS.PRODUCT_COVERS, uploaded.$id).toString();
     (form as any)[field] = url;
   } catch {
     alert('Erro ao enviar imagem.');
@@ -345,8 +345,8 @@ async function uploadBannerImage(event: Event, idx: number) {
   img.src = objectUrl;
 
   try {
-    const uploaded = await storage.createFile(BUCKETS.PRODUCT_FILES, ID.unique(), file);
-    const url = storage.getFilePreview(BUCKETS.PRODUCT_FILES, uploaded.$id).toString();
+    const uploaded = await storage.createFile(BUCKETS.PRODUCT_COVERS, ID.unique(), file);
+    const url = storage.getFilePreview(BUCKETS.PRODUCT_COVERS, uploaded.$id).toString();
     form.banners[idx].imageUrl = url;
   } catch {
     alert('Erro ao enviar imagem.');

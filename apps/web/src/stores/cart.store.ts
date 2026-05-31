@@ -10,8 +10,23 @@ interface CartItem {
   quantity: number;
 }
 
+const CART_STORAGE_KEY = 'cart';
+
+function loadFromStorage(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as CartItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToStorage(cartItems: CartItem[]) {
+  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+}
+
 export const useCartStore = defineStore('cart', () => {
-  const items = ref<CartItem[]>([]);
+  const items = ref<CartItem[]>(loadFromStorage());
   const isOpen = ref(false);
 
   const total = computed(() =>
@@ -27,15 +42,18 @@ export const useCartStore = defineStore('cart', () => {
     } else {
       items.value.push({ ...product, quantity: 1 });
     }
+    saveToStorage(items.value);
     isOpen.value = true;
   }
 
   function remove(productId: string) {
     items.value = items.value.filter((i) => i.productId !== productId);
+    saveToStorage(items.value);
   }
 
   function clear() {
     items.value = [];
+    saveToStorage(items.value);
   }
 
   function openCart() {

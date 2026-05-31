@@ -16,14 +16,26 @@ const auth = useAuthStore();
 
 onMounted(async () => {
   try {
-    await account.get(); // Verify session exists
-    await auth.fetchMe(); // Populate store
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('userId');
+    const secret = params.get('secret');
+
+    if (!userId || !secret) {
+      router.push('/auth/login?error=oauth_failed');
+      return;
+    }
+
+    // Exchange token for session (works cross-domain)
+    await account.createSession(userId, secret);
+    await auth.fetchMe();
+
     if (!auth.user?.phone) {
       router.push({ name: 'phone-required' });
     } else {
       router.push('/');
     }
-  } catch {
+  } catch(e: any) {
+    console.error('[GoogleCallback] error:', e?.message, e?.code);
     router.push('/auth/login?error=oauth_failed');
   }
 });

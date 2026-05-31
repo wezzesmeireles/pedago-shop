@@ -96,7 +96,9 @@ async function handleRegister() {
   try {
     await auth.register(form.name, form.email, form.password, digits);
     const redirect = route.query.redirect as string;
-    router.push(redirect || '/');
+    // Validate redirect is a same-origin path to prevent open redirect
+    const safePath = redirect && redirect.startsWith('/') ? redirect : '/';
+    router.push(safePath);
   } catch (err: any) {
     console.error('[register error]', err);
     const msg = err?.message || err?.response?.data?.message || 'Erro ao cadastrar.';

@@ -393,8 +393,8 @@ async function saveProduct() {
 
     // Upload cover image first
     if (coverFile.value) {
-      const uploadedCover = await storage.createFile(BUCKETS.PRODUCT_FILES, ID.unique(), coverFile.value);
-      coverUrl = storage.getFilePreview(BUCKETS.PRODUCT_FILES, uploadedCover.$id).toString();
+      const uploadedCover = await storage.createFile(BUCKETS.PRODUCT_COVERS, ID.unique(), coverFile.value);
+      coverUrl = storage.getFilePreview(BUCKETS.PRODUCT_COVERS, uploadedCover.$id).toString();
     }
 
     // Upload PDF
@@ -471,6 +471,7 @@ async function loadData() {
     databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('$createdAt'), Query.limit(100)]),
     databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.orderAsc('sortOrder'), Query.limit(100)]),
   ]);
+  const catMap = Object.fromEntries(catsResult.documents.map((c: any) => [c.$id, c.name]));
   products.value = prodsResult.documents.map((p: any) => ({
     ...p,
     id: p.$id,
@@ -479,7 +480,7 @@ async function loadData() {
     isActive: p.isActive,
     isFeatured: p.isFeatured,
     salesCount: p.salesCount,
-    category: p.categoryId ? { id: p.categoryId, name: p.categoryName ?? '' } : null,
+    category: p.categoryId ? { id: p.categoryId, name: catMap[p.categoryId] ?? '' } : null,
   }));
   categories.value = catsResult.documents.map((c: any) => ({ ...c, id: c.$id }));
 }

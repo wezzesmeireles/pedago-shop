@@ -3,8 +3,9 @@ import { fileURLToPath } from 'url'
 config({ path: fileURLToPath(new URL('.env.migration', import.meta.url)) })
 
 import { Client, Functions, ID } from 'node-appwrite'
-import { readFileSync, rmSync } from 'fs'
+import { readFileSync, rmSync, existsSync } from 'fs'
 import { join } from 'path'
+import { execSync } from 'child_process'
 import * as tar from 'tar'
 
 const {
@@ -62,6 +63,17 @@ async function deployFunction(def) {
   console.log(`\nDeploying ${def.id}...`)
   const srcDir = join(FUNCTIONS_DIR, def.id)
   const tarPath = join(FUNCTIONS_DIR, `${def.id}.tar.gz`)
+
+  // Install dependencies before packaging
+  if (existsSync(join(srcDir, 'package.json'))) {
+    try {
+      console.log(`  Installing dependencies...`)
+      execSync('npm install --omit=dev', { cwd: srcDir, stdio: 'pipe' })
+      console.log(`  ✓ npm install done`)
+    } catch(e) {
+      console.error(`  ✗ npm install failed: ${e.message}`)
+    }
+  }
 
   try {
     await tar.create(

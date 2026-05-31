@@ -162,7 +162,7 @@
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 border-t border-gray-50">
 
             <div class="flex flex-wrap gap-2">
-              <RouterLink to="/minha-conta/downloads"
+              <RouterLink v-if="order.status === 'PAID'" to="/minha-conta/downloads"
                 class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-emerald-200 w-full sm:w-auto justify-center sm:justify-start">
                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -254,7 +254,6 @@ async function loadPage(page: number) {
 
     const ordersResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
       Query.equal('userId', currentUser.$id),
-      Query.equal('status', 'PAID'),
       Query.orderDesc('$createdAt'),
       Query.limit(LIMIT),
       Query.offset(offset),

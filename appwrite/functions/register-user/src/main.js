@@ -32,16 +32,24 @@ export default async ({ req, res, log, error }) => {
   }
 
   const now = new Date().toISOString()
-  await db.createDocument(DB, 'profiles', user.$id, {
-    userId: user.$id,
-    name,
-    email,
-    phone: phone ?? '',
-    role: 'CUSTOMER',
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  })
+  try {
+    await db.createDocument(DB, 'profiles', user.$id, {
+      userId: user.$id,
+      name,
+      email,
+      phone: phone ?? '',
+      role: 'CUSTOMER',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    })
+    await users.updateLabels(user.$id, ['customer'])
+  } catch (err) {
+    // Rollback: delete orphaned auth user if profile creation fails
+    try { await users.deleteUser(user.$id) } catch {}
+    error(err.message)
+    return res.json({ error: 'Failed to create profile' }, 500)
+  }
 
   return res.json({ id: user.$id, email: user.email }, 201)
 }

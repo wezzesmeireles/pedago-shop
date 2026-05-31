@@ -12,6 +12,7 @@ export const useCatalogStore = defineStore('catalog', () => {
       const response = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
         Query.equal('isActive', true),
         Query.orderAsc('sortOrder'),
+        Query.limit(200),
       ]);
       categories.value = response.documents;
     } catch (err) {

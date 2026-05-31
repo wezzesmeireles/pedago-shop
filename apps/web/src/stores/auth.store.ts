@@ -33,13 +33,30 @@ export const useAuthStore = defineStore('auth', () => {
       const authUser = await account.get();
       if (!authUser) { user.value = null; return; }
 
-      const result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+      let result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
         Query.equal('userId', authUser.$id),
         Query.limit(1),
       ]);
-      const profile = result.documents[0] as Record<string, any> | undefined;
 
+      // Fallback: busca por email (usuários Google têm novo ID após reinstalação)
+      if (!result.documents.length && authUser.email) {
+        result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+          Query.equal('email', authUser.email),
+          Query.limit(1),
+        ]);
+        // Sincroniza o userId no profile para futuras consultas
+        if (result.documents.length) {
+          const doc = result.documents[0];
+          await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, doc.$id, {
+            userId: authUser.$id,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      const profile = result.documents[0] as Record<string, any> | undefined;
       const role = (profile?.role ?? 'CUSTOMER') as 'ADMIN' | 'CUSTOMER';
+
 
       user.value = {
         id: authUser.$id,
@@ -58,7 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     try {
       await account.createEmailPasswordSession(email, password);
-      await fetchMe().catch(() => {});
+      await fetchMe();
 
       if (!user.value?.phone) {
         return { needsPhone: true };
@@ -72,7 +89,8 @@ export const useAuthStore = defineStore('auth', () => {
   async function loginWithGoogle() {
     const successUrl = `${window.location.origin}/auth/google-callback`;
     const failUrl = `${window.location.origin}/login`;
-    return account.createOAuth2Session(OAuthProvider.Google, successUrl, failUrl);
+    // createOAuth2Token passes userId+secret in URL — works cross-domain
+    return account.createOAuth2Token(OAuthProvider.Google, successUrl, failUrl);
   }
 
   async function register(name: string, email: string, password: string, phone?: string) {

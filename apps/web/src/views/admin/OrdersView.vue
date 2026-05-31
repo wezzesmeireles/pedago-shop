@@ -430,9 +430,9 @@ async function loadOrders(page = 1) {
     const queries: any[] = [Query.orderDesc('$createdAt'), Query.limit(limit), Query.offset(offset)];
     if (statusFilter.value) queries.push(Query.equal('status', statusFilter.value));
     if (search.value) queries.push(Query.or([
-      Query.contains('orderNumber', search.value),
-      Query.contains('customerEmail', search.value),
-      Query.contains('customerName', search.value),
+      Query.startsWith('orderNumber', search.value),
+      Query.startsWith('customerEmail', search.value),
+      Query.search('customerName', search.value),
     ]));
     if (dateFrom) queries.push(Query.greaterThanEqual('$createdAt', dateFrom));
 

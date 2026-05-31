@@ -92,6 +92,12 @@
           </div>
         </div>
 
+        <div v-else-if="fetchError" class="text-center py-20 animate-fade-in">
+          <div class="text-5xl mb-4">⚠️</div>
+          <p class="text-gray-500 text-lg">{{ fetchError }}</p>
+          <button @click="fetchProducts()" class="mt-4 btn-primary text-sm">Tentar novamente</button>
+        </div>
+
         <div v-else-if="products.length === 0" class="text-center py-20 animate-fade-in">
           <div class="text-6xl mb-4 float">🔍</div>
           <p class="text-gray-500 text-lg">Nenhum produto encontrado</p>
@@ -131,6 +137,7 @@ const catalogStore = useCatalogStore();
 
 const products = ref([]);
 const loading = ref(true);
+const fetchError = ref('');
 const filtersOpen = ref(false);
 const isDesktop = ref(window.innerWidth >= 1024);
 const pagination = ref({ page: 1, limit: 12, total: 0, totalPages: 1 });
@@ -166,6 +173,7 @@ function debouncedFetch() {
 
 async function fetchProducts(page = 1) {
   loading.value = true;
+  fetchError.value = '';
   try {
     const limit = 12;
     const offset = (page - 1) * limit;
@@ -207,6 +215,9 @@ async function fetchProducts(page = 1) {
     }));
     const total = result.total;
     pagination.value = { page, limit, total, totalPages: Math.ceil(total / limit) };
+  } catch (err: any) {
+    fetchError.value = 'Erro ao carregar produtos. Verifique sua conexão e tente novamente.';
+    console.error('[CatalogView fetchProducts]', err);
   } finally {
     loading.value = false;
   }

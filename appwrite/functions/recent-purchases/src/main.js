@@ -24,11 +24,16 @@ export default async ({ req, res }) => {
   ]
 
   const data = ordersResult.documents.length >= 3
-    ? ordersResult.documents.map(o => ({
-        customerName: o.customerName.split(' ')[0] + ' ' + (o.customerName.split(' ')[1]?.[0] ?? '') + '.',
-        totalAmount: o.totalAmount,
-        paidAt: o.paidAt,
-      }))
+    ? ordersResult.documents.map(o => {
+        const parts = (o.customerName ?? '').split(' ')
+        const firstName = parts[0] || 'Cliente'
+        const lastInitial = parts[1]?.[0] ?? ''
+        return {
+          customerName: firstName + (lastInitial ? ' ' + lastInitial + '.' : ''),
+          totalAmount: o.totalAmount,
+          paidAt: o.paidAt ?? new Date().toISOString(),
+        }
+      })
     : SAMPLE
 
   return res.json({ purchases: data })

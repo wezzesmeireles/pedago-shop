@@ -94,13 +94,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS, account, functions } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
 
 const route = useRoute();
+const router = useRouter();
 const cart = useCartStore();
 const order = ref<any>(null);
 const loading = ref(true);
@@ -173,6 +174,16 @@ async function loadOrder() {
   const orderDoc = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, route.params.orderId as string);
   if (!orderDoc) return null;
 
+  // Security: verify order belongs to current user
+  try {
+    const { account: acc } = await import('@/lib/appwrite');
+    const me = await acc.get();
+    if (orderDoc.userId !== me.$id) {
+      router.replace('/minha-conta/pedidos');
+      return null;
+    }
+  } catch { /* if not logged in, requiresAuth guard already handled */ }
+
   // Fetch order items
   const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
     Query.equal('orderId', orderDoc.$id),
@@ -231,12 +242,12 @@ function startWaiting(orderId: string) {
 }
 
 onMounted(async () => {
-  cart.clear();
   const orderId = route.params.orderId as string;
   try {
     await invokeFunction('reconcile-orders', { orderId }).catch(() => {});
     const status = await loadOrder();
     loading.value = false;
+    if (status === 'PAID') cart.clear(); // Only clear cart after confirmed payment
     if (status === 'AWAITING_PAYMENT') {
       startWaiting(orderId);
     }

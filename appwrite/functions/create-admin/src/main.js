@@ -1,4 +1,4 @@
-import { Client, Users, Databases, ID } from 'node-appwrite'
+import { Client, Users, Databases, ID, Query } from 'node-appwrite'
 
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -10,9 +10,12 @@ export default async ({ req, res, log, error }) => {
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
-  const profilesResult = await db.listDocuments(DB, 'profiles', [])
-  const existingAdmin = profilesResult.documents.find(p => p.role === 'ADMIN')
-  if (existingAdmin) {
+  // Check if admin already exists (correct query with limit)
+  const adminCheck = await db.listDocuments(DB, 'profiles', [
+    Query.equal('role', 'ADMIN'),
+    Query.limit(1),
+  ])
+  if (adminCheck.total > 0) {
     return res.json({ error: 'Admin already exists' }, 409)
   }
 
@@ -26,19 +29,35 @@ export default async ({ req, res, log, error }) => {
   const { email, password, name } = body
   if (!email || !password) return res.json({ error: 'email and password required' }, 400)
 
-  const user = await users.create(ID.unique(), email, undefined, password, name ?? 'Admin')
+  let user
+  try {
+    user = await users.create(ID.unique(), email, undefined, password, name ?? 'Admin')
+  } catch (err) {
+    if (err.code === 409) return res.json({ error: 'Email already registered' }, 409)
+    error(err.message)
+    return res.json({ error: 'Failed to create user' }, 500)
+  }
 
   const now = new Date().toISOString()
-  await db.createDocument(DB, 'profiles', user.$id, {
-    userId: user.$id,
-    name: name ?? 'Admin',
-    email,
-    phone: '',
-    role: 'ADMIN',
-    isActive: true,
-    createdAt: now,
-    updatedAt: now,
-  })
+  try {
+    await db.createDocument(DB, 'profiles', user.$id, {
+      userId: user.$id,
+      name: name ?? 'Admin',
+      email,
+      phone: '',
+      role: 'ADMIN',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    })
+    // Set admin label
+    await users.updateLabels(user.$id, ['admin'])
+  } catch (err) {
+    // Rollback: delete the Auth user if profile creation failed
+    try { await users.deleteUser(user.$id) } catch {}
+    error(err.message)
+    return res.json({ error: 'Failed to create admin profile' }, 500)
+  }
 
   return res.json({ id: user.$id, email: user.email, role: 'ADMIN' }, 201)
 }

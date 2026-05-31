@@ -26,15 +26,16 @@ export default async ({ req, res, log, error }) => {
     return res.json({ error: 'Download limit reached' }, 403)
   }
 
-  await db.updateDocument(DB, 'download_tokens', tokenDoc.$id, {
-    downloadCount: tokenDoc.downloadCount + 1,
-    lastDownloadAt: now.toISOString(),
-  })
-
+  // Link delivery — increment count only after confirming redirect is valid
   if (tokenDoc.deliveryLink) {
+    await db.updateDocument(DB, 'download_tokens', tokenDoc.$id, {
+      downloadCount: tokenDoc.downloadCount + 1,
+      lastDownloadAt: now.toISOString(),
+    })
     return res.redirect(tokenDoc.deliveryLink)
   }
 
+  // File delivery — fetch file first, then increment count
   const item = await db.getDocument(DB, 'order_items', tokenDoc.orderItemId)
   const product = await db.getDocument(DB, 'products', item.productId)
 
@@ -46,6 +47,12 @@ export default async ({ req, res, log, error }) => {
   })
 
   if (!fileResp.ok) return res.json({ error: 'File not found in storage' }, 404)
+
+  // Increment only after confirming file exists and is readable
+  await db.updateDocument(DB, 'download_tokens', tokenDoc.$id, {
+    downloadCount: tokenDoc.downloadCount + 1,
+    lastDownloadAt: now.toISOString(),
+  })
 
   const buffer = await fileResp.arrayBuffer()
   return res.binary(Buffer.from(buffer), 200, {

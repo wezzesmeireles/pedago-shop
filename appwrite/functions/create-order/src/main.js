@@ -20,9 +20,15 @@ export default async ({ req, res, log, error }) => {
   const { userId, customerName, customerEmail, items, paymentMethod } = body
   if (!userId || !items?.length) return res.json({ error: 'userId and items required' }, 400)
 
-  const products = await Promise.all(
-    items.map(i => db.getDocument(DB, 'products', i.productId))
-  )
+  // Fetch products with error handling
+  let products
+  try {
+    products = await Promise.all(
+      items.map(i => db.getDocument(DB, 'products', i.productId))
+    )
+  } catch (err) {
+    return res.json({ error: `Product not found: ${err.message}` }, 404)
+  }
 
   let totalAmount = 0
   const orderItems = items.map((item, idx) => {
@@ -31,6 +37,17 @@ export default async ({ req, res, log, error }) => {
     totalAmount += p.price * (item.quantity ?? 1)
     return { product: p, quantity: item.quantity ?? 1 }
   })
+
+  // Read MP credentials from site_config (admin panel updates take effect immediately)
+  let mpToken = process.env.MERCADO_PAGO_ACCESS_TOKEN
+  let siteConfig = null
+  try {
+    const cfg = await db.getDocument(DB, 'site_config', 'global')
+    siteConfig = JSON.parse(cfg.value)
+    if (siteConfig.mercadoPagoAccessToken) mpToken = siteConfig.mercadoPagoAccessToken
+  } catch (err) {
+    log('site_config read failed, using env var: ' + err.message)
+  }
 
   const isFree = totalAmount === 0
   const orderId = ID.unique()
@@ -43,32 +60,29 @@ export default async ({ req, res, log, error }) => {
   let status = 'AWAITING_PAYMENT'
   let method = paymentMethod
 
+  // Notification URL — must be publicly executable (function execute scope = any)
+  const webhookUrl = `${process.env.APPWRITE_ENDPOINT}/functions/mp-webhook/executions`
+
   if (isFree) {
     status = 'PAID'
     method = 'FREE'
   } else if (paymentMethod === 'PIX') {
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${mpToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         transaction_amount: totalAmount,
         payment_method_id: 'pix',
         payer: { email: customerEmail },
         description: `Pedido ${orderNumber}`,
-        notification_url: `${process.env.APPWRITE_ENDPOINT}/functions/mp-webhook/executions`,
+        notification_url: webhookUrl,
       }),
     })
     mpResult = await mpResponse.json()
   } else if (paymentMethod === 'CREDIT_CARD') {
     const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${mpToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         items: orderItems.map(oi => ({
           title: oi.product.name,
@@ -77,6 +91,7 @@ export default async ({ req, res, log, error }) => {
         })),
         payer: { email: customerEmail },
         external_reference: orderId,
+        notification_url: webhookUrl,
         back_urls: {
           success: `${process.env.FRONTEND_URL}/checkout/success`,
           failure: `${process.env.FRONTEND_URL}/checkout`,
@@ -87,6 +102,10 @@ export default async ({ req, res, log, error }) => {
     mpResult = await mpResponse.json()
   }
 
+  // Separate PIX payment ID from credit card preference ID
+  const mpPaymentId = paymentMethod === 'PIX' ? mpResult?.id?.toString() ?? null : null
+  const mpPreferenceId = paymentMethod === 'CREDIT_CARD' ? mpResult?.id?.toString() ?? null : null
+
   const order = await db.createDocument(DB, 'orders', orderId, {
     orderNumber,
     userId,
@@ -95,8 +114,8 @@ export default async ({ req, res, log, error }) => {
     status,
     totalAmount,
     paymentMethod: method ?? null,
-    mpPaymentId: mpResult?.id?.toString() ?? null,
-    mpPreferenceId: mpResult?.id?.toString() ?? null,
+    mpPaymentId,
+    mpPreferenceId,
     mpStatus: mpResult?.status ?? null,
     expiresAt: mpResult?.date_of_expiration ?? null,
     metadata: mpResult ? JSON.stringify({
@@ -137,21 +156,27 @@ export default async ({ req, res, log, error }) => {
     }
   }
 
-  // Telegram notification (non-blocking)
+  // Telegram notifications (non-blocking) — uses telegramRecipients array
   try {
-    const cfg = await db.getDocument(DB, 'site_config', 'global')
-    const config = JSON.parse(cfg.value)
-    if (config.telegramBotToken && config.telegramChatId) {
-      await fetch(`https://api.telegram.org/bot${config.telegramBotToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: config.telegramChatId,
-          text: `Nova ordem ${orderNumber}\n${customerEmail}\nR$ ${totalAmount.toFixed(2)}\n${method}`,
-        }),
-      })
+    if (siteConfig?.telegramBotToken) {
+      const recipients = siteConfig.telegramRecipients ?? []
+      // Fallback to old scalar field if array is empty
+      const chatIds = recipients.length > 0
+        ? recipients.map(r => r.chatId)
+        : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
+
+      const msg = `🛒 Novo pedido ${orderNumber}\n${customerEmail}\nR$ ${totalAmount.toFixed(2)}\nPagamento: ${method}`
+      for (const chatId of chatIds) {
+        await fetch(`https://api.telegram.org/bot${siteConfig.telegramBotToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text: msg }),
+        })
+      }
     }
-  } catch { /* non-blocking */ }
+  } catch (err) {
+    log('Telegram notification failed: ' + err.message)
+  }
 
   return res.json({ order, items: createdItems, payment: mpResult })
 }

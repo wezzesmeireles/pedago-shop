@@ -89,8 +89,8 @@ router.beforeEach(async (to) => {
     return { name: 'admin-login' };
   }
 
-  // Redirect authenticated users without phone to phone-required (skip auth/admin routes)
-  if (auth.isLoggedIn && !auth.user?.phone && !AUTH_ROUTE_NAMES.includes(to.name as string)) {
+  // Redirect authenticated users without phone to phone-required (only for auth-required routes)
+  if (auth.isLoggedIn && !auth.user?.phone && to.meta.requiresAuth && !AUTH_ROUTE_NAMES.includes(to.name as string)) {
     return { name: 'phone-required', query: { redirect: to.fullPath } };
   }
 });

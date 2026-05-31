@@ -15,15 +15,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
+      '/v1': {
+        target: 'https://appwrite.wsgestao.digital',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      '/files': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
+        secure: false,
       },
     },
   },
