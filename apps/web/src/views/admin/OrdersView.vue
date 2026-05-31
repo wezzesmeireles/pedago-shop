@@ -437,7 +437,23 @@ async function loadOrders(page = 1) {
     if (dateFrom) queries.push(Query.greaterThanEqual('$createdAt', dateFrom));
 
     const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
-    orders.value = result.documents.map(mapOrder) as any;
+    const mapped = result.documents.map(mapOrder) as any[];
+
+    // Enrich with order_items so product names render in the list
+    const orderIds = result.documents.map((o) => o.$id);
+    if (orderIds.length) {
+      const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
+        Query.equal('orderId', orderIds),
+        Query.limit(500),
+      ]);
+      const byOrder: Record<string, any[]> = {};
+      for (const it of itemsResult.documents) {
+        (byOrder[it.orderId] ??= []).push({ id: it.$id, productName: it.productName, quantity: it.quantity });
+      }
+      for (const o of mapped) o.items = byOrder[o.id] ?? [];
+    }
+
+    orders.value = mapped as any;
     totalCount.value = result.total;
     totalPages.value = Math.ceil(result.total / limit);
     currentPage.value = page;

@@ -264,6 +264,7 @@ async function loadPage(page: number) {
       ordersResult.documents.map(async (o: any) => {
         const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
           Query.equal('orderId', o.$id),
+          Query.limit(100),
         ]);
         return {
           ...o,

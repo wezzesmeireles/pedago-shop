@@ -17,46 +17,48 @@ export default async ({ req, res, log, error }) => {
     Query.limit(1),
   ])
   const tokenDoc = tokensResult.documents[0]
-  if (!tokenDoc) return res.json({ error: 'Invalid token' }, 404)
+  if (!tokenDoc) return res.json({ error: 'Token inválido' }, 404)
 
   const now = new Date()
-  if (tokenDoc.revokedAt) return res.json({ error: 'Token revoked' }, 403)
-  if (new Date(tokenDoc.expiresAt) < now) return res.json({ error: 'Token expired' }, 403)
+  if (tokenDoc.revokedAt) return res.json({ error: 'Token revogado' }, 403)
+  if (new Date(tokenDoc.expiresAt) < now) return res.json({ error: 'Token expirado' }, 403)
   if (tokenDoc.downloadCount >= tokenDoc.maxDownloads) {
-    return res.json({ error: 'Download limit reached' }, 403)
+    return res.json({ error: 'Limite de downloads atingido' }, 403)
   }
 
-  // Link delivery — return redirect URL as JSON (client handles navigation)
+  // Link delivery — return URL, client opens it
   if (tokenDoc.deliveryLink) {
     await db.updateDocument(DB, 'download_tokens', tokenDoc.$id, {
       downloadCount: tokenDoc.downloadCount + 1,
       lastDownloadAt: now.toISOString(),
     })
-    return res.json({ redirectUrl: tokenDoc.deliveryLink })
+    return res.json({ type: 'link', redirectUrl: tokenDoc.deliveryLink })
   }
 
-  // File delivery — fetch file first, then increment count
-  const item = await db.getDocument(DB, 'order_items', tokenDoc.orderItemId)
-  const product = await db.getDocument(DB, 'products', item.productId)
+  // File delivery — resolve the product's fileKey, return it for client-side fetch
+  let item, product
+  try {
+    item = await db.getDocument(DB, 'order_items', tokenDoc.orderItemId)
+    product = await db.getDocument(DB, 'products', item.productId)
+  } catch (err) {
+    error('download: failed to resolve product — ' + err.message)
+    return res.json({ error: 'Produto não encontrado' }, 404)
+  }
 
-  if (!product.fileKey) return res.json({ error: 'No file for this product' }, 404)
+  if (!product.fileKey) return res.json({ error: 'Nenhum arquivo disponível para este produto' }, 404)
 
-  const fileUrl = `${process.env.APPWRITE_ENDPOINT}/storage/buckets/product-files/files/${product.fileKey}/download?project=${process.env.APPWRITE_FUNCTION_PROJECT_ID}`
-  const fileResp = await fetch(fileUrl, {
-    headers: { 'X-Appwrite-Key': process.env.APPWRITE_API_KEY },
-  })
-
-  if (!fileResp.ok) return res.json({ error: 'File not found in storage' }, 404)
-
-  // Increment only after confirming file exists and is readable
+  // Increment after all validation passes
   await db.updateDocument(DB, 'download_tokens', tokenDoc.$id, {
     downloadCount: tokenDoc.downloadCount + 1,
     lastDownloadAt: now.toISOString(),
   })
 
-  const buffer = await fileResp.arrayBuffer()
-  return res.binary(Buffer.from(buffer), 200, {
-    'Content-Type': fileResp.headers.get('content-type') || 'application/octet-stream',
-    'Content-Disposition': `attachment; filename="${product.name}.pdf"`,
+  // Sanitize filename
+  const safeName = (product.name || 'arquivo').replace(/[^\w\sÀ-ÿ.-]/g, '').trim() || 'arquivo'
+
+  return res.json({
+    type: 'file',
+    fileId: product.fileKey,
+    filename: `${safeName}.pdf`,
   })
 }

@@ -260,6 +260,9 @@ async function claimFree() {
   claimError.value = '';
   try {
     const data = await invokeFunction('create-order', {
+      userId: auth.user?.id,
+      customerName: auth.user?.name ?? '',
+      customerEmail: auth.user?.email ?? '',
       items: [{ productId: product.value.id, quantity: 1 }],
       paymentMethod: 'FREE',
     });

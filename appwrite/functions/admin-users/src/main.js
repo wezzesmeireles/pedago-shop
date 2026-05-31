@@ -10,14 +10,17 @@ export default async ({ req, res, log, error }) => {
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
-  if (req.method === 'PATCH') {
-    let body
-    try {
-      body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
-    } catch {
-      return res.json({ error: 'Invalid JSON body' }, 400)
-    }
-    const { userId, phone } = body
+  // Parse body once (Appwrite executions always arrive as POST, so the
+  // PATCH "method" is signalled via body._method)
+  let parsedBody = {}
+  if (req.body) {
+    try { parsedBody = typeof req.body === 'string' ? JSON.parse(req.body) : req.body } catch {}
+  }
+
+  const isPatch = req.method === 'PATCH' || parsedBody._method === 'PATCH'
+
+  if (isPatch) {
+    const { userId, phone } = parsedBody
     if (!userId) return res.json({ error: 'userId required' }, 400)
 
     const profilesResult = await db.listDocuments(DB, 'profiles', [
@@ -34,13 +37,9 @@ export default async ({ req, res, log, error }) => {
   }
 
   // GET: list users — params can come from query string or POST body
-  let bodyParams = {}
-  if (req.body) {
-    try { bodyParams = typeof req.body === 'string' ? JSON.parse(req.body) : req.body } catch {}
-  }
-  const search = req.query?.search ?? bodyParams.search ?? ''
-  const limit = Math.min(parseInt(req.query?.limit ?? bodyParams.limit ?? '50'), 100)
-  const offset = parseInt(req.query?.offset ?? bodyParams.offset ?? '0')
+  const search = req.query?.search ?? parsedBody.search ?? ''
+  const limit = Math.min(parseInt(req.query?.limit ?? parsedBody.limit ?? '50'), 100)
+  const offset = parseInt(req.query?.offset ?? parsedBody.offset ?? '0')
 
   const userQueries = [Query.limit(limit), Query.offset(offset)]
   if (search) userQueries.push(Query.search('name', search))

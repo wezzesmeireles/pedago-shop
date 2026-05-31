@@ -209,6 +209,7 @@ onMounted(async () => {
       // Fetch items for this order
       const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
         Query.equal('orderId', orderDoc.$id),
+        Query.limit(100),
       ]);
 
       for (const item of itemsResult.documents) {
@@ -219,6 +220,7 @@ onMounted(async () => {
         const tokensResult = await databases.listDocuments(DB_ID, COLLECTIONS.DOWNLOAD_TOKENS, [
           Query.equal('orderItemId', item.$id),
           Query.isNull('revokedAt'),
+          Query.limit(10),
         ]);
 
         const tokenDoc = tokensResult.documents[0];

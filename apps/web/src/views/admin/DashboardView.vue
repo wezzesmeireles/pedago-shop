@@ -438,7 +438,6 @@ interface BucketStat { name: string; label: string; color: string; bytes: number
 const storageLoading = ref(true);
 const storageBuckets = ref<BucketStat[]>([
   { name: 'product-covers', label: 'Capas / Banners', color: 'bg-violet-500', bytes: 0, count: 0 },
-  { name: 'product-previews', label: 'Pré-visualizações', color: 'bg-sky-500', bytes: 0, count: 0 },
   { name: 'product-files', label: 'Arquivos PDF', color: 'bg-emerald-500', bytes: 0, count: 0 },
 ]);
 
