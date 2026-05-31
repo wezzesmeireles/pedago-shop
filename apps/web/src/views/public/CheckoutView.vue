@@ -346,7 +346,11 @@ async function createOrder() {
   try {
     // Free products bypass payment selection
     const paymentMethod = cart.total === 0 ? 'FREE' : selectedMethod.value;
+    const authUser = auth.user;
     const funcData = await invokeFunction('create-order', {
+      userId: authUser?.id,
+      customerName: authUser?.name ?? '',
+      customerEmail: authUser?.email ?? '',
       items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       paymentMethod,
     });
@@ -370,7 +374,7 @@ async function createOrder() {
     if (selectedMethod.value === 'CREDIT_CARD') {
       const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
       if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
-      sessionStorage.setItem('pending_order_id', funcData.order.id);
+      sessionStorage.setItem('pending_order_id', funcData.order.$id ?? funcData.order.id);
       sessionStorage.setItem('mp_checkout_url', url);
       window.location.href = url;
       return;

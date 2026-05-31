@@ -150,9 +150,9 @@ async function triggerDownload(token: string, fallbackFilename: string) {
 
     const data = JSON.parse(execution.responseBody)
 
-    // Step 2: Handle response
-    if (data.type === 'link') {
-      window.open(data.url, '_blank')
+    // Step 2: Handle response — link delivery or redirect
+    if (data.redirectUrl || data.type === 'link') {
+      window.open(data.redirectUrl ?? data.url, '_blank')
       return
     }
 

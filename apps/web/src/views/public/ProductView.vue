@@ -239,6 +239,7 @@ function addToCart() {
 }
 
 function buyNow() {
+  if (!product.value) return;
   // Clear existing quantity before adding to avoid double-add on repeat clicks
   cart.remove(product.value.$id);
   addToCart();

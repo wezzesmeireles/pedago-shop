@@ -517,9 +517,10 @@ async function loadRecentPurchases() {
     });
     if (!res.ok) return;
     const execution = await res.json();
-    let data: any[] = [];
-    try { data = JSON.parse(execution.responseBody ?? '[]'); } catch {}
-    recentPurchases.value = (Array.isArray(data) ? data : []).map((p: any) => ({
+    let parsed: any = {};
+    try { parsed = JSON.parse(execution.responseBody ?? '{}'); } catch {}
+    const data: any[] = Array.isArray(parsed) ? parsed : (parsed.purchases ?? []);
+    recentPurchases.value = data.map((p: any) => ({
       ...p,
       time: p.paidAt ? relativeTime(p.paidAt) : 'recentemente',
     }));

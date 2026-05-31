@@ -187,6 +187,7 @@ async function loadOrder() {
   // Fetch order items
   const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
     Query.equal('orderId', orderDoc.$id),
+    Query.limit(100),
   ]);
 
   // For each item, fetch its download tokens

@@ -100,10 +100,14 @@ export const useAuthStore = defineStore('auth', () => {
       let fnExecution: Record<string, any> | null = null;
       let fnError: Error | null = null;
       try {
-        fnExecution = await functions.createExecution({
-          functionId: 'register-user',
-          body: JSON.stringify({ name, email, password, phone }),
-        });
+        fnExecution = await functions.createExecution(
+          'register-user',
+          JSON.stringify({ name, email, password, phone }),
+          false,
+          '/',
+          'POST' as any,
+          { 'Content-Type': 'application/json' },
+        );
       } catch (e: any) {
         fnError = e;
       }

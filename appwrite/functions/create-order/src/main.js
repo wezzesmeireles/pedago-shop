@@ -31,12 +31,17 @@ export default async ({ req, res, log, error }) => {
   }
 
   let totalAmount = 0
-  const orderItems = items.map((item, idx) => {
-    const p = products[idx]
-    if (!p.isActive || p.deletedAt) throw new Error(`Product ${p.name} unavailable`)
-    totalAmount += p.price * (item.quantity ?? 1)
-    return { product: p, quantity: item.quantity ?? 1 }
-  })
+  let orderItems
+  try {
+    orderItems = items.map((item, idx) => {
+      const p = products[idx]
+      if (!p.isActive || p.deletedAt) throw new Error(`Product ${p.name} unavailable`)
+      totalAmount += p.price * (item.quantity ?? 1)
+      return { product: p, quantity: item.quantity ?? 1 }
+    })
+  } catch (err) {
+    return res.json({ error: err.message }, 400)
+  }
 
   // Read MP credentials from site_config (admin panel updates take effect immediately)
   let mpToken = process.env.MERCADO_PAGO_ACCESS_TOKEN

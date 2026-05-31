@@ -26,13 +26,13 @@ export default async ({ req, res, log, error }) => {
     return res.json({ error: 'Download limit reached' }, 403)
   }
 
-  // Link delivery — increment count only after confirming redirect is valid
+  // Link delivery — return redirect URL as JSON (client handles navigation)
   if (tokenDoc.deliveryLink) {
     await db.updateDocument(DB, 'download_tokens', tokenDoc.$id, {
       downloadCount: tokenDoc.downloadCount + 1,
       lastDownloadAt: now.toISOString(),
     })
-    return res.redirect(tokenDoc.deliveryLink)
+    return res.json({ redirectUrl: tokenDoc.deliveryLink })
   }
 
   // File delivery — fetch file first, then increment count
