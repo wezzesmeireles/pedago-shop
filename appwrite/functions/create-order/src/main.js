@@ -203,5 +203,15 @@ export default async ({ req, res, log, error }) => {
     log('Telegram notification failed: ' + err.message)
   }
 
-  return res.json({ order, items: createdItems, payment: mpResult })
+  // Normalized payment object matching what the frontend expects
+  const payment = {
+    qrCode: mpResult?.point_of_interaction?.transaction_data?.qr_code ?? '',
+    qrCodeBase64: mpResult?.point_of_interaction?.transaction_data?.qr_code_base64 ?? '',
+    initPoint: mpResult?.init_point ?? '',
+    sandboxInitPoint: mpResult?.sandbox_init_point ?? '',
+    id: mpResult?.id ?? null,
+    status: mpStatus,
+  }
+
+  return res.json({ order, items: createdItems, payment })
 }
