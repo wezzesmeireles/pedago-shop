@@ -68,22 +68,35 @@ export default async ({ req, res, log, error }) => {
   // Notification URL — must be publicly executable (function execute scope = any)
   const webhookUrl = `${process.env.APPWRITE_ENDPOINT}/functions/mp-webhook/executions`
 
+  if (!mpToken && !isFree) {
+    return res.json({ error: 'Mercado Pago não configurado. Configure o Access Token nas Integrações.' }, 400)
+  }
+
   if (isFree) {
     status = 'PAID'
     method = 'FREE'
   } else if (paymentMethod === 'PIX') {
+    const idempotencyKey = `${orderId}-pix`
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${mpToken}`, 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${mpToken}`,
+        'Content-Type': 'application/json',
+        'X-Idempotency-Key': idempotencyKey,
+      },
       body: JSON.stringify({
-        transaction_amount: totalAmount,
+        transaction_amount: Number(totalAmount.toFixed(2)),
         payment_method_id: 'pix',
-        payer: { email: customerEmail },
+        payer: { email: customerEmail || 'cliente@email.com' },
         description: `Pedido ${orderNumber}`,
         notification_url: webhookUrl,
       }),
     })
     mpResult = await mpResponse.json()
+    if (!mpResponse.ok) {
+      error('MP PIX error: ' + JSON.stringify(mpResult))
+      return res.json({ error: mpResult?.message || 'Erro ao gerar PIX no Mercado Pago.', mpError: mpResult }, 400)
+    }
   } else if (paymentMethod === 'CREDIT_CARD') {
     const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
       method: 'POST',
@@ -92,24 +105,31 @@ export default async ({ req, res, log, error }) => {
         items: orderItems.map(oi => ({
           title: oi.product.name,
           quantity: oi.quantity,
-          unit_price: oi.product.price,
+          unit_price: Number(oi.product.price.toFixed(2)),
+          currency_id: 'BRL',
         })),
-        payer: { email: customerEmail },
+        payer: { email: customerEmail || 'cliente@email.com' },
         external_reference: orderId,
         notification_url: webhookUrl,
         back_urls: {
-          success: `${process.env.FRONTEND_URL}/checkout/success`,
+          success: `${process.env.FRONTEND_URL}/checkout/success/${orderId}`,
           failure: `${process.env.FRONTEND_URL}/checkout`,
         },
         auto_return: 'approved',
       }),
     })
     mpResult = await mpResponse.json()
+    if (!mpResponse.ok) {
+      error('MP card error: ' + JSON.stringify(mpResult))
+      return res.json({ error: mpResult?.message || 'Erro ao criar pagamento no Mercado Pago.', mpError: mpResult }, 400)
+    }
   }
 
   // Separate PIX payment ID from credit card preference ID
   const mpPaymentId = paymentMethod === 'PIX' ? mpResult?.id?.toString() ?? null : null
   const mpPreferenceId = paymentMethod === 'CREDIT_CARD' ? mpResult?.id?.toString() ?? null : null
+  // Coerce mpStatus to string, truncate to 50 chars (DB attribute limit)
+  const mpStatus = mpResult?.status != null ? String(mpResult.status).slice(0, 50) : null
 
   const order = await db.createDocument(DB, 'orders', orderId, {
     orderNumber,
@@ -121,7 +141,7 @@ export default async ({ req, res, log, error }) => {
     paymentMethod: method ?? null,
     mpPaymentId,
     mpPreferenceId,
-    mpStatus: mpResult?.status ?? null,
+    mpStatus,
     expiresAt: mpResult?.date_of_expiration ?? null,
     metadata: mpResult ? JSON.stringify({
       qrCode: mpResult.point_of_interaction?.transaction_data?.qr_code,

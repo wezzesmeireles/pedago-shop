@@ -292,12 +292,14 @@ import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import { useAuthStore } from '@/stores/auth.store';
 import PixLogo from '@/components/ui/PixLogo.vue';
 
 const router = useRouter();
 const route = useRoute();
 const cart = useCartStore();
 const siteConfig = useSiteConfigStore();
+const auth = useAuthStore();
 
 type Step = 'confirm' | 'pix' | 'card';
 

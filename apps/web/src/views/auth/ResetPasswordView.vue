@@ -169,7 +169,7 @@ async function handleReset() {
 
   loading.value = true;
   try {
-    await account.updateRecovery(userId, secret, password.value, confirm.value);
+    await account.updateRecovery(userId, secret, password.value);
     done.value = true;
   } catch (err: any) {
     const raw = (err?.message || '').toLowerCase();
