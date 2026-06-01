@@ -348,7 +348,6 @@
 import { ref, computed, onMounted } from 'vue';
 import { databases, storage, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
-import { invokeFunction } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
@@ -485,62 +484,49 @@ onMounted(async () => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
 
-    const [totalRevResult, dayRevResult, weekRevResult, monthRevResult, yearRevResult,
-      totalOrdersResult, monthOrdersResult, pendingResult, usersResult,
-      topProdsResult, recentResult] = await Promise.all([
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.limit(5000)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('paidAt', startOfDay), Query.limit(5000)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('paidAt', startOfWeek), Query.limit(5000)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('paidAt', startOfMonth), Query.limit(5000)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('paidAt', startOfYear), Query.limit(5000)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.limit(1)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('$createdAt', startOfMonth), Query.limit(1)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
-      invokeFunction('recent-purchases'),
-    ]);
+    // Single fetch of all PAID orders — all revenue metrics computed in JS
+    // (avoids pulling the same dataset 11× which overloaded the connection).
+    const [paidResult, monthOrdersResult, pendingResult, usersResult, topProdsResult] =
+      await Promise.all([
+        databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(5000)]),
+        databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('$createdAt', startOfMonth), Query.limit(1)]),
+        databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
+        databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
+        databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
+      ]);
+
+    const paid = paidResult.documents as any[];
+    const sumIf = (pred: (o: any) => boolean) => paid.reduce((s, o) => s + (pred(o) ? Number(o.totalAmount || 0) : 0), 0);
 
     stats.value = {
       revenue: {
-        total: sum(totalRevResult.documents),
-        day: sum(dayRevResult.documents),
-        week: sum(weekRevResult.documents),
-        month: sum(monthRevResult.documents),
-        year: sum(yearRevResult.documents),
+        total: sum(paid),
+        day: sumIf(o => o.paidAt >= startOfDay),
+        week: sumIf(o => o.paidAt >= startOfWeek),
+        month: sumIf(o => o.paidAt >= startOfMonth),
+        year: sumIf(o => o.paidAt >= startOfYear),
       },
-      orders: { total: totalOrdersResult.total, month: monthOrdersResult.total, pending: pendingResult.total },
+      orders: { total: paidResult.total, month: monthOrdersResult.total, pending: pendingResult.total },
       users: { total: usersResult.total },
     };
     topProducts.value = topProdsResult.documents.map((p: any) => ({
-      ...p,
-      id: p.$id,
-      coverImageUrl: p.coverImageUrl,
-      salesCount: p.salesCount,
+      ...p, id: p.$id, coverImageUrl: p.coverImageUrl, salesCount: p.salesCount,
     }));
-    const recent = (recentResult as any)?.orders ?? recentResult ?? [];
-    recentOrders.value = (Array.isArray(recent) ? recent : []).map((o: any) => ({
-      ...o,
-      id: o.$id ?? o.id,
-      orderNumber: o.orderNumber,
-      totalAmount: o.totalAmount,
-      customerName: o.customerName,
+    // Últimos pedidos: usa os próprios pedidos pagos (já ordenados por paidAt desc),
+    // com número e status reais — recent-purchases é só pro social proof da home.
+    recentOrders.value = paid.slice(0, 8).map((o: any) => ({
+      ...o, id: o.$id, orderNumber: o.orderNumber, totalAmount: o.totalAmount,
+      customerName: o.customerName, status: o.status,
     }));
 
-    // Monthly chart — last 6 months
+    // Monthly chart — computed from the same single dataset
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
       return { label: d.toLocaleDateString('pt-BR', { month: 'short' }), start: d.toISOString(), end: new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString() };
     });
-    const revs = await Promise.all(months.map(m =>
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
-        Query.equal('status', 'PAID'),
-        Query.greaterThanEqual('paidAt', m.start),
-        Query.lessThan('paidAt', m.end),
-        Query.limit(5000),
-      ])
-    ));
-    monthlyRevenue.value = months.map((m, i) => ({ label: m.label, value: sum(revs[i].documents) }));
+    monthlyRevenue.value = months.map(m => ({ label: m.label, value: sumIf(o => o.paidAt >= m.start && o.paidAt < m.end) }));
+  } catch (e) {
+    console.error('[DashboardView]', e);
   } finally {
     loading.value = false;
   }

@@ -189,59 +189,77 @@ async function downloadFile(d: DownloadEntry) {
   d.downloadCount++;
 }
 
+// Fetch all documents where `field` is in `ids`, batching ids into chunks
+// to keep query size sane. Reduces N+1 sequential queries to a few batched ones.
+async function fetchByIds(collection: string, field: string, ids: string[], extraQueries: any[] = []) {
+  const out: any[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const res = await databases.listDocuments(DB_ID, collection, [
+      Query.equal(field, chunk),
+      ...extraQueries,
+      Query.limit(5000),
+    ]);
+    out.push(...res.documents);
+  }
+  return out;
+}
+
 onMounted(async () => {
   try {
     const currentUser = await account.get();
 
-    // Fetch PAID orders for current user
+    // 1. PAID orders for the user
     const ordersResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
       Query.equal('userId', currentUser.$id),
       Query.equal('status', 'PAID'),
       Query.orderDesc('$createdAt'),
       Query.limit(500),
     ]);
+    const orders = ordersResult.documents;
+    if (!orders.length) { allDownloads.value = []; return; }
 
-    // Deduplicate by productId: same product bought in multiple orders → keep most recent token
+    // 2. All items for those orders (batched) + 3. all non-revoked tokens (batched)
+    const orderMap = Object.fromEntries(orders.map((o: any) => [o.$id, o]));
+    const items = await fetchByIds(COLLECTIONS.ORDER_ITEMS, 'orderId', orders.map((o: any) => o.$id));
+    const itemMap = Object.fromEntries(items.map((i: any) => [i.$id, i]));
+    const tokens = items.length
+      ? await fetchByIds(COLLECTIONS.DOWNLOAD_TOKENS, 'orderItemId', items.map((i: any) => i.$id), [Query.isNull('revokedAt')])
+      : [];
+
+    // Order tokens by their item's order recency (orders already desc) then dedupe by product
+    const orderIndex = Object.fromEntries(orders.map((o: any, idx: number) => [o.$id, idx]));
+    tokens.sort((a: any, b: any) => {
+      const ia = orderIndex[itemMap[a.orderItemId]?.orderId] ?? 9e9;
+      const ib = orderIndex[itemMap[b.orderItemId]?.orderId] ?? 9e9;
+      return ia - ib;
+    });
+
     const seen = new Set<string>();
     const downloads: DownloadEntry[] = [];
-
-    for (const orderDoc of ordersResult.documents) {
-      // Fetch items for this order
-      const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
-        Query.equal('orderId', orderDoc.$id),
-        Query.limit(100),
-      ]);
-
-      for (const item of itemsResult.documents) {
-        const productId = item.productId ?? item.productName;
-        if (seen.has(productId)) continue;
-
-        // Fetch non-revoked download tokens for this item
-        const tokensResult = await databases.listDocuments(DB_ID, COLLECTIONS.DOWNLOAD_TOKENS, [
-          Query.equal('orderItemId', item.$id),
-          Query.isNull('revokedAt'),
-          Query.limit(10),
-        ]);
-
-        const tokenDoc = tokensResult.documents[0];
-        if (!tokenDoc) continue;
-
-        seen.add(productId);
-        downloads.push({
-          token: tokenDoc.token,
-          fileKey: tokenDoc.fileKey ?? '',
-          productName: item.productName,
-          orderNumber: orderDoc.orderNumber,
-          coverImageUrl: item.coverImageUrl ?? undefined,
-          downloadCount: tokenDoc.downloadCount,
-          maxDownloads: tokenDoc.maxDownloads,
-          expiresAt: tokenDoc.expiresAt,
-          expired: new Date(tokenDoc.expiresAt) < new Date(),
-          deliveryLink: tokenDoc.deliveryLink ?? undefined,
-        });
-      }
+    for (const tokenDoc of tokens) {
+      const item = itemMap[tokenDoc.orderItemId];
+      if (!item) continue;
+      const productId = item.productId ?? item.productName;
+      if (seen.has(productId)) continue;
+      seen.add(productId);
+      const order = orderMap[item.orderId];
+      downloads.push({
+        token: tokenDoc.token,
+        fileKey: tokenDoc.fileKey ?? '',
+        productName: item.productName,
+        orderNumber: order?.orderNumber ?? '',
+        coverImageUrl: item.coverImageUrl ?? undefined,
+        downloadCount: tokenDoc.downloadCount,
+        maxDownloads: tokenDoc.maxDownloads,
+        expiresAt: tokenDoc.expiresAt,
+        expired: new Date(tokenDoc.expiresAt) < new Date(),
+        deliveryLink: tokenDoc.deliveryLink ?? undefined,
+      });
     }
     allDownloads.value = downloads;
+  } catch (e) {
+    console.error('[DownloadsView]', e);
   } finally {
     loading.value = false;
   }
