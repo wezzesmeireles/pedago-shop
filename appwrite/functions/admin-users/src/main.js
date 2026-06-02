@@ -1,4 +1,4 @@
-import { Client, Users, Databases, Query } from 'node-appwrite'
+import { Client, Databases, Query } from 'node-appwrite'
 
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -6,7 +6,6 @@ export default async ({ req, res, log, error }) => {
     .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
     .setKey(process.env.APPWRITE_API_KEY)
 
-  const users = new Users(client)
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
@@ -36,31 +35,26 @@ export default async ({ req, res, log, error }) => {
     return res.json({ ok: true })
   }
 
-  // GET: list users — params can come from query string or POST body
+  // GET: list users — driven by the `profiles` collection so the list can be
+  // ordered by the REAL signup date (profile.createdAt, preserved from
+  // Supabase), newest first. The auth user's $createdAt is only the migration
+  // timestamp, so listing auth users would order everyone by migration time.
   const search = req.query?.search ?? parsedBody.search ?? ''
   const limit = Math.min(parseInt(req.query?.limit ?? parsedBody.limit ?? '50'), 100)
   const offset = parseInt(req.query?.offset ?? parsedBody.offset ?? '0')
 
-  const userQueries = [Query.limit(limit), Query.offset(offset)]
-  if (search) userQueries.push(Query.search('name', search))
+  const profileQueries = [
+    Query.orderDesc('createdAt'),
+    Query.limit(limit),
+    Query.offset(offset),
+  ]
+  if (search) profileQueries.push(Query.search('name', search))
 
-  const appwriteUsers = await users.list(userQueries)
+  const profilesResult = await db.listDocuments(DB, 'profiles', profileQueries)
+  const profiles = profilesResult.documents
+  const userIds = profiles.map(p => p.userId)
 
-  // Fetch profiles only for the users we need (by userId)
-  const userIds = appwriteUsers.users.map(u => u.$id)
-
-  let profileMap = {}
-  if (userIds.length > 0) {
-    const profilesResult = await db.listDocuments(DB, 'profiles', [
-      Query.equal('userId', userIds),
-      Query.limit(userIds.length),
-    ])
-    for (const p of profilesResult.documents) {
-      profileMap[p.userId] = p
-    }
-  }
-
-  // Count orders per user (fetch only for this page's users)
+  // Count orders per user (this page only)
   let orderCountMap = {}
   if (userIds.length > 0) {
     const ordersResult = await db.listDocuments(DB, 'orders', [
@@ -72,24 +66,18 @@ export default async ({ req, res, log, error }) => {
     }
   }
 
-  const result = appwriteUsers.users.map(u => {
-    const profile = profileMap[u.$id]
-    return {
-      id: u.$id,
-      email: u.email,
-      name: u.name,
-      phone: profile?.phone ?? '',
-      role: profile?.role ?? 'CUSTOMER',
-      isActive: profile?.isActive ?? true,
-      avatarUrl: profile?.avatarUrl ?? '',
-      orderCount: orderCountMap[u.$id] ?? 0,
-      // Real signup date: profiles preserve the original Supabase created_at;
-      // the auth user's $createdAt is just the migration timestamp. Fall back
-      // to the auth date for users created natively after the migration.
-      createdAt: profile?.createdAt ?? u.$createdAt,
-      labels: u.labels ?? [],
-    }
-  })
+  const result = profiles.map(p => ({
+    id: p.userId,            // === profile.$id; the admin edits/toggles by this
+    email: p.email,
+    name: p.name,
+    phone: p.phone ?? '',
+    role: p.role ?? 'CUSTOMER',
+    isActive: p.isActive ?? true,
+    avatarUrl: p.avatarUrl ?? '',
+    orderCount: orderCountMap[p.userId] ?? 0,
+    createdAt: p.createdAt ?? p.$createdAt,
+    labels: [],
+  }))
 
-  return res.json({ users: result, total: appwriteUsers.total })
+  return res.json({ users: result, total: profilesResult.total })
 }
