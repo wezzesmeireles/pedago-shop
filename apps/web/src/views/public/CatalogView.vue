@@ -20,10 +20,20 @@
 
     <div class="flex flex-col lg:flex-row gap-6">
 
-      <!-- Filters sidebar -->
-      <transition name="slide-down">
-        <aside v-if="filtersOpen || isDesktop" class="w-full lg:w-64 flex-shrink-0">
-          <div class="card p-5 space-y-5">
+      <!-- Backdrop (bottom-sheet no mobile) -->
+      <transition name="fade">
+        <div v-if="filtersOpen && !isDesktop" class="lg:hidden fixed inset-0 bg-black/40 z-40" @click="filtersOpen = false"></div>
+      </transition>
+
+      <!-- Filtros: sidebar no desktop · bottom-sheet no mobile -->
+      <transition :name="isDesktop ? 'slide-down' : 'sheet'">
+        <aside v-if="filtersOpen || isDesktop"
+          :class="isDesktop
+            ? 'w-full lg:w-64 flex-shrink-0'
+            : 'fixed bottom-0 inset-x-0 z-50 max-h-[85vh] overflow-y-auto'">
+          <div class="card p-5 space-y-5" :class="isDesktop ? '' : 'rounded-t-3xl rounded-b-none shadow-2xl'">
+            <!-- handle (mobile) -->
+            <div v-if="!isDesktop" class="w-10 h-1.5 bg-gray-200 rounded-full mx-auto -mt-1 mb-1"></div>
             <div class="flex items-center justify-between">
               <h3 class="font-bold text-gray-900">Filtros</h3>
               <button @click="filtersOpen = false" class="lg:hidden text-gray-400 hover:text-gray-600">
@@ -75,6 +85,12 @@
             </div>
 
             <button @click="clearFilters" class="w-full text-sm text-gray-400 hover:text-gray-600 py-1">Limpar filtros</button>
+
+            <!-- Ver resultados (mobile) -->
+            <button v-if="!isDesktop" @click="filtersOpen = false"
+              class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm py-3 rounded-xl transition-all active:scale-95">
+              Ver {{ pagination.total }} {{ pagination.total === 1 ? 'resultado' : 'resultados' }}
+            </button>
           </div>
         </aside>
       </transition>
@@ -304,4 +320,12 @@ onUnmounted(() => window.removeEventListener('resize', handleResize));
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* Bottom sheet (mobile) */
+.sheet-enter-active { transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1); }
+.sheet-leave-active { transition: transform 0.2s ease; }
+.sheet-enter-from, .sheet-leave-to { transform: translateY(100%); }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
