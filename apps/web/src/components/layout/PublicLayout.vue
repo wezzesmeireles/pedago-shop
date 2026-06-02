@@ -75,23 +75,10 @@
           <!-- Right actions -->
           <div class="flex items-center gap-1 flex-1 justify-end">
 
-            <!-- Meus Pedidos (mobile, logged in) -->
-            <RouterLink
-              v-if="auth.isLoggedIn"
-              to="/minha-conta/pedidos"
-              class="sm:hidden inline-flex items-center gap-1.5 text-sm font-semibold text-white
-                     bg-primary-600 hover:bg-primary-700 px-3 py-2 rounded-xl transition-all duration-200 active:scale-95"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
-              </svg>
-              Meus Pedidos
-            </RouterLink>
-
-            <!-- Cart -->
+            <!-- Cart (desktop only — mobile uses bottom nav) -->
             <button
               @click="openCart"
-              class="relative min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-600 hover:text-primary-600 hover:bg-primary-50
+              class="relative min-w-[44px] min-h-[44px] hidden md:flex items-center justify-center text-gray-600 hover:text-primary-600 hover:bg-primary-50
                      rounded-full transition-all duration-200 active:scale-90"
               aria-label="Carrinho"
             >
@@ -123,9 +110,9 @@
               Meus Pedidos
             </RouterLink>
 
-            <!-- User menu -->
+            <!-- User menu (desktop only — mobile uses bottom nav + hamburger) -->
             <template v-if="auth.isLoggedIn">
-              <div class="relative" ref="userMenuRef">
+              <div class="relative hidden md:block" ref="userMenuRef">
                 <button
                   @click="userMenuOpen = !userMenuOpen"
                   class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors active:scale-95 min-w-[44px] min-h-[44px] justify-center"
@@ -175,7 +162,7 @@
             <template v-else>
               <RouterLink
                 to="/auth/login"
-                class="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600
+                class="hidden md:inline-flex items-center gap-1.5 text-sm font-medium text-primary-600
                        hover:text-primary-700 px-3 py-2 rounded-xl hover:bg-primary-50 transition-all"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
@@ -249,17 +236,55 @@
             >
               {{ link.label }}
             </RouterLink>
+            <!-- Account actions -->
+            <template v-if="auth.isLoggedIn">
+              <hr class="my-1.5 border-gray-100" />
+              <RouterLink
+                to="/minha-conta/pedidos"
+                class="flex items-center gap-2.5 py-3.5 px-3 text-gray-700 font-medium text-base
+                       rounded-xl hover:bg-gray-50 transition-colors active:bg-gray-100"
+                @click="mobileMenuOpen = false"
+              >
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                Meus Pedidos
+              </RouterLink>
+              <RouterLink
+                to="/minha-conta/downloads"
+                class="flex items-center gap-2.5 py-3.5 px-3 text-gray-700 font-medium text-base
+                       rounded-xl hover:bg-gray-50 transition-colors active:bg-gray-100"
+                @click="mobileMenuOpen = false"
+              >
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Downloads
+              </RouterLink>
+              <RouterLink
+                v-if="auth.isAdmin"
+                to="/admin"
+                class="flex items-center gap-2.5 py-3.5 px-3 text-primary-600 font-medium text-base
+                       rounded-xl hover:bg-primary-50 transition-colors active:bg-primary-100"
+                @click="mobileMenuOpen = false"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Painel Admin
+              </RouterLink>
+              <button
+                @click="handleLogout"
+                class="flex items-center gap-2.5 py-3.5 px-3 text-red-500 font-medium text-base w-full text-left
+                       rounded-xl hover:bg-red-50 transition-colors active:bg-red-100"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Sair
+              </button>
+            </template>
             <RouterLink
-              v-if="auth.isLoggedIn"
-              to="/minha-conta/pedidos"
-              class="flex items-center gap-2 py-3.5 px-3 text-primary-600 font-medium text-base
+              v-else
+              to="/auth/login"
+              class="flex items-center gap-2.5 py-3.5 px-3 text-primary-600 font-medium text-base
                      rounded-xl hover:bg-primary-50 transition-colors active:bg-primary-100"
               @click="mobileMenuOpen = false"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
-              </svg>
-              Meus Pedidos
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              Entrar / Criar conta
             </RouterLink>
           </div>
         </transition>

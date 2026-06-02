@@ -83,7 +83,7 @@ const sections = [
     title: '3. Compartilhamento de Dados',
     content: [
       'Não vendemos nem alugamos seus dados pessoais para terceiros.',
-      'Compartilhamos informações apenas com parceiros essenciais para a operação dos serviços, como processadores de pagamento (Mercado Pago) e provedores de infraestrutura (Supabase), sempre sob acordos de confidencialidade e em conformidade com a LGPD.',
+      'Compartilhamos informações apenas com parceiros essenciais para a operação dos serviços, como processadores de pagamento (Mercado Pago) e provedores de infraestrutura e hospedagem, sempre sob acordos de confidencialidade e em conformidade com a LGPD.',
     ],
   },
   {

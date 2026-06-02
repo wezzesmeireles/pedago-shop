@@ -149,7 +149,7 @@ const changelog: Release[] = [
       {
         type: 'fix',
         text: 'Cadastro de novos usuários voltando a funcionar',
-        detail: 'Fluxo roteado para edge function register-user com admin.createUser (service role) para contornar hCaptcha e rate limits do Supabase.',
+        detail: 'Fluxo roteado para edge function register-user com admin.createUser (service role) para contornar hCaptcha e rate limits do backend de autenticação.',
       },
       {
         type: 'improve',
@@ -192,7 +192,7 @@ const changelog: Release[] = [
       {
         type: 'feat',
         text: 'Página "Esqueci minha senha" criada',
-        detail: 'Formulário com email, envia link via Supabase e exibe estado de confirmação com o email utilizado.',
+        detail: 'Formulário com email, envia link via backend de autenticação e exibe estado de confirmação com o email utilizado.',
       },
       {
         type: 'feat',
@@ -202,7 +202,7 @@ const changelog: Release[] = [
       {
         type: 'improve',
         text: 'Mensagens de erro do login melhoradas',
-        detail: 'Usa o código de erro do Supabase (AuthApiError.code) para matching preciso: credenciais inválidas, email não confirmado, captcha, rate limit.',
+        detail: 'Usa o código de erro retornado pela API de autenticação para matching preciso: credenciais inválidas, email não confirmado, captcha, rate limit.',
       },
       {
         type: 'feat',
@@ -265,7 +265,7 @@ const changelog: Release[] = [
       {
         type: 'fix',
         text: 'Erro "email rate limit exceeded" no cadastro tratado com fallback',
-        detail: 'Se o Supabase atingir o limite de envio de email, tenta logar diretamente com as credenciais informadas.',
+        detail: 'Se o backend atingir o limite de envio de email, tenta logar diretamente com as credenciais informadas.',
       },
     ],
   },
