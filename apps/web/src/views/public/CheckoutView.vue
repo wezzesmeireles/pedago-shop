@@ -126,6 +126,31 @@
             Download imediato
           </span>
         </div>
+
+        <!-- Por que comprar aqui (preenche e reforça confiança) -->
+        <div class="mt-7 bg-white rounded-3xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div v-for="b in benefits" :key="b.title" class="flex items-start gap-3">
+            <div class="w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0" :class="b.bg">
+              <span v-html="b.icon" :class="['w-4 h-4', b.color]"></span>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-gray-800">{{ b.title }}</p>
+              <p class="text-xs text-gray-500 leading-snug">{{ b.text }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Métodos aceitos -->
+        <div class="mt-5 flex flex-col items-center gap-2">
+          <p class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Pague com</p>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">PIX</span>
+            <span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">Visa</span>
+            <span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">Master</span>
+            <span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">Elo</span>
+            <span class="text-[11px] font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">+12x</span>
+          </div>
+        </div>
       </div>
 
       <!-- ── STEP: Cartão ── -->
@@ -302,6 +327,12 @@ const siteConfig = useSiteConfigStore();
 const auth = useAuthStore();
 
 type Step = 'confirm' | 'pix' | 'card';
+
+const benefits = [
+  { title: 'Entrega na hora', text: 'Assim que o pagamento é confirmado, o PDF fica disponível para download na sua conta.', bg: 'bg-green-100', color: 'text-green-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>' },
+  { title: 'Acesso vitalício', text: 'Compre uma vez e baixe quantas vezes quiser, sempre que precisar.', bg: 'bg-violet-100', color: 'text-violet-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>' },
+  { title: 'Pagamento protegido', text: 'Processado pelo Mercado Pago. Seus dados ficam seguros e criptografados.', bg: 'bg-sky-100', color: 'text-sky-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>' },
+];
 
 const step = ref<Step>('confirm');
 const selectedMethod = ref('PIX');

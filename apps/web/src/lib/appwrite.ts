@@ -19,6 +19,7 @@ export const COLLECTIONS = {
   ORDER_ITEMS: 'order_items',
   DOWNLOAD_TOKENS: 'download_tokens',
   SITE_CONFIG: 'site_config',
+  NEWSLETTER: 'newsletter',
 } as const
 
 export const BUCKETS = {

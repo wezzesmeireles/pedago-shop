@@ -54,7 +54,7 @@
             <img
               v-if="config.logoUrl"
               :src="config.logoUrl"
-              class="h-10 sm:h-13 w-auto object-contain drop-shadow-md group-hover:drop-shadow-lg transition-all"
+              class="h-12 sm:h-16 w-auto object-contain drop-shadow-md group-hover:drop-shadow-lg transition-all"
               style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;"
               :alt="config.storeName"
             />
@@ -502,7 +502,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
 import { account, databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { Query } from 'appwrite';
+import { Query, ID } from 'appwrite';
 import CartDrawer from '@/components/catalog/CartDrawer.vue';
 
 const auth = useAuthStore();
@@ -573,9 +573,8 @@ const scrolled = ref(false);
 const navLinks = [
   { to: '/', label: 'Início' },
   { to: '/catalogo', label: 'Produtos' },
-  { to: '/contato', label: 'Contato' },
-  { to: '/politica-privacidade', label: 'Política de Privacidade' },
   { to: '/quem-somos', label: 'Quem Somos' },
+  { to: '/contato', label: 'Contato' },
 ];
 
 
@@ -610,7 +609,19 @@ function doSearch() {
   }
 }
 
-function subscribeNewsletter() {
+async function subscribeNewsletter() {
+  const email = newsletterEmail.value.trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+  try {
+    await databases.createDocument(DB_ID, COLLECTIONS.NEWSLETTER, ID.unique(), {
+      email,
+      source: 'footer',
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e: any) {
+    // 409 = email já cadastrado — tratamos como sucesso (já está na lista)
+    if (e?.code !== 409) { console.error('[newsletter]', e); return; }
+  }
   newsletterSent.value = true;
   newsletterEmail.value = '';
   setTimeout(() => { newsletterSent.value = false; }, 3000);
