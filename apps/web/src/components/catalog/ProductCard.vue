@@ -93,8 +93,8 @@
           :class="justAdded
             ? 'bg-emerald-500 text-white focus:ring-emerald-400'
             : isFree
-              ? 'bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-600 hover:to-green-500 text-white focus:ring-emerald-400 shadow hover:shadow-emerald-300'
-              : 'bg-gradient-to-r from-violet-600 to-pink-500 hover:from-violet-700 hover:to-pink-600 text-white focus:ring-violet-400 shadow hover:shadow-violet-300'"
+              ? 'bg-emerald-500 hover:bg-emerald-600 text-white focus:ring-emerald-400 shadow-sm'
+              : 'bg-violet-600 hover:bg-violet-700 text-white focus:ring-violet-400 shadow-sm'"
         >
           <transition name="btn-icon" mode="out-in">
             <svg v-if="justAdded" key="check" class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

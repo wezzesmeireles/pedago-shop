@@ -64,7 +64,7 @@
           </span>
         </div>
 
-        <p class="text-gray-600 mb-8">{{ product.description }}</p>
+        <p v-if="product.description" class="text-gray-600 mb-8">{{ product.description }}</p>
 
         <!-- CTA -->
         <div class="space-y-3">
@@ -73,8 +73,7 @@
               @click="claimFree"
               :disabled="claiming"
               class="w-full text-base py-4 font-bold rounded-xl text-white transition-all
-                     bg-gradient-to-r from-emerald-500 to-green-400
-                     hover:from-emerald-600 hover:to-green-500
+                     bg-emerald-500 hover:bg-emerald-600
                      disabled:opacity-60 flex items-center justify-center gap-2"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,6 +93,31 @@
           </template>
         </div>
 
+        <!-- O que está incluso -->
+        <div class="mt-8 rounded-2xl border border-gray-100 bg-gray-50/70 p-5">
+          <h2 class="text-sm font-bold text-gray-900 mb-4">O que você recebe</h2>
+          <ul class="space-y-3">
+            <li v-for="item in included" :key="item.text" class="flex items-start gap-3">
+              <span class="mt-0.5 w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              <span class="text-sm text-gray-700">{{ item.text }}</span>
+            </li>
+          </ul>
+          <div class="mt-4 pt-4 border-t border-gray-200 flex items-center gap-2 text-xs text-gray-500">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            Pagamento 100% seguro · Compra seu PDF na hora
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Produtos relacionados -->
+    <div v-if="related.length" class="mt-14">
+      <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-5">Você também pode gostar</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <ProductCard v-for="r in related" :key="r.id" :product="r" />
       </div>
     </div>
 
@@ -137,8 +161,8 @@
       </div>
     </div>
 
-    <!-- Not found -->
-    <div v-else-if="!loading" class="text-center py-20">
+    <!-- Not found (só quando realmente não há produto) -->
+    <div v-if="!loading && !product" class="text-center py-20">
       <p class="text-gray-500 text-xl">Produto não encontrado.</p>
       <RouterLink to="/catalogo" class="btn-primary mt-4 inline-block">Ver Catálogo</RouterLink>
     </div>
@@ -155,6 +179,7 @@ import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import ProductCard from '@/components/catalog/ProductCard.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -167,8 +192,16 @@ const loading = ref(true);
 const activeImage = ref('');
 const claiming = ref(false);
 const claimError = ref('');
+const related = ref<any[]>([]);
 
 const isFree = computed(() => product.value && Number(product.value.price) === 0);
+
+const included = computed(() => [
+  { text: 'Arquivo digital em PDF, pronto para imprimir' },
+  { text: isFree.value ? 'Acesso liberado na hora, sem custo' : 'Download imediato após o pagamento' },
+  { text: 'Acesso vitalício — baixe quando quiser' },
+  { text: 'Qualidade alta, ideal para sala de aula e em casa' },
+]);
 
 useHead(computed(() => {
   const p = product.value;
@@ -301,10 +334,29 @@ onMounted(async () => {
         category: data.categoryId ? { id: data.categoryId, name: data.categoryName ?? '', slug: data.categorySlug ?? '' } : null,
       };
       if (data.instagramUrl) loadInstagramEmbed();
+      activeImage.value = data.coverImageUrl ?? '';
+
+      // Nome real da categoria + produtos relacionados (mesma categoria)
+      if (data.categoryId) {
+        databases.getDocument(DB_ID, COLLECTIONS.CATEGORIES, data.categoryId)
+          .then(cat => { if (product.value) product.value.category = { id: cat.$id, name: cat.name, slug: cat.slug }; })
+          .catch(() => {});
+
+        const rel = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+          Query.equal('categoryId', data.categoryId),
+          Query.equal('isActive', true),
+          Query.isNull('deletedAt'),
+          Query.notEqual('$id', data.$id),
+          Query.limit(4),
+        ]);
+        related.value = rel.documents.map((p: any) => ({
+          id: p.$id, name: p.name, slug: p.slug, price: p.price,
+          comparePrice: p.comparePrice, coverImageUrl: p.coverImageUrl, isFeatured: p.isFeatured,
+        }));
+      }
     } else {
       product.value = null;
     }
-    activeImage.value = data?.coverImageUrl ?? '';
   } catch {
     //
   } finally {
