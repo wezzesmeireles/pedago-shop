@@ -23,7 +23,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app"><div id="boot-msg" style="font-family:sans-serif;padding:48px 20px;text-align:center;color:#888">Carregando…</div></div>
+    <!-- Diagnostic fallback: plain ES5 so it runs even on very old browsers.
+         Turns a silent blank page into a readable error the user can screenshot. -->
+    <script>
+      (function () {
+        var shown = false;
+        function show(msg) {
+          if (shown) return; shown = true;
+          var el = document.getElementById('app');
+          if (!el) return;
+          el.innerHTML =
+            '<div style="font-family:sans-serif;max-width:620px;margin:40px auto;padding:24px;color:#7a1f1f;line-height:1.55">' +
+            '<b style="font-size:16px">Não foi possível carregar o site neste aparelho.</b><br><br>' +
+            'Por favor, envie este print para o suporte:<br><br>' +
+            '<code style="display:block;background:#f5f5f5;color:#333;padding:12px;border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-word">' +
+            String(msg).replace(/</g, '&lt;') + '\n\nNavegador: ' + navigator.userAgent + '</code></div>';
+        }
+        window.addEventListener('error', function (e) {
+          show((e && e.message ? e.message : 'Erro de script') + (e && e.filename ? '  @ ' + e.filename + ':' + (e.lineno || '?') : ''));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e && e.reason; show('Promise rejeitada: ' + (r && (r.message || r) || 'desconhecido'));
+        });
+        // App didn't mount within 12s and no error fired → show timeout notice.
+        setTimeout(function () {
+          if (document.getElementById('boot-msg')) show('Tempo esgotado: o aplicativo não inicializou (12s).');
+        }, 12000);
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
