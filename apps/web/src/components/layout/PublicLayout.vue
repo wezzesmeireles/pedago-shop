@@ -117,7 +117,7 @@
                   @click="userMenuOpen = !userMenuOpen"
                   class="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 transition-colors active:scale-95 min-w-[44px] min-h-[44px] justify-center"
                 >
-                  <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" class="w-9 h-9 rounded-full ring-2 ring-primary-200" />
+                  <img v-if="auth.user?.avatarUrl" :src="auth.user.avatarUrl" referrerpolicy="no-referrer" @error="auth.user && (auth.user.avatarUrl = '')" class="w-9 h-9 rounded-full ring-2 ring-primary-200" />
                   <div
                     v-else
                     class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500

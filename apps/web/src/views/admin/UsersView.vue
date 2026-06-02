@@ -25,7 +25,7 @@
         <!-- Top: avatar + info + status -->
         <div class="flex items-start gap-3">
           <div class="flex-shrink-0">
-            <img v-if="user.avatarUrl" :src="user.avatarUrl" class="w-11 h-11 rounded-full object-cover ring-2 ring-slate-100" />
+            <img v-if="user.avatarUrl" :src="user.avatarUrl" referrerpolicy="no-referrer" loading="lazy" @error="user.avatarUrl = ''" class="w-11 h-11 rounded-full object-cover ring-2 ring-slate-100" />
             <div v-else class="w-11 h-11 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-bold">
               {{ user.name?.[0]?.toUpperCase() }}
             </div>
@@ -119,7 +119,7 @@
               <td class="px-5 py-3.5">
                 <div class="flex items-center gap-3">
                   <div class="flex-shrink-0">
-                    <img v-if="user.avatarUrl" :src="user.avatarUrl" class="w-9 h-9 rounded-full object-cover ring-2 ring-white" />
+                    <img v-if="user.avatarUrl" :src="user.avatarUrl" referrerpolicy="no-referrer" loading="lazy" @error="user.avatarUrl = ''" class="w-9 h-9 rounded-full object-cover ring-2 ring-white" />
                     <div v-else class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
                       {{ user.name?.[0]?.toUpperCase() }}
                     </div>
