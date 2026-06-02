@@ -66,11 +66,7 @@
                   </svg>
                   <span>Acessar</span>
                 </a>
-                <!-- PDF delivery — disabled when download limit reached -->
-                <span v-else-if="download.downloadCount >= download.maxDownloads"
-                  class="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2.5 py-1.5 rounded-xl font-medium whitespace-nowrap">
-                  Limite atingido
-                </span>
+                <!-- PDF delivery — unlimited downloads -->
                 <a v-else href="#" @click.prevent="downloadFile(download)"
                   class="inline-flex items-center gap-1.5 bg-primary-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors whitespace-nowrap">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,7 +188,7 @@ async function triggerDownload(token: string, fallbackFilename: string) {
 }
 
 async function downloadFile(d: DownloadEntry) {
-  if (d.expired || d.downloadCount >= d.maxDownloads) return;
+  if (d.expired) return; // downloads are unlimited; only expiry blocks
   await triggerDownload(d.token, 'download.pdf');
   d.downloadCount++;
 }

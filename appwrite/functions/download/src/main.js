@@ -22,9 +22,7 @@ export default async ({ req, res, log, error }) => {
   const now = new Date()
   if (tokenDoc.revokedAt) return res.json({ error: 'Token revogado' }, 403)
   if (new Date(tokenDoc.expiresAt) < now) return res.json({ error: 'Token expirado' }, 403)
-  if (tokenDoc.downloadCount >= tokenDoc.maxDownloads) {
-    return res.json({ error: 'Limite de downloads atingido' }, 403)
-  }
+  // Downloads are unlimited — we still count them below for stats, but never block.
 
   // Link delivery — return URL, client opens it
   if (tokenDoc.deliveryLink) {

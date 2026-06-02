@@ -16,13 +16,33 @@ export default async ({ req, res, log }) => {
   } catch {}
   const specificOrderId = body?.orderId
 
-  // Read MP token from site_config
+  // Read config from site_config (MP token + Telegram)
   let mpToken = process.env.MERCADO_PAGO_ACCESS_TOKEN
+  let siteConfig = {}
   try {
     const cfg = await db.getDocument(DB, 'site_config', 'global')
-    const siteConfig = JSON.parse(cfg.value)
+    siteConfig = JSON.parse(cfg.value)
     if (siteConfig.mercadoPagoAccessToken) mpToken = siteConfig.mercadoPagoAccessToken
   } catch {}
+
+  // Most payments are confirmed here (the MP webhook rarely fires), so send the
+  // Telegram notification from this path too — otherwise no one gets notified.
+  async function notifyTelegram(text) {
+    try {
+      if (!siteConfig.telegramBotToken) return
+      const recipients = siteConfig.telegramRecipients ?? []
+      const chatIds = recipients.length > 0
+        ? recipients.map(r => r.chatId)
+        : (siteConfig.telegramChatId ? [siteConfig.telegramChatId] : [])
+      for (const chatId of chatIds) {
+        await fetch(`https://api.telegram.org/bot${siteConfig.telegramBotToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text }),
+        })
+      }
+    } catch (err) { log('Telegram failed: ' + err.message) }
+  }
 
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const now = new Date().toISOString()
@@ -92,6 +112,7 @@ export default async ({ req, res, log }) => {
           }
         }
         log(`Order ${order.orderNumber} marked PAID`)
+        await notifyTelegram(`✅ Pagamento aprovado!\nPedido: ${order.orderNumber}\nCliente: ${order.customerEmail}\nValor: R$ ${Number(order.totalAmount || 0).toFixed(2)}`)
 
       } else if (['rejected', 'cancelled', 'expired'].includes(payment.status)) {
         await db.updateDocument(DB, 'orders', order.$id, {
