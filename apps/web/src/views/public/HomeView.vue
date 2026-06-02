@@ -58,6 +58,37 @@
       </div>
     </section>
 
+    <!-- ── Barra de benefícios ──────────────────────────── -->
+    <section class="bg-white border-y border-gray-100">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div v-for="b in heroBenefits" :key="b.title" class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" :class="b.bg">
+              <span v-html="b.icon" :class="['w-4 h-4', b.color]"></span>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs sm:text-sm font-bold text-gray-800 leading-tight">{{ b.title }}</p>
+              <p class="text-[10px] sm:text-xs text-gray-400 leading-tight truncate">{{ b.sub }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Atalhos de categoria ─────────────────────────── -->
+    <section v-if="categoriesWithProducts.length" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
+      <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+        <RouterLink to="/catalogo"
+          class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-violet-600 text-white hover:bg-violet-700 transition-colors">
+          Todos
+        </RouterLink>
+        <RouterLink v-for="cat in categoriesWithProducts" :key="cat.id" :to="`/catalogo?categoria=${cat.slug}`"
+          class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors whitespace-nowrap">
+          {{ cat.name }}
+        </RouterLink>
+      </div>
+    </section>
+
     <!-- ── Últimas Compras ────────────────────────────────── -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       <div class="flex items-center gap-2 mb-4">
@@ -99,6 +130,44 @@
         </AnimatedList>
         <!-- fade bottom -->
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 sm:h-20 bg-gradient-to-t from-white to-transparent"></div>
+      </div>
+    </section>
+
+    <!-- ── Mais Vendidos ────────────────────────────────── -->
+    <section v-if="bestSellers.length >= 4" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-xl font-black text-gray-800 flex items-center gap-2.5">
+          <span class="w-1.5 h-7 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 inline-block"></span>
+          🔥 Mais Vendidos
+        </h2>
+        <RouterLink to="/catalogo?sort=vendas"
+          class="text-sm text-violet-600 hover:text-violet-700 font-semibold transition-colors flex items-center gap-1 group bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-full">
+          Ver todos
+          <svg class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </RouterLink>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <ProductCard v-for="product in bestSellers" :key="product.id" :product="product" />
+      </div>
+    </section>
+
+    <!-- ── Grátis ───────────────────────────────────────── -->
+    <section v-if="freeProducts.length" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="rounded-3xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-5 sm:p-7">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h2 class="text-xl font-black text-gray-800 flex items-center gap-2">🎁 Atividades Grátis</h2>
+            <p class="text-sm text-emerald-700/80 mt-0.5">Baixe agora sem pagar nada — experimente a qualidade!</p>
+          </div>
+          <RouterLink to="/catalogo?gratis=1"
+            class="hidden sm:flex text-sm text-emerald-700 hover:text-emerald-800 font-semibold items-center gap-1 group bg-white hover:bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+            Ver todas
+            <svg class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+          </RouterLink>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <ProductCard v-for="product in freeProducts" :key="product.id" :product="product" />
+        </div>
       </div>
     </section>
 
@@ -253,7 +322,7 @@
       <div class="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-violet-400/30 blur-3xl pointer-events-none"></div>
 
       <div class="relative z-10">
-        <div class="text-center mb-10 px-4">
+        <div class="text-center mb-8 px-4">
           <p class="text-white/60 text-xs font-bold uppercase tracking-widest mb-2">Depoimentos</p>
           <h2 class="text-3xl font-black text-white">
             O que nossas
@@ -262,10 +331,18 @@
           </h2>
         </div>
 
+        <!-- Números de impacto -->
+        <div class="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 mb-10 px-4">
+          <div v-for="stat in impactStats" :key="stat.label" class="text-center">
+            <p class="text-2xl sm:text-3xl font-black text-white">{{ stat.value }}</p>
+            <p class="text-xs sm:text-sm text-white/70 font-medium">{{ stat.label }}</p>
+          </div>
+        </div>
+
         <!-- Marquee row 1 -->
         <div class="overflow-hidden mb-4">
           <div class="flex gap-4 animate-marquee" style="width: max-content">
-            <div v-for="t in [...testimonials, ...testimonials]" :key="Math.random()"
+            <div v-for="(t, i) in [...testimonials, ...testimonials]" :key="`t1-${i}`"
               class="flex-shrink-0 w-72 bg-white/15 backdrop-blur-md rounded-2xl p-5
                      border border-white/20 hover:bg-white/25 transition-colors">
               <div class="flex text-yellow-300 text-sm mb-3 gap-0.5">
@@ -288,7 +365,7 @@
         <!-- Marquee row 2 (reversed) -->
         <div class="overflow-hidden">
           <div class="flex gap-4 animate-marquee-reverse" style="width: max-content">
-            <div v-for="t in [...testimonialsExtra, ...testimonialsExtra]" :key="Math.random()"
+            <div v-for="(t, i) in [...testimonialsExtra, ...testimonialsExtra]" :key="`t2-${i}`"
               class="flex-shrink-0 w-72 bg-white/10 backdrop-blur-md rounded-2xl p-5
                      border border-white/15 hover:bg-white/20 transition-colors">
               <div class="flex text-yellow-300 text-sm mb-3 gap-0.5">
@@ -425,6 +502,22 @@ useHead(computed(() => {
 
 const categories = ref<any[]>([]);
 const categoriesWithProducts = ref<any[]>([]);
+const bestSellers = ref<any[]>([]);
+const freeProducts = ref<any[]>([]);
+
+const impactStats = [
+  { value: '+1.500', label: 'Educadores atendidos' },
+  { value: '+100', label: 'Atividades prontas' },
+  { value: '4.9★', label: 'Avaliação média' },
+  { value: '100%', label: 'Digital e imediato' },
+];
+
+const heroBenefits = [
+  { title: 'Entrega imediata', sub: 'Baixe na hora', bg: 'bg-green-100', color: 'text-green-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>' },
+  { title: 'Pronto para imprimir', sub: 'Arquivo em PDF', bg: 'bg-violet-100', color: 'text-violet-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' },
+  { title: 'Pagamento seguro', sub: 'Mercado Pago', bg: 'bg-sky-100', color: 'text-sky-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>' },
+  { title: 'Acesso vitalício', sub: 'Baixe quando quiser', bg: 'bg-amber-100', color: 'text-amber-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
+];
 
 // ── Banner carousel ──────────────────────────────────────
 const bannerIndex = ref(0);
@@ -624,10 +717,31 @@ onMounted(async () => {
           if (!catId || !catMap.has(catId)) continue;
           if (catMap.get(catId)!.products.length < 6) catMap.get(catId)!.products.push(mapped);
         }
+        // Esconde categorias com poucos produtos (fileira "quebrada")
         categoriesWithProducts.value = Array.from(catMap.values())
-          .filter((c) => c.products.length > 0)
+          .filter((c) => c.products.length >= 4)
           .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
       } catch (e) { console.error('categories section error:', e); }
+    })(),
+    (async () => {
+      try {
+        // Mais vendidos
+        const best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+          Query.equal('isActive', true), Query.isNull('deletedAt'),
+          Query.greaterThan('salesCount', 0), Query.orderDesc('salesCount'), Query.limit(6),
+        ]);
+        bestSellers.value = best.documents.map((p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice }));
+      } catch (e) { console.error('best sellers error:', e); }
+    })(),
+    (async () => {
+      try {
+        // Grátis
+        const free = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+          Query.equal('isActive', true), Query.isNull('deletedAt'),
+          Query.equal('price', 0), Query.orderDesc('$createdAt'), Query.limit(6),
+        ]);
+        freeProducts.value = free.documents.map((p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice }));
+      } catch (e) { console.error('free products error:', e); }
     })(),
     (async () => {
       try {
@@ -665,4 +779,7 @@ onUnmounted(() => {
 .icon-swap-enter-active { transition: opacity 0.15s ease; }
 .icon-swap-leave-active { transition: opacity 0.1s ease; position: absolute; }
 .icon-swap-enter-from, .icon-swap-leave-to { opacity: 0; }
+
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 </style>
