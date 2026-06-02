@@ -107,21 +107,24 @@ async function handleLogin() {
 
     router.push(redirect || '/');
   } catch (err: any) {
-    const code = (err?.code || err?.error_code || '').toLowerCase();
-    const raw = (err?.message || err?.response?.data?.message || '').toLowerCase();
-    console.error('[login-debug] code:', code, '| message:', raw);
-    if (code === 'invalid_credentials' || raw.includes('invalid login') || raw.includes('invalid credentials') || raw.includes('wrong password'))
+    // Appwrite errors: `type` is a string id, `code` is the HTTP status (number).
+    // Always String() before toLowerCase so a numeric code can't crash this.
+    const type = String(err?.type ?? '').toLowerCase();
+    const raw = String(err?.message ?? '').toLowerCase();
+    const status = Number(err?.code) || 0;
+    console.error('[login-debug] type:', err?.type, '| code:', err?.code, '| message:', err?.message);
+    if (type.includes('invalid_credentials') || raw.includes('invalid credentials') || raw.includes('invalid email or password'))
       errors.general = 'Email ou senha incorretos. Verifique seus dados e tente novamente.';
-    else if (code === 'email_not_confirmed' || raw.includes('email not confirmed'))
-      errors.general = 'Email não confirmado. Verifique sua caixa de entrada.';
-    else if (code === 'captcha_failed' || raw.includes('captcha'))
-      errors.general = 'Verificação de segurança falhou. Recarregue a página e tente novamente.';
-    else if (code === 'over_request_rate_limit' || code === 'too_many_requests' || raw.includes('too many') || raw.includes('rate limit'))
-      errors.general = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
-    else if (raw.includes('user not found') || raw.includes('no user'))
+    else if (type.includes('blocked') || raw.includes('blocked'))
+      errors.general = 'Esta conta está bloqueada. Entre em contato com o suporte.';
+    else if (type.includes('not_found') || raw.includes('not found'))
       errors.general = 'Nenhuma conta encontrada com este email.';
+    else if (status === 429 || type.includes('rate_limit') || raw.includes('rate limit') || raw.includes('too many'))
+      errors.general = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
+    else if (type.includes('session') || raw.includes('session'))
+      errors.general = 'Havia uma sessão anterior. Recarregue a página e tente novamente.';
     else
-      errors.general = `Erro ao fazer login (${code || raw.substring(0, 60)}). Tente novamente.`;
+      errors.general = `Não foi possível entrar${err?.message ? ': ' + err.message : ''}. Tente novamente.`;
   } finally {
     loading.value = false;
   }

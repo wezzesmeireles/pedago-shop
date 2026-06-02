@@ -74,6 +74,9 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(email: string, password: string) {
     loading.value = true;
     try {
+      // Clear any stale/leftover session first — otherwise Appwrite rejects the
+      // new login with "session already exists" (the 403 some users were hitting).
+      try { await account.deleteSession('current'); } catch { /* no active session — fine */ }
       await account.createEmailPasswordSession(email, password);
       await fetchMe();
 
