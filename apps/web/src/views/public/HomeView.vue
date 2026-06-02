@@ -465,7 +465,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useHead } from '@vueuse/head';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { Query } from 'appwrite';
+import { Query, ID } from 'appwrite';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
@@ -648,7 +648,16 @@ function addGroupToCart() {
     });
   }
 }
-function subscribeNewsletter() {
+async function subscribeNewsletter() {
+  const email = newsletterEmail.value.trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+  try {
+    await databases.createDocument(DB_ID, COLLECTIONS.NEWSLETTER, ID.unique(), {
+      email, source: 'home', createdAt: new Date().toISOString(),
+    });
+  } catch (e: any) {
+    if (e?.code !== 409) { console.error('[newsletter]', e); return; }
+  }
   newsletterSent.value = true;
   newsletterEmail.value = '';
   setTimeout(() => { newsletterSent.value = false; }, 3500);
