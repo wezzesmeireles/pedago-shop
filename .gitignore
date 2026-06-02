@@ -12,6 +12,11 @@ build/
 .env.*.local
 apps/api/.env
 apps/web/.env
+# Migration secrets (Appwrite API key, Supabase service role) — NEVER commit
+scripts/.env.migration
+
+# Test/QA artifacts
+scripts/screenshots/
 
 # Logs
 *.log
