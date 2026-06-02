@@ -127,13 +127,44 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { useHead } from '@vueuse/head';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { useCatalogStore } from '@/stores/catalog.store';
+import { useSiteConfigStore } from '@/stores/site-config.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
 
 const route = useRoute();
 const catalogStore = useCatalogStore();
+const siteConfigStore = useSiteConfigStore();
+
+// ── SEO dinâmico ──────────────────────────────────────────
+useHead(computed(() => {
+  const cfg = siteConfigStore.config;
+  const store = cfg.storeName || 'Loja';
+  const catName = catalogStore.categories.find((c: any) => c.slug === route.query.categoria)?.name;
+  const busca = route.query.busca as string;
+  let title: string;
+  if (busca) title = `Busca: ${busca} | ${store}`;
+  else if (catName) title = `${catName} — Atividades Pedagógicas | ${store}`;
+  else title = `Catálogo de Atividades Pedagógicas | ${store}`;
+  const description = catName
+    ? `Atividades pedagógicas de ${catName} em PDF, prontas para imprimir. Download imediato após o pagamento.`
+    : (cfg.seoDescription || 'Compre atividades pedagógicas digitais em PDF. Entrega automática após o pagamento.');
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return {
+    title,
+    meta: [
+      { name: 'description', content: description },
+      { property: 'og:title', content: title },
+      { property: 'og:description', content: description },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:image', content: cfg.logoUrl || '' },
+      { property: 'og:url', content: `${origin}${route.fullPath}` },
+      { name: 'twitter:card', content: 'summary_large_image' },
+    ],
+  };
+}));
 
 const products = ref([]);
 const loading = ref(true);
