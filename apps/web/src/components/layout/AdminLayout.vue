@@ -237,8 +237,9 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.page-enter-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.page-leave-active { transition: opacity 0.1s ease; }
-.page-enter-from { opacity: 0; transform: translateY(6px); }
-.page-leave-to { opacity: 0; }
+/* Enter-only fade: the outgoing page is removed instantly (no blank flash),
+   the incoming page fades in gently. No translate = no "jump". */
+.page-enter-active { transition: opacity 0.16s ease; }
+.page-enter-from { opacity: 0; }
+.page-leave-active { transition: none; }
 </style>

@@ -1,7 +1,10 @@
 <template>
   <RouterView v-slot="{ Component, route }">
     <Transition name="page" mode="out-in">
-      <component :is="Component" :key="route.path" />
+      <!-- Key by the top-level layout, NOT the full path, so navigating between
+           tabs inside a layout (e.g. /admin/*) keeps the shell mounted instead
+           of remounting + refetching it on every tab change (the flicker). -->
+      <component :is="Component" :key="(route.matched[0]?.path) || route.path" />
     </Transition>
   </RouterView>
   <PhoneRequiredModal />
