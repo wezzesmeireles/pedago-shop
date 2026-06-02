@@ -4,6 +4,7 @@
   "buildCommand": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build",
   "outputDirectory": "apps/web/dist",
   "routes": [
+    { "src": "/v1/(.*)", "dest": "https://appwrite.wsgestao.digital/v1/$1" },
     { "src": "/produto/(?<slug>[^/]+)", "dest": "/api/og?slug=$slug" },
     { "src": "/", "dest": "/api/og" },
     { "handle": "filesystem" },
