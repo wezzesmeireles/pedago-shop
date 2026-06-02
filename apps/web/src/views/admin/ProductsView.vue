@@ -6,8 +6,8 @@
         <h1 class="text-xl font-bold text-slate-900">Produtos</h1>
         <p class="text-sm text-slate-500 mt-0.5">{{ filteredProducts.length }} produto{{ filteredProducts.length !== 1 ? 's' : '' }}</p>
       </div>
-      <button @click="openCreate" class="inline-flex items-center gap-2 bg-violet-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-violet-700 transition-colors shadow-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      <button @click="openCreate" class="btn-pill text-sm px-5 py-2.5">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
         Novo Produto
       </button>
     </div>

@@ -237,9 +237,19 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-/* Enter-only fade: the outgoing page is removed instantly (no blank flash),
-   the incoming page fades in gently. No translate = no "jump". */
-.page-enter-active { transition: opacity 0.16s ease; }
-.page-enter-from { opacity: 0; }
+/* Playful admin: every routed view's headings use the rounded display face */
+:deep(h1), :deep(h2), :deep(h3) {
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+}
+
+/* Enter-only transition: the outgoing page is removed instantly (no blank
+   flash); the incoming page fades + rises gently for a lively, cohesive feel. */
+.page-enter-active { transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+.page-enter-from { opacity: 0; transform: translateY(10px); }
 .page-leave-active { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active { transition: none; }
+  .page-enter-from { opacity: 1; transform: none; }
+}
 </style>

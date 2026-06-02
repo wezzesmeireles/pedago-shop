@@ -7,7 +7,7 @@
         <p class="text-sm text-slate-500 mt-0.5">Emails capturados no site</p>
       </div>
       <button v-if="subscribers.length" @click="exportCsv"
-        class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
+        class="btn-pill text-sm px-5 py-2.5">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
         Exportar CSV
       </button>
@@ -16,7 +16,7 @@
     <!-- Stats + search -->
     <div class="flex items-center gap-3 mb-4 flex-wrap">
       <div class="bg-white rounded-2xl border border-violet-100 px-4 py-2.5 shadow-sm">
-        <span class="text-2xl font-black text-violet-600">{{ total }}</span>
+        <span class="font-display text-2xl font-bold text-violet-600"><CountUp :value="total" /></span>
         <span class="text-xs text-slate-400 font-medium ml-1.5">inscritos</span>
       </div>
       <div class="relative flex-1 min-w-[200px]">
@@ -63,6 +63,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
+import CountUp from '@/components/ui/CountUp.vue';
 
 const subscribers = ref<any[]>([]);
 const total = ref(0);
