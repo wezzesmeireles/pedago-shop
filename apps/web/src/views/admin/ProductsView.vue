@@ -24,10 +24,10 @@
       <!-- Mobile Cards (md:hidden) -->
       <div class="md:hidden divide-y divide-slate-50">
         <div v-if="filteredProducts.length === 0" class="px-5 py-12 text-center text-slate-400 text-sm">Nenhum produto encontrado</div>
-        <div v-for="p in filteredProducts" :key="p.id" class="p-4">
+        <div v-for="p in pagedProducts" :key="p.id" class="p-4">
           <div class="flex items-center gap-3 mb-3">
             <div class="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
-              <img v-if="p.coverImageUrl" :src="p.coverImageUrl" :alt="p.name" class="w-full h-full object-cover" />
+              <img v-if="p.coverImageUrl" :src="p.coverImageUrl" :alt="p.name" loading="lazy" decoding="async" class="w-full h-full object-cover" />
               <div v-else class="w-full h-full flex items-center justify-center">
                 <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01"/></svg>
               </div>
@@ -56,6 +56,10 @@
             </button>
           </div>
         </div>
+        <button v-if="hasMore" @click="loadMore"
+          class="w-full py-3.5 text-sm font-semibold text-violet-600 bg-violet-50 active:bg-violet-100 transition-colors">
+          Carregar mais ({{ filteredProducts.length - visibleCount }} restantes)
+        </button>
       </div>
 
       <!-- Desktop Table (hidden md:block) -->
@@ -72,11 +76,11 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-50">
-            <tr v-for="p in filteredProducts" :key="p.id" class="group hover:bg-slate-50 transition-colors">
+            <tr v-for="p in pagedProducts" :key="p.id" class="group hover:bg-slate-50 transition-colors">
               <td class="px-5 py-3.5">
                 <div class="flex items-center gap-3">
                   <div class="w-11 h-11 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0">
-                    <img v-if="p.coverImageUrl" :src="p.coverImageUrl" :alt="p.name" class="w-full h-full object-cover" />
+                    <img v-if="p.coverImageUrl" :src="p.coverImageUrl" :alt="p.name" loading="lazy" decoding="async" class="w-full h-full object-cover" />
                     <div v-else class="w-full h-full flex items-center justify-center">
                       <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01"/></svg>
                     </div>
@@ -128,6 +132,10 @@
             </tr>
           </tbody>
         </table>
+        <button v-if="hasMore" @click="loadMore"
+          class="w-full py-3 text-sm font-semibold text-violet-600 hover:bg-violet-50 border-t border-slate-100 transition-colors">
+          Carregar mais ({{ filteredProducts.length - visibleCount }} restantes)
+        </button>
       </div>
     </div>
 
@@ -308,7 +316,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { databases, storage, DB_ID, COLLECTIONS, BUCKETS } from '@/lib/appwrite';
 import { Query, ID } from 'appwrite';
 import AppModal from '@/components/ui/AppModal.vue';
@@ -339,6 +347,14 @@ const filteredProducts = computed(() =>
     !search.value || p.name.toLowerCase().includes(search.value.toLowerCase()),
   ),
 );
+
+// Render incrementally so we don't mount 100+ cards/images at once (mobile perf)
+const PAGE_SIZE = 24;
+const visibleCount = ref(PAGE_SIZE);
+const pagedProducts = computed(() => filteredProducts.value.slice(0, visibleCount.value));
+const hasMore = computed(() => filteredProducts.value.length > visibleCount.value);
+function loadMore() { visibleCount.value += PAGE_SIZE; }
+watch(search, () => { visibleCount.value = PAGE_SIZE; });
 
 function formatPrice(p: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p));
@@ -476,7 +492,7 @@ async function toggleFeatured(product: any) {
 
 async function loadData() {
   const [prodsResult, catsResult] = await Promise.all([
-    databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('$createdAt'), Query.limit(100)]),
+    databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('$createdAt'), Query.limit(300)]),
     databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.orderAsc('sortOrder'), Query.limit(100)]),
   ]);
   const catMap = Object.fromEntries(catsResult.documents.map((c: any) => [c.$id, c.name]));

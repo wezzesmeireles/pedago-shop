@@ -246,7 +246,7 @@
           <div class="space-y-2">
             <div v-for="item in selectedOrder.items" :key="item.id" class="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
               <div class="w-11 h-11 rounded-xl overflow-hidden bg-white flex-shrink-0 border border-slate-200 shadow-sm">
-                <img v-if="item.product?.coverImageUrl" :src="item.product.coverImageUrl" class="w-full h-full object-cover" />
+                <img v-if="item.product?.coverImageUrl" :src="item.product.coverImageUrl" loading="lazy" decoding="async" class="w-full h-full object-cover" />
                 <div v-else class="w-full h-full flex items-center justify-center text-slate-300">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                 </div>
