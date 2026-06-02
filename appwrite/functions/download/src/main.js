@@ -56,7 +56,9 @@ export default async ({ req, res, log, error }) => {
 
   return res.json({
     type: 'file',
-    fileId: product.fileKey,
+    // fileKey is stored with the original ".pdf" extension, but the Appwrite
+    // file id has no extension — strip it or storage returns 400 (invalid id).
+    fileId: String(product.fileKey).replace(/\.[^.]+$/, ''),
     filename: `${safeName}.pdf`,
   })
 }
