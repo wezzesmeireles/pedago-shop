@@ -38,7 +38,7 @@
         <div class="relative">
           <div class="stat-emoji">💰</div>
           <p class="stat-label">Receita</p>
-          <p class="stat-num truncate"><CountUp :value="filteredRevenue" :format="formatPrice" /></p>
+          <p :class="['stat-num truncate', { 'opacity-60': revenueLoading }]"><CountUp :value="filteredRevenue" :format="formatPrice" /></p>
           <div class="flex items-center gap-1 mt-3">
             <button
               v-for="f in [{ key: 'day', label: 'Dia' }, { key: 'week', label: 'Semana' }, { key: 'month', label: 'Mês' }, { key: 'year', label: 'Ano' }]"
@@ -99,7 +99,13 @@
             <p class="text-xs text-slate-400">este mês</p>
           </div>
         </div>
-        <div v-if="monthlyChart.length" class="flex items-end gap-2 sm:gap-3 h-32">
+        <div v-if="revenueLoading && !monthlyChart.length" class="flex items-end gap-2 sm:gap-3 h-32">
+          <div v-for="i in 6" :key="i" class="flex-1 flex flex-col items-center justify-end gap-1.5">
+            <div class="w-full rounded-t-lg bg-slate-100 animate-pulse" :style="{ height: `${30 + (i * 11 % 60)}%` }"></div>
+            <div class="h-2 w-6 bg-slate-100 rounded animate-pulse"></div>
+          </div>
+        </div>
+        <div v-else-if="monthlyChart.length" class="flex items-end gap-2 sm:gap-3 h-32">
           <div v-for="(m, i) in monthlyChart" :key="i" class="flex-1 flex flex-col items-center gap-1.5">
             <p class="text-[9px] sm:text-[10px] text-slate-500 font-medium text-center leading-tight">
               {{ m.value > 0 ? formatPriceShort(m.value) : '' }}
@@ -364,6 +370,7 @@ import CountUp from '@/components/ui/CountUp.vue';
 const auth = useAuthStore();
 const siteConfigStore = useSiteConfigStore();
 const loading = ref(true);
+const revenueLoading = ref(true);
 
 // ── WhatsApp ────────────────────────────────────────────────
 const whatsappNumber = computed(() => siteConfigStore.config.socialLinks?.whatsapp ?? '');
@@ -486,28 +493,57 @@ async function loadStorage() {
 }
 
 async function loadDashboard() {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
+
+  // ── Phase 1: cheap counts + lists — shows the cards/lists immediately ──
+  // (counts are limit(1) queries that return only `.total`; recent orders
+  // fetch just the 8 rows we render, selecting only the needed fields.)
   try {
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
+    const [paidCount, monthOrders, pending, usersRes, recentRes, topProds] = await Promise.all([
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('$createdAt', startOfMonth), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(8), Query.select(['orderNumber', 'totalAmount', 'customerName', 'status', 'paidAt'])]),
+      databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
+    ]);
+    // keep any revenue we already have (e.g. on KeepAlive revisit) so it doesn't flash to 0
+    stats.value = {
+      revenue: stats.value.revenue,
+      orders: { total: paidCount.total, month: monthOrders.total, pending: pending.total },
+      users: { total: usersRes.total },
+    };
+    topProducts.value = topProds.documents.map((p: any) => ({
+      ...p, id: p.$id, coverImageUrl: p.coverImageUrl, salesCount: p.salesCount,
+    }));
+    recentOrders.value = recentRes.documents.map((o: any) => ({
+      ...o, id: o.$id, orderNumber: o.orderNumber, totalAmount: o.totalAmount,
+      customerName: o.customerName, status: o.status,
+    }));
+  } catch (e) {
+    console.error('[DashboardView] counts', e);
+  } finally {
+    loading.value = false;
+  }
 
-    // Single fetch of all PAID orders — all revenue metrics computed in JS
-    // (avoids pulling the same dataset 11× which overloaded the connection).
-    const [paidResult, monthOrdersResult, pendingResult, usersResult, topProdsResult] =
-      await Promise.all([
-        databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(5000)]),
-        databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('$createdAt', startOfMonth), Query.limit(1)]),
-        databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
-        databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
-        databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
-      ]);
+  loadStorage(); // independent, non-blocking
 
-    const paid = paidResult.documents as any[];
+  // ── Phase 2: revenue dataset — heavier, but fetch ONLY the 2 fields we sum ──
+  revenueLoading.value = true;
+  try {
+    const paidRes = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
+      Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(5000),
+      Query.select(['totalAmount', 'paidAt']),
+    ]);
+    const paid = paidRes.documents as any[];
     const sumIf = (pred: (o: any) => boolean) => paid.reduce((s, o) => s + (pred(o) ? Number(o.totalAmount || 0) : 0), 0);
 
     stats.value = {
+      ...stats.value,
       revenue: {
         total: sum(paid),
         day: sumIf(o => o.paidAt >= startOfDay),
@@ -515,33 +551,18 @@ async function loadDashboard() {
         month: sumIf(o => o.paidAt >= startOfMonth),
         year: sumIf(o => o.paidAt >= startOfYear),
       },
-      orders: { total: paidResult.total, month: monthOrdersResult.total, pending: pendingResult.total },
-      users: { total: usersResult.total },
     };
-    topProducts.value = topProdsResult.documents.map((p: any) => ({
-      ...p, id: p.$id, coverImageUrl: p.coverImageUrl, salesCount: p.salesCount,
-    }));
-    // Últimos pedidos: usa os próprios pedidos pagos (já ordenados por paidAt desc),
-    // com número e status reais — recent-purchases é só pro social proof da home.
-    recentOrders.value = paid.slice(0, 8).map((o: any) => ({
-      ...o, id: o.$id, orderNumber: o.orderNumber, totalAmount: o.totalAmount,
-      customerName: o.customerName, status: o.status,
-    }));
 
-    // Monthly chart — computed from the same single dataset
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
       return { label: d.toLocaleDateString('pt-BR', { month: 'short' }), start: d.toISOString(), end: new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString() };
     });
     monthlyRevenue.value = months.map(m => ({ label: m.label, value: sumIf(o => o.paidAt >= m.start && o.paidAt < m.end) }));
   } catch (e) {
-    console.error('[DashboardView]', e);
+    console.error('[DashboardView] revenue', e);
   } finally {
-    loading.value = false;
+    revenueLoading.value = false;
   }
-
-  // Load storage independently so it doesn't block the main stats
-  loadStorage();
 }
 
 onMounted(loadDashboard);
