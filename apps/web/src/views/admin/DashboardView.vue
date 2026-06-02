@@ -1,79 +1,86 @@
 <template>
-  <div class="space-y-6 dash-reveal">
+  <div class="relative">
+    <!-- ── Playful decorative blobs ──────────────────────────── -->
+    <div class="pointer-events-none absolute inset-0 overflow-hidden -z-10">
+      <div class="absolute -top-12 -left-16 w-72 h-72 rounded-full bg-violet-300/40 blur-3xl"></div>
+      <div class="absolute top-24 -right-24 w-80 h-80 rounded-full bg-pink-300/40 blur-3xl"></div>
+      <div class="absolute top-[42%] left-1/4 w-72 h-72 rounded-full bg-amber-200/50 blur-3xl"></div>
+      <div class="absolute bottom-16 right-1/4 w-72 h-72 rounded-full bg-teal-200/40 blur-3xl"></div>
+    </div>
+
+    <div class="relative space-y-6 dash-reveal">
 
     <!-- ── Greeting ──────────────────────────────────────────── -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-black text-slate-900">{{ greeting }}, {{ firstName }} 👋</h1>
-        <p class="text-sm text-slate-500 mt-0.5">{{ dateLabel }} · Resumo da sua loja</p>
+        <h1 class="font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          {{ greeting }}, {{ firstName }} <span class="inline-block origin-[70%_80%] animate-wave">👋</span>
+        </h1>
+        <p class="text-sm text-slate-500 mt-1 font-medium">☀️ {{ dateLabel }} · um resumo fresquinho da sua loja</p>
       </div>
       <RouterLink to="/admin/produtos"
-        class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md active:scale-95 self-start sm:self-auto">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        class="font-display inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white text-sm font-bold px-5 py-3 rounded-full shadow-lg shadow-violet-500/30 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 transition-all self-start sm:self-auto">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
         Novo Produto
       </RouterLink>
     </div>
 
     <!-- ── Stat Cards ─────────────────────────────────────────── -->
     <div v-if="loading" class="grid grid-cols-2 xl:grid-cols-4 gap-4">
-      <div v-for="i in 4" :key="i" class="bg-white rounded-2xl p-5 border border-slate-100 animate-pulse h-32"></div>
+      <div v-for="i in 4" :key="i" class="bg-white rounded-[1.75rem] p-5 border border-slate-100 animate-pulse h-36"></div>
     </div>
 
     <div v-else class="grid grid-cols-2 xl:grid-cols-4 gap-4 dash-stagger">
-      <div class="relative bg-gradient-to-br from-violet-600 to-purple-700 rounded-2xl p-5 text-white overflow-hidden shadow-lg shadow-violet-500/20">
-        <div class="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-white/10 pointer-events-none"></div>
-        <div class="absolute -bottom-6 -right-2 w-20 h-20 rounded-full bg-white/5 pointer-events-none"></div>
+      <!-- Receita -->
+      <div class="stat-card group bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-2xl shadow-violet-500/30">
+        <div class="absolute -top-7 -right-7 w-28 h-28 rounded-full bg-white/15"></div>
+        <div class="absolute -bottom-9 -left-5 w-24 h-24 rounded-full bg-white/10"></div>
         <div class="relative">
-          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-1">Receita</p>
-          <p class="text-xl sm:text-2xl font-black truncate">{{ formatPrice(filteredRevenue) }}</p>
-          <div class="flex items-center gap-1 mt-2">
+          <div class="stat-emoji">💰</div>
+          <p class="stat-label">Receita</p>
+          <p class="stat-num truncate"><CountUp :value="filteredRevenue" :format="formatPrice" /></p>
+          <div class="flex items-center gap-1 mt-3">
             <button
               v-for="f in [{ key: 'day', label: 'Dia' }, { key: 'week', label: 'Semana' }, { key: 'month', label: 'Mês' }, { key: 'year', label: 'Ano' }]"
               :key="f.key"
               @click.stop="revenueFilter = f.key as any"
               :class="['text-[10px] font-bold px-2 py-0.5 rounded-full transition-all',
-                revenueFilter === f.key ? 'bg-white text-violet-700' : 'bg-white/20 text-white/70 hover:bg-white/30']"
+                revenueFilter === f.key ? 'bg-white text-violet-700' : 'bg-white/25 text-white/90 hover:bg-white/40']"
             >{{ f.label }}</button>
           </div>
         </div>
       </div>
 
-      <div class="relative bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white overflow-hidden shadow-lg shadow-emerald-500/20">
-        <div class="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-white/10 pointer-events-none"></div>
+      <!-- Pedidos Pagos -->
+      <div class="stat-card group bg-gradient-to-br from-emerald-400 to-teal-600 shadow-2xl shadow-emerald-500/30">
+        <div class="absolute -top-7 -right-7 w-28 h-28 rounded-full bg-white/15"></div>
         <div class="relative">
-          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          </div>
-          <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-1">Pedidos Pagos</p>
-          <p class="text-2xl font-black">{{ stats.orders.total }}</p>
-          <p class="text-white/60 text-xs mt-1"><span class="text-emerald-200 font-semibold">{{ stats.orders.month }}</span> este mês</p>
+          <div class="stat-emoji">🛍️</div>
+          <p class="stat-label">Pedidos Pagos</p>
+          <p class="stat-num"><CountUp :value="stats.orders.total" /></p>
+          <p class="text-white/75 text-xs mt-1.5"><span class="text-white font-bold">+<CountUp :value="stats.orders.month" /></span> este mês</p>
         </div>
       </div>
 
-      <div class="relative bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-5 text-white overflow-hidden shadow-lg shadow-amber-500/20">
-        <div class="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-white/10 pointer-events-none"></div>
+      <!-- Aguardando -->
+      <div class="stat-card group bg-gradient-to-br from-amber-400 to-orange-500 shadow-2xl shadow-amber-500/30">
+        <div class="absolute -top-7 -right-7 w-28 h-28 rounded-full bg-white/15"></div>
         <div class="relative">
-          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-1">Aguardando</p>
-          <p class="text-2xl font-black">{{ stats.orders.pending }}</p>
-          <p class="text-white/60 text-xs mt-1">pedidos pendentes</p>
+          <div class="stat-emoji">⏳</div>
+          <p class="stat-label">Aguardando</p>
+          <p class="stat-num"><CountUp :value="stats.orders.pending" /></p>
+          <p class="text-white/75 text-xs mt-1.5">pedidos pendentes</p>
         </div>
       </div>
 
-      <div class="relative bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl p-5 text-white overflow-hidden shadow-lg shadow-sky-500/20">
-        <div class="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-white/10 pointer-events-none"></div>
+      <!-- Clientes -->
+      <div class="stat-card group bg-gradient-to-br from-sky-400 to-blue-600 shadow-2xl shadow-sky-500/30">
+        <div class="absolute -top-7 -right-7 w-28 h-28 rounded-full bg-white/15"></div>
         <div class="relative">
-          <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center mb-3">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          </div>
-          <p class="text-white/70 text-xs font-semibold uppercase tracking-wide mb-1">Clientes</p>
-          <p class="text-2xl font-black">{{ stats.users.total }}</p>
-          <p class="text-white/60 text-xs mt-1">cadastrados</p>
+          <div class="stat-emoji">👥</div>
+          <p class="stat-label">Clientes</p>
+          <p class="stat-num"><CountUp :value="stats.users.total" /></p>
+          <p class="text-white/75 text-xs mt-1.5">cadastrados</p>
         </div>
       </div>
     </div>
@@ -341,6 +348,7 @@
       </div>
     </div>
 
+    </div>
   </div>
 </template>
 
@@ -351,6 +359,7 @@ import { Query } from 'appwrite';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
+import CountUp from '@/components/ui/CountUp.vue';
 
 const auth = useAuthStore();
 const siteConfigStore = useSiteConfigStore();
@@ -537,13 +546,56 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-@keyframes dashUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: none; }
+/* Playful "educational" dashboard ------------------------------------------ */
+.font-display { font-family: 'Fredoka', 'Nunito', system-ui, sans-serif; }
+/* All dashboard headings get the rounded display face */
+h1, h2 { font-family: 'Fredoka', 'Nunito', system-ui, sans-serif; }
+
+/* Chunky stat cards */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  padding: 1.25rem;
+  color: #fff;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.stat-emoji {
+  width: 3rem; height: 3rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; line-height: 1;
+  margin-bottom: 0.75rem;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.stat-label {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+.stat-num {
+  font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  font-size: 1.875rem; font-weight: 700; line-height: 1;
 }
 
-/* Orchestrated entrance — top-level sections cascade up on load */
-.dash-reveal > * { animation: dashUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+/* Waving hand on the greeting */
+@keyframes wave {
+  0%, 60%, 100% { transform: rotate(0deg); }
+  10%, 30% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  40% { transform: rotate(10deg); }
+  50% { transform: rotate(-4deg); }
+}
+.animate-wave { animation: wave 2.6s ease-in-out infinite; transform-origin: 70% 80%; }
+
+/* Orchestrated bouncy entrance ---------------------------------------------- */
+@keyframes dashUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+.dash-reveal > * { animation: dashUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .dash-reveal > *:nth-child(1) { animation-delay: 0.04s; }
 .dash-reveal > *:nth-child(2) { animation-delay: 0.10s; }
 .dash-reveal > *:nth-child(3) { animation-delay: 0.16s; }
@@ -552,23 +604,20 @@ onMounted(async () => {
 .dash-reveal > *:nth-child(6) { animation-delay: 0.34s; }
 .dash-reveal > *:nth-child(7) { animation-delay: 0.40s; }
 
-/* Let the stat cards cascade individually instead of the grid as one block */
+/* Stat cards pop in individually (with a little overshoot) + react on hover */
 .dash-reveal > .dash-stagger { animation: none; }
-.dash-stagger > * {
-  animation: dashUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-.dash-stagger > *:nth-child(1) { animation-delay: 0.10s; }
-.dash-stagger > *:nth-child(2) { animation-delay: 0.17s; }
-.dash-stagger > *:nth-child(3) { animation-delay: 0.24s; }
-.dash-stagger > *:nth-child(4) { animation-delay: 0.31s; }
+.dash-stagger > * { animation: dashUp 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) backwards; }
+.dash-stagger > *:nth-child(1) { animation-delay: 0.12s; }
+.dash-stagger > *:nth-child(2) { animation-delay: 0.20s; }
+.dash-stagger > *:nth-child(3) { animation-delay: 0.28s; }
+.dash-stagger > *:nth-child(4) { animation-delay: 0.36s; }
 
-/* Subtle lift on pointer devices (no effect on touch) */
 @media (hover: hover) {
-  .dash-stagger > *:hover { transform: translateY(-4px); }
+  .dash-stagger > .stat-card:hover { transform: translateY(-6px) rotate(-1deg); }
+  .group:hover .stat-emoji { transform: rotate(-10deg) scale(1.12); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dash-reveal > *, .dash-stagger > * { animation: none; }
+  .dash-reveal > *, .dash-stagger > *, .animate-wave { animation: none; }
 }
 </style>
