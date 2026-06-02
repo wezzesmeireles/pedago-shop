@@ -524,7 +524,13 @@
       </button>
       <RouterLink :to="auth.isLoggedIn ? '/minha-conta/pedidos' : '/auth/login'"
         class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors"
-        :class="route.path.startsWith('/minha-conta') ? 'text-primary-600' : 'text-gray-400'">
+        :class="route.path.startsWith('/minha-conta/pedidos') ? 'text-primary-600' : 'text-gray-400'">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+        <span class="text-[10px] font-semibold">Pedidos</span>
+      </RouterLink>
+      <RouterLink :to="auth.isLoggedIn ? '/minha-conta/downloads' : '/auth/login'"
+        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors"
+        :class="(route.path.startsWith('/minha-conta/downloads') || route.path.startsWith('/auth')) ? 'text-primary-600' : 'text-gray-400'">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
         <span class="text-[10px] font-semibold">Conta</span>
       </RouterLink>

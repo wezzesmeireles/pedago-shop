@@ -465,6 +465,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useHead } from '@vueuse/head';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { invokeFunction } from '@/services/api';
 import { Query, ID } from 'appwrite';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
@@ -596,26 +597,20 @@ function relativeTime(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d atrás`;
 }
 
+const PURCHASE_ICONS = ['📚', '✏️', '🎨', '🧩', '🌟', '🖍️', '📒', '🔤', '🧮', '🎒'];
+const PURCHASE_COLORS = ['#EDE9FE', '#FCE7F3', '#FEF3C7', '#D1FAE5', '#DBEAFE', '#FFE4E6', '#E0E7FF'];
+
 async function loadRecentPurchases() {
   try {
-    const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
-    const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
-    const res = await fetch(`${endpoint}/functions/recent-purchases/executions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Appwrite-Project': projectId,
-      },
-      body: JSON.stringify({}),
-    });
-    if (!res.ok) return;
-    const execution = await res.json();
-    let parsed: any = {};
-    try { parsed = JSON.parse(execution.responseBody ?? '{}'); } catch {}
-    const data: any[] = Array.isArray(parsed) ? parsed : (parsed.purchases ?? []);
-    recentPurchases.value = data.map((p: any) => ({
-      ...p,
+    const parsed = await invokeFunction<any>('recent-purchases');
+    const data: any[] = Array.isArray(parsed) ? parsed : (parsed?.purchases ?? []);
+    recentPurchases.value = data.map((p: any, i: number) => ({
+      name: p.customerName || 'Cliente',
+      buyer: 'acabou de comprar',
+      price: formatPrice(Number(p.totalAmount) || 0),
       time: p.paidAt ? relativeTime(p.paidAt) : 'recentemente',
+      icon: PURCHASE_ICONS[i % PURCHASE_ICONS.length],
+      color: PURCHASE_COLORS[i % PURCHASE_COLORS.length],
     }));
   } catch (e) {
     console.error('[recent-purchases]', e);
