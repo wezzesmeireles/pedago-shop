@@ -61,6 +61,7 @@ const router = createRouter({
         { path: 'categorias', name: 'admin-categories', component: () => import('@/views/admin/CategoriesView.vue') },
         { path: 'pedidos', name: 'admin-orders', component: () => import('@/views/admin/OrdersView.vue') },
         { path: 'usuarios', name: 'admin-users', component: () => import('@/views/admin/UsersView.vue') },
+        { path: 'inscritos', name: 'admin-subscribers', component: () => import('@/views/admin/SubscribersView.vue') },
         { path: 'customizar', name: 'admin-customize', component: () => import('@/views/admin/CustomizeView.vue') },
         { path: 'integracoes', name: 'admin-integrations', component: () => import('@/views/admin/IntegrationsView.vue') },
         { path: 'changelog', name: 'admin-changelog', component: () => import('@/views/admin/ChangelogView.vue') },
