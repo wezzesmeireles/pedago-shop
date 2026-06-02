@@ -60,9 +60,13 @@
             <svg v-else class="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           </div>
           <div>
-            <input type="file" accept="image/*" @change="(e) => uploadAsset(e, 'logoUrl')"
-              class="text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer" />
-            <p class="text-xs text-slate-400 mt-1">PNG, SVG ou WebP — recomendado fundo transparente</p>
+            <label :class="['inline-flex items-center gap-2 text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors', uploadingLogo ? 'bg-slate-100 text-slate-400 cursor-wait' : 'bg-violet-50 text-violet-700 hover:bg-violet-100 cursor-pointer']">
+              <svg v-if="uploadingLogo" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              {{ uploadingLogo ? 'Enviando...' : (form.logoUrl ? 'Trocar logo' : 'Escolher logo') }}
+              <input type="file" accept="image/*" :disabled="uploadingLogo" @change="(e) => uploadAsset(e, 'logoUrl')" class="hidden" />
+            </label>
+            <p class="text-xs text-slate-400 mt-1.5">PNG, SVG ou WebP — recomendado fundo transparente</p>
           </div>
         </div>
       </div>
@@ -138,8 +142,12 @@
               </span>
             </div>
             <div class="flex flex-col gap-1.5">
-              <input type="file" accept="image/*" @change="(e) => uploadBannerImage(e, idx)"
-                class="text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 cursor-pointer" />
+              <label :class="['inline-flex items-center gap-2 text-xs font-semibold px-3.5 py-2.5 rounded-xl transition-colors w-max', uploadingBanner === idx ? 'bg-slate-100 text-slate-400 cursor-wait' : 'bg-violet-50 text-violet-700 hover:bg-violet-100 cursor-pointer']">
+                <svg v-if="uploadingBanner === idx" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                {{ uploadingBanner === idx ? 'Enviando...' : (slide.imageUrl ? 'Trocar imagem' : 'Escolher imagem') }}
+                <input type="file" accept="image/*" :disabled="uploadingBanner === idx" @change="(e) => uploadBannerImage(e, idx)" class="hidden" />
+              </label>
               <button v-if="slide.imageUrl" type="button" @click="slide.imageUrl = ''; bannerSizes[idx] = ''"
                 class="text-xs text-red-500 hover:text-red-700 text-left transition-colors">Remover imagem</button>
             </div>
@@ -242,6 +250,18 @@
         </label>
       </div>
     </div>
+
+    <!-- Mobile sticky save bar (floats above the admin bottom nav) -->
+    <div class="h-16 md:hidden"></div>
+    <div class="md:hidden fixed left-0 right-0 z-20 px-4 bottom-[calc(56px+env(safe-area-inset-bottom))]">
+      <button @click="saveConfig" :disabled="saving"
+        class="w-full inline-flex items-center justify-center gap-2 bg-violet-600 text-white text-sm font-bold py-3.5 rounded-2xl shadow-lg shadow-violet-500/40 active:scale-[0.99] transition-all disabled:opacity-70">
+        <svg v-if="saving" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        <svg v-else-if="saved" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+        {{ saving ? 'Salvando...' : saved ? 'Salvo!' : 'Salvar Alterações' }}
+      </button>
+    </div>
   </div>
 </template>
 
@@ -255,6 +275,8 @@ import { ID } from 'appwrite';
 const siteConfigStore = useSiteConfigStore();
 const saving = ref(false);
 const saved = ref(false);
+const uploadingLogo = ref(false);
+const uploadingBanner = ref<number | null>(null);
 const activeTab = ref('identity');
 
 const tabs = [
@@ -319,20 +341,27 @@ function applyLiveColors() {
 }
 
 async function uploadAsset(event: Event, field: keyof SiteConfigData) {
-  const file = (event.target as HTMLInputElement).files?.[0];
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
   if (!file) return;
+  uploadingLogo.value = true;
   try {
     const uploaded = await storage.createFile(BUCKETS.PRODUCT_COVERS, ID.unique(), file);
     const url = storage.getFilePreview(BUCKETS.PRODUCT_COVERS, uploaded.$id).toString();
     (form as any)[field] = url;
   } catch {
     alert('Erro ao enviar imagem.');
+  } finally {
+    uploadingLogo.value = false;
+    input.value = '';
   }
 }
 
 async function uploadBannerImage(event: Event, idx: number) {
-  const file = (event.target as HTMLInputElement).files?.[0];
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
   if (!file) return;
+  uploadingBanner.value = idx;
 
   const img = new Image();
   const objectUrl = URL.createObjectURL(file);
@@ -350,6 +379,9 @@ async function uploadBannerImage(event: Event, idx: number) {
     form.banners[idx].imageUrl = url;
   } catch {
     alert('Erro ao enviar imagem.');
+  } finally {
+    uploadingBanner.value = null;
+    input.value = '';
   }
 }
 
