@@ -6,7 +6,7 @@
         <h1 class="text-xl font-bold text-slate-900">Customizar Site</h1>
         <p class="text-sm text-slate-500 mt-0.5">Aparência, banners e redes sociais</p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="hidden md:flex items-center gap-3">
         <Transition name="fade-check">
           <span v-if="saved" class="flex items-center gap-1.5 text-sm text-emerald-600 font-medium bg-emerald-50 px-3 py-1.5 rounded-xl">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -23,11 +23,12 @@
     </div>
 
     <!-- Tabs -->
-    <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 scrollbar-none">
-      <div class="flex gap-1 bg-slate-100 p-1 rounded-2xl w-max">
+    <div class="mb-6">
+      <div class="grid grid-cols-4 sm:inline-flex gap-1 bg-slate-100 p-1 rounded-2xl w-full sm:w-max">
         <button v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
-          :class="['px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap', activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
-          {{ tab.label }}
+          :class="['px-2 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all text-center whitespace-nowrap', activeTab === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
+          <span class="sm:hidden">{{ tab.short || tab.label }}</span>
+          <span class="hidden sm:inline">{{ tab.label }}</span>
         </button>
       </div>
     </div>
@@ -282,7 +283,7 @@ const activeTab = ref('identity');
 const tabs = [
   { id: 'identity', label: 'Identidade' },
   { id: 'banner', label: 'Banner' },
-  { id: 'social', label: 'Redes Sociais' },
+  { id: 'social', label: 'Redes Sociais', short: 'Redes' },
   { id: 'seo', label: 'SEO' },
 ];
 

@@ -41,18 +41,16 @@ const fallback = await page.evaluate(async ({ userId, secret, project }) => {
     headers: {
       'Content-Type': 'application/json',
       'X-Appwrite-Project': project,
-      'X-Appwrite-Response-Format': '1.7.0',
     },
     body: JSON.stringify({ userId, secret }),
   })
-  const body = await res.json()
   const hdr = res.headers.get('X-Fallback-Cookies')
-  // SDK stores either the header value, or {a_session_<project>: secret}
-  const value = hdr || JSON.stringify({ [`a_session_${project}`]: body.secret })
-  localStorage.setItem('cookieFallback', value)
-  return { status: res.status, hasHeader: !!hdr, hasSecret: !!body.secret }
+  if (hdr) localStorage.setItem('cookieFallback', hdr)
+  return { status: res.status, hdr }
 }, { userId: token.userId, secret: token.secret, project: PROJECT })
-console.log('session exchange:', fallback)
+console.log('session exchange:', fallback.status, 'fallback:', !!fallback.hdr)
+// apply the session on every subsequent page load (before app boots)
+await ctx.addInitScript((v) => { if (v) localStorage.setItem('cookieFallback', v) }, fallback.hdr)
 
 const pages = [
   ['admin-dashboard', '/admin/dashboard'],
@@ -67,9 +65,10 @@ const pages = [
 
 for (const [name, path] of pages) {
   try {
-    await page.goto(BASE + path, { waitUntil: 'domcontentloaded', timeout: 20000 })
-    await page.waitForTimeout(1800)
-    await page.screenshot({ path: `./screenshots/m-${name}.png`, fullPage: true })
+    await page.goto(BASE + path, { waitUntil: 'networkidle', timeout: 25000 })
+    await page.waitForTimeout(1200)
+    // viewport-only (readable); the long lists are obvious from the first screen
+    await page.screenshot({ path: `./screenshots/m-${name}.png` })
     const h1 = await page.locator('h1').first().textContent().catch(() => '?')
     console.log(`📸 m-${name}  (h1: ${(h1 || '').trim().slice(0, 30)})`)
   } catch (e) {
