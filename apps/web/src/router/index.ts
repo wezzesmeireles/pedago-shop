@@ -1,7 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 
-let authReady = false;
+// Kicked off once on the first navigation. We NEVER block public pages on it,
+// so an unreachable/slow Appwrite (e.g. school firewalls dropping requests to
+// the API domain) can't leave users staring at a blank page.
+let authInitPromise: Promise<void> | null = null;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | void> {
+  return Promise.race([p, new Promise<void>((resolve) => setTimeout(resolve, ms))]);
+}
 
 const router = createRouter({
   history: createWebHistory(),
@@ -77,9 +84,17 @@ const AUTH_ROUTE_NAMES = ['login', 'register', 'google-callback', 'phone-require
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
-  if (!authReady) {
-    await auth.init();
-    authReady = true;
+  // Start auth init once. init() already swallows its own errors; we also guard
+  // here so a *hung* request can never block rendering.
+  if (!authInitPromise) {
+    authInitPromise = auth.init().catch(() => {});
+  }
+
+  // Public pages render immediately (auth resolves in the background and the UI
+  // updates reactively). Only protected routes wait — and even then with a
+  // timeout, so a stuck Appwrite call degrades to "logged out", never a blank page.
+  if (to.meta.requiresAuth || to.meta.requiresAdmin) {
+    await withTimeout(authInitPromise, 6000);
   }
 
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
