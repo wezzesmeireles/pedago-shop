@@ -84,6 +84,10 @@ export default async ({ req, res, log }) => {
       const payment = await mpResp.json()
 
       if (payment.status === 'approved') {
+        // Only treat this as a NEW confirmation if it wasn't already PAID — this
+        // path gets called repeatedly per order (checkout polling), so notifying
+        // every time would spam. Token creation below is already idempotent.
+        const alreadyPaid = order.status === 'PAID'
         await db.updateDocument(DB, 'orders', order.$id, {
           status: 'PAID', mpStatus: 'approved', paidAt: now, updatedAt: now,
         })
@@ -112,7 +116,9 @@ export default async ({ req, res, log }) => {
           }
         }
         log(`Order ${order.orderNumber} marked PAID`)
-        await notifyTelegram(`✅ Pagamento aprovado!\nPedido: ${order.orderNumber}\nCliente: ${order.customerEmail}\nValor: R$ ${Number(order.totalAmount || 0).toFixed(2)}`)
+        if (!alreadyPaid) {
+          await notifyTelegram(`✅ Pagamento aprovado!\nPedido: ${order.orderNumber}\nCliente: ${order.customerEmail}\nValor: R$ ${Number(order.totalAmount || 0).toFixed(2)}`)
+        }
 
       } else if (['rejected', 'cancelled', 'expired'].includes(payment.status)) {
         await db.updateDocument(DB, 'orders', order.$id, {
