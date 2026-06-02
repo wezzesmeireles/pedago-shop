@@ -156,13 +156,21 @@ async function triggerDownload(token: string, fallbackFilename: string) {
       return
     }
 
-    // Step 3: Download from Appwrite Storage with user session auth
-    const session = await account.getSession('current')
+    // Step 3: Download from Appwrite Storage authenticated with the user's
+    // session. The session SECRET is stored in cookieFallback (the SDK keeps it
+    // there because the API runs on a proxied path, not a cookie domain).
+    // X-Appwrite-Session must be the secret — session.$id does NOT authenticate.
+    let secret = ''
+    try {
+      const fb = JSON.parse(localStorage.getItem('cookieFallback') || '{}')
+      secret = fb[`a_session_${projectId}`] || ''
+    } catch { /* ignore */ }
     const fileUrl = `${endpoint}/storage/buckets/product-files/files/${data.fileId}/download?project=${encodeURIComponent(projectId)}`
     const response = await fetch(fileUrl, {
+      credentials: 'include',
       headers: {
         'X-Appwrite-Project': projectId,
-        'X-Appwrite-Session': session.$id,
+        ...(secret ? { 'X-Appwrite-Session': secret } : {}),
       },
     })
 
