@@ -36,3 +36,4 @@ apps/api/prisma/dev.db-journal
 
 # Uploads
 apps/api/uploads/
+.vercel
