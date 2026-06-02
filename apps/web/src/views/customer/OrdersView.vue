@@ -5,7 +5,7 @@
     <div class="flex items-center justify-between gap-4">
       <div>
         <h1 class="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">Meus Pedidos</h1>
-        <p class="text-xs sm:text-sm text-gray-400 mt-0.5">Suas compras realizadas com sucesso</p>
+        <p class="text-xs sm:text-sm text-gray-400 mt-0.5">Acompanhe seus pedidos e baixe seus arquivos</p>
       </div>
       <div v-if="!loading && orders.length"
         class="flex-shrink-0 bg-gradient-to-br from-violet-500 to-violet-700 text-white rounded-2xl px-4 py-2.5 text-center shadow-lg shadow-violet-200">
@@ -24,6 +24,15 @@
         <p class="text-lg sm:text-2xl font-black text-violet-600">{{ formatPrice(totalSpent) }}</p>
         <p class="text-xs text-gray-400 font-medium mt-0.5">Total investido</p>
       </div>
+    </div>
+
+    <!-- Status filter tabs -->
+    <div v-if="!loading && (orders.length || statusFilter)" class="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <button v-for="tab in statusTabs" :key="tab.value" @click="setFilter(tab.value)"
+        :class="['flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full transition-colors whitespace-nowrap',
+          statusFilter === tab.value ? 'bg-violet-600 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50']">
+        {{ tab.label }}
+      </button>
     </div>
 
     <!-- Loading skeleton -->
@@ -161,7 +170,7 @@
           <!-- Footer: actions -->
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 border-t border-gray-50">
 
-            <div class="flex flex-wrap gap-2">
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
               <RouterLink v-if="order.status === 'PAID'" to="/minha-conta/downloads"
                 class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-emerald-200 w-full sm:w-auto justify-center sm:justify-start">
                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,6 +178,13 @@
                 </svg>
                 Baixar Arquivos
               </RouterLink>
+              <button v-else-if="order.status === 'AWAITING_PAYMENT'" @click="payNow(order)"
+                class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-amber-200 w-full sm:w-auto justify-center sm:justify-start">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                </svg>
+                Pagar agora
+              </button>
             </div>
 
             <!-- Paid timestamp -->
@@ -200,6 +216,47 @@
       </div>
 
     </div>
+
+    <!-- ── Modal Pagar agora (PIX) ──────────────────────── -->
+    <Transition name="modal">
+      <div v-if="payModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="payModal = false">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div class="px-5 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white flex items-center justify-between">
+            <div>
+              <h3 class="font-black">Pagar com PIX</h3>
+              <p class="text-xs text-white/80">{{ payOrder?.orderNumber }}</p>
+            </div>
+            <button @click="payModal = false" class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/20 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <div class="p-5 text-center">
+            <p class="text-3xl font-black text-gray-900 mb-1">{{ formatPrice(payOrder?.totalAmount || 0) }}</p>
+            <p class="text-xs text-gray-400 mb-4">Escaneie o QR Code ou use o copia e cola</p>
+
+            <div v-if="payOrder?.qrCodeBase64" class="bg-white border-2 border-gray-100 rounded-2xl p-3 inline-block mb-4">
+              <img :src="`data:image/png;base64,${payOrder.qrCodeBase64}`" alt="QR Code PIX" class="w-44 h-44" />
+            </div>
+            <div v-else class="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-4 text-xs text-amber-700">
+              QR Code indisponível. Use o código copia e cola abaixo.
+            </div>
+
+            <button v-if="payOrder?.qrCode" @click="copyPix"
+              class="w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm py-3 rounded-xl transition-all active:scale-95 mb-3">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              {{ pixCopied ? 'Copiado!' : 'Copiar código PIX' }}
+            </button>
+
+            <button @click="loadPage(currentPage)"
+              class="w-full text-sm text-gray-500 hover:text-gray-700 font-medium py-2 transition-colors">
+              Já paguei — atualizar
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -214,6 +271,41 @@ const loading = ref(true);
 const currentPage = ref(1);
 const totalPages = ref(1);
 const LIMIT = 10;
+
+const statusFilter = ref<string>('');
+const statusTabs = [
+  { value: '', label: 'Todos' },
+  { value: 'PAID', label: 'Pagos' },
+  { value: 'AWAITING_PAYMENT', label: 'Aguardando' },
+  { value: 'CANCELLED', label: 'Cancelados' },
+];
+function setFilter(v: string) {
+  if (statusFilter.value === v) return;
+  statusFilter.value = v;
+  loadPage(1);
+}
+
+// ── Resume payment (Pagar agora) ──────────────────────────
+const payModal = ref(false);
+const payOrder = ref<any>(null);
+const pixCopied = ref(false);
+function payNow(order: any) {
+  let meta: any = {};
+  try { meta = order.metadata ? JSON.parse(order.metadata) : {}; } catch {}
+  if (order.paymentMethod === 'CREDIT_CARD' && meta.checkoutUrl) {
+    window.open(meta.checkoutUrl, '_blank');
+    return;
+  }
+  payOrder.value = { ...order, qrCode: meta.qrCode || '', qrCodeBase64: meta.qrCodeBase64 || '' };
+  pixCopied.value = false;
+  payModal.value = true;
+}
+async function copyPix() {
+  if (!payOrder.value?.qrCode) return;
+  await navigator.clipboard.writeText(payOrder.value.qrCode);
+  pixCopied.value = true;
+  setTimeout(() => { pixCopied.value = false; }, 2500);
+}
 
 const totalSpent = computed(() =>
   orders.value
@@ -252,12 +344,14 @@ async function loadPage(page: number) {
     const offset = (page - 1) * LIMIT;
     const currentUser = await account.get();
 
-    const ordersResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
+    const queries = [
       Query.equal('userId', currentUser.$id),
       Query.orderDesc('$createdAt'),
       Query.limit(LIMIT),
       Query.offset(offset),
-    ]);
+    ];
+    if (statusFilter.value) queries.push(Query.equal('status', statusFilter.value));
+    const ordersResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
 
     // Fetch items for each order
     const ordersWithItems = await Promise.all(
@@ -290,3 +384,13 @@ async function loadPage(page: number) {
 
 onMounted(() => loadPage(1));
 </script>
+
+<style scoped>
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+.modal-enter-active, .modal-leave-active { transition: opacity 0.2s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-active > div:last-child { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.modal-enter-from > div:last-child { transform: scale(0.94) translateY(10px); }
+</style>
