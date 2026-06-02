@@ -353,7 +353,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onActivated } from 'vue';
 import { databases, storage, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { useAuthStore } from '@/stores/auth.store';
@@ -485,7 +485,7 @@ async function loadStorage() {
   }
 }
 
-onMounted(async () => {
+async function loadDashboard() {
   try {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -542,6 +542,15 @@ onMounted(async () => {
 
   // Load storage independently so it doesn't block the main stats
   loadStorage();
+}
+
+onMounted(loadDashboard);
+// Under <KeepAlive>: silently refresh on revisit (skip the first activation,
+// which onMounted already covers). `loading` stays false so no skeleton flash.
+let firstActivation = true;
+onActivated(() => {
+  if (firstActivation) { firstActivation = false; return; }
+  loadDashboard();
 });
 </script>
 

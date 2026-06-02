@@ -295,7 +295,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onActivated } from 'vue';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { invokeFunction } from '@/services/api';
@@ -556,4 +556,12 @@ async function reconcileAll() {
 }
 
 onMounted(() => loadOrders());
+
+// Under <KeepAlive>: refresh quietly on every revisit (skip the first, which
+// onMounted already handled). The visible list stays until new data arrives.
+let firstActivation = true;
+onActivated(() => {
+  if (firstActivation) { firstActivation = false; return; }
+  loadOrders(currentPage.value);
+});
 </script>

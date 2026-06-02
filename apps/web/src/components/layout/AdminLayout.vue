@@ -148,7 +148,12 @@
       <main class="flex-1 p-4 md:p-6 pb-20 md:pb-6">
         <RouterView v-slot="{ Component }">
           <Transition name="page" mode="out-in">
-            <component :is="Component" :key="$route.path" />
+            <!-- Cache each admin view after its first load: revisiting a tab is
+                 instant (no remount/refetch). Views can refresh quietly via
+                 onActivated when fresh data matters. -->
+            <KeepAlive>
+              <component :is="Component" :key="$route.path" />
+            </KeepAlive>
           </Transition>
         </RouterView>
       </main>
