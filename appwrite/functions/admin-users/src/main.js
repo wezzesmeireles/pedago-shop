@@ -83,7 +83,10 @@ export default async ({ req, res, log, error }) => {
       isActive: profile?.isActive ?? true,
       avatarUrl: profile?.avatarUrl ?? '',
       orderCount: orderCountMap[u.$id] ?? 0,
-      createdAt: u.$createdAt,
+      // Real signup date: profiles preserve the original Supabase created_at;
+      // the auth user's $createdAt is just the migration timestamp. Fall back
+      // to the auth date for users created natively after the migration.
+      createdAt: profile?.createdAt ?? u.$createdAt,
       labels: u.labels ?? [],
     }
   })
