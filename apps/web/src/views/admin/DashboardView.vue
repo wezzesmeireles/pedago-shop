@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 dash-reveal">
 
     <!-- ── Greeting ──────────────────────────────────────────── -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -19,7 +19,7 @@
       <div v-for="i in 4" :key="i" class="bg-white rounded-2xl p-5 border border-slate-100 animate-pulse h-32"></div>
     </div>
 
-    <div v-else class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+    <div v-else class="grid grid-cols-2 xl:grid-cols-4 gap-4 dash-stagger">
       <div class="relative bg-gradient-to-br from-violet-600 to-purple-700 rounded-2xl p-5 text-white overflow-hidden shadow-lg shadow-violet-500/20">
         <div class="absolute -top-4 -right-4 w-24 h-24 rounded-full bg-white/10 pointer-events-none"></div>
         <div class="absolute -bottom-6 -right-2 w-20 h-20 rounded-full bg-white/5 pointer-events-none"></div>
@@ -535,3 +535,40 @@ onMounted(async () => {
   loadStorage();
 });
 </script>
+
+<style scoped>
+@keyframes dashUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Orchestrated entrance — top-level sections cascade up on load */
+.dash-reveal > * { animation: dashUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.dash-reveal > *:nth-child(1) { animation-delay: 0.04s; }
+.dash-reveal > *:nth-child(2) { animation-delay: 0.10s; }
+.dash-reveal > *:nth-child(3) { animation-delay: 0.16s; }
+.dash-reveal > *:nth-child(4) { animation-delay: 0.22s; }
+.dash-reveal > *:nth-child(5) { animation-delay: 0.28s; }
+.dash-reveal > *:nth-child(6) { animation-delay: 0.34s; }
+.dash-reveal > *:nth-child(7) { animation-delay: 0.40s; }
+
+/* Let the stat cards cascade individually instead of the grid as one block */
+.dash-reveal > .dash-stagger { animation: none; }
+.dash-stagger > * {
+  animation: dashUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.dash-stagger > *:nth-child(1) { animation-delay: 0.10s; }
+.dash-stagger > *:nth-child(2) { animation-delay: 0.17s; }
+.dash-stagger > *:nth-child(3) { animation-delay: 0.24s; }
+.dash-stagger > *:nth-child(4) { animation-delay: 0.31s; }
+
+/* Subtle lift on pointer devices (no effect on touch) */
+@media (hover: hover) {
+  .dash-stagger > *:hover { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-reveal > *, .dash-stagger > * { animation: none; }
+}
+</style>
