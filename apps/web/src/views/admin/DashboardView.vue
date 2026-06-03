@@ -87,40 +87,82 @@
 
     <!-- ── Gráfico + Ações Rápidas ────────────────────────────── -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
-      <!-- Receita mensal bar chart -->
-      <div class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-        <div class="flex items-center justify-between mb-6">
+      <!-- Receita/Pedidos — área interativa -->
+      <div class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 shadow-sm">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
           <div>
-            <h2 class="font-bold text-slate-900">Receita Mensal</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Últimos 6 meses</p>
-          </div>
-          <div class="text-right">
-            <p class="text-lg font-black text-violet-600">{{ formatPrice(stats.revenue.month) }}</p>
-            <p class="text-xs text-slate-400">este mês</p>
-          </div>
-        </div>
-        <div v-if="revenueLoading && !monthlyChart.length" class="flex items-end gap-2 sm:gap-3 h-32">
-          <div v-for="i in 6" :key="i" class="flex-1 flex flex-col items-center justify-end gap-1.5">
-            <div class="w-full rounded-t-lg bg-slate-100 animate-pulse" :style="{ height: `${30 + (i * 11 % 60)}%` }"></div>
-            <div class="h-2 w-6 bg-slate-100 rounded animate-pulse"></div>
-          </div>
-        </div>
-        <div v-else-if="monthlyChart.length" class="flex items-end gap-2 sm:gap-3 h-32">
-          <div v-for="(m, i) in monthlyChart" :key="i" class="flex-1 flex flex-col items-center gap-1.5">
-            <p class="text-[9px] sm:text-[10px] text-slate-500 font-medium text-center leading-tight">
-              {{ m.value > 0 ? formatPriceShort(m.value) : '' }}
-            </p>
-            <div class="w-full rounded-t-lg transition-all duration-700 ease-out"
-              :style="{ height: `${m.pct}%`, minHeight: '6px',
-                background: i === monthlyChart.length - 1
-                  ? 'linear-gradient(to top, #7c3aed, #a855f7)'
-                  : 'linear-gradient(to top, #e2e8f0, #f1f5f9)' }">
+            <h2 class="font-bold text-slate-900">{{ chartMetric === 'revenue' ? 'Receita' : 'Pedidos' }} por mês</h2>
+            <div class="flex items-center gap-2 mt-1">
+              <p class="text-2xl font-black text-slate-900">{{ chartMetric === 'revenue' ? formatPrice(periodTotal) : Math.round(periodTotal) }}</p>
+              <span v-if="growthPct !== null"
+                :class="['inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full', growthPct >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600']">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" :d="growthPct >= 0 ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'" /></svg>
+                {{ Math.abs(growthPct).toFixed(0) }}%
+              </span>
             </div>
-            <p class="text-[10px] text-slate-400 font-medium capitalize">{{ m.label }}</p>
+            <p class="text-xs text-slate-400 mt-0.5">últimos {{ chartRange }} meses · vs. mês anterior</p>
+          </div>
+          <div class="flex flex-col items-end gap-1.5">
+            <div class="flex bg-slate-100 rounded-full p-0.5 text-[11px] font-bold">
+              <button @click="chartMetric = 'revenue'" :class="['px-3 py-1 rounded-full transition-all', chartMetric === 'revenue' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500']">Receita</button>
+              <button @click="chartMetric = 'orders'" :class="['px-3 py-1 rounded-full transition-all', chartMetric === 'orders' ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500']">Pedidos</button>
+            </div>
+            <div class="flex bg-slate-100 rounded-full p-0.5 text-[11px] font-bold">
+              <button @click="chartRange = 6" :class="['px-3 py-1 rounded-full transition-all', chartRange === 6 ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500']">6M</button>
+              <button @click="chartRange = 12" :class="['px-3 py-1 rounded-full transition-all', chartRange === 12 ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500']">12M</button>
+            </div>
           </div>
         </div>
-        <div v-else class="h-32 flex items-center justify-center text-slate-300 text-sm">
-          Sem dados ainda
+
+        <div v-if="revenueLoading && !paidOrders.length" class="h-44 rounded-xl bg-slate-50 animate-pulse"></div>
+
+        <div v-else-if="paidOrders.length" class="relative select-none">
+          <svg :viewBox="`0 0 ${CHART_W} ${CHART_H}`" class="w-full h-auto overflow-visible" @mouseleave="hoverIndex = null">
+            <defs>
+              <linearGradient id="dashArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.32" />
+                <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <line v-for="(g, k) in gridLines" :key="'g' + k" x1="0" :x2="CHART_W" :y1="g.y" :y2="g.y" stroke="#f1f5f9" stroke-width="1" />
+            <path :d="areaPath" fill="url(#dashArea)" />
+            <path :d="linePath" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            <line v-if="hoverIndex !== null" :x1="chartPoints[hoverIndex].x" :x2="chartPoints[hoverIndex].x" :y1="PAD_T" :y2="PAD_T + plotH" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4 3" />
+            <circle v-for="p in chartPoints" :key="'d' + p.i" :cx="p.x" :cy="p.y" :r="hoverIndex === p.i ? 5.5 : 3.5"
+              :fill="hoverIndex === p.i ? '#7c3aed' : '#fff'" stroke="#7c3aed" stroke-width="2.5" />
+            <rect v-for="(p, i) in chartPoints" :key="'h' + i" :x="p.x - colW / 2" y="0" :width="colW" :height="CHART_H"
+              fill="transparent" @mouseenter="hoverIndex = i" @touchstart.passive="hoverIndex = i" />
+          </svg>
+
+          <div class="flex justify-between px-1 mt-1.5">
+            <span v-for="(m, i) in chartData" :key="'x' + i"
+              :class="['text-[10px] font-medium capitalize', i === chartData.length - 1 ? 'text-violet-600 font-bold' : 'text-slate-400']">{{ m.label }}</span>
+          </div>
+
+          <div v-if="hoverIndex !== null"
+            class="absolute z-10 pointer-events-none -translate-x-1/2 -translate-y-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 shadow-xl whitespace-nowrap"
+            :style="{ left: (chartPoints[hoverIndex].x / CHART_W * 100) + '%', top: (chartPoints[hoverIndex].y / CHART_H * 100) + '%', marginTop: '-10px' }">
+            <p class="text-[11px] font-bold capitalize leading-tight">{{ chartData[hoverIndex].monthYear }}</p>
+            <p class="text-xs font-semibold">{{ formatPrice(chartData[hoverIndex].revenue) }}</p>
+            <p class="text-[10px] text-slate-300">{{ chartData[hoverIndex].orders }} pedido{{ chartData[hoverIndex].orders !== 1 ? 's' : '' }}</p>
+          </div>
+        </div>
+        <div v-else class="h-44 flex items-center justify-center text-slate-300 text-sm">Sem dados ainda</div>
+
+        <!-- Insights -->
+        <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-100">
+          <div class="text-center">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Ticket médio</p>
+            <p class="text-sm font-black text-slate-800 mt-0.5">{{ formatPrice(avgTicket) }}</p>
+          </div>
+          <div class="text-center border-x border-slate-100">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Média/mês</p>
+            <p class="text-sm font-black text-slate-800 mt-0.5">{{ chartMetric === 'revenue' ? formatPrice(monthlyAvg) : Math.round(monthlyAvg) }}</p>
+          </div>
+          <div class="text-center">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Melhor mês</p>
+            <p class="text-sm font-black text-slate-800 mt-0.5 capitalize">{{ bestMonth?.label ?? '—' }}</p>
+          </div>
         </div>
       </div>
 
@@ -411,7 +453,10 @@ const filteredRevenue = computed(() => {
 });
 const recentOrders = ref<any[]>([]);
 const topProducts = ref<any[]>([]);
-const monthlyRevenue = ref<{ label: string; value: number }[]>([]);
+const paidOrders = ref<any[]>([]);
+const chartMetric = ref<'revenue' | 'orders'>('revenue');
+const chartRange = ref<6 | 12>(6);
+const hoverIndex = ref<number | null>(null);
 
 const firstName = computed(() => auth.user?.name?.split(' ')[0] ?? 'Admin');
 const greeting = computed(() => {
@@ -422,11 +467,75 @@ const dateLabel = computed(() =>
   new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 );
 
-const monthlyChart = computed(() => {
-  const vals = monthlyRevenue.value.map(m => m.value);
-  const max = Math.max(...vals, 1);
-  return monthlyRevenue.value.map(m => ({ ...m, pct: Math.max((m.value / max) * 100, 4) }));
+// ── Receita/Pedidos por mês (área interativa) ───────────────
+const chartData = computed(() => {
+  const now = new Date();
+  const n = chartRange.value;
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (n - 1 - i), 1);
+    const start = d.toISOString();
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString();
+    let revenue = 0, orders = 0;
+    for (const o of paidOrders.value) {
+      if (o.paidAt && o.paidAt >= start && o.paidAt < end) { revenue += Number(o.totalAmount || 0); orders++; }
+    }
+    return {
+      label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+      monthYear: d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+      revenue, orders,
+    };
+  });
 });
+const chartValues = computed(() => chartData.value.map(m => chartMetric.value === 'revenue' ? m.revenue : m.orders));
+const chartMax = computed(() => Math.max(...chartValues.value, 1));
+
+// SVG geometry (uniform scaling — circles stay round)
+const CHART_W = 640, CHART_H = 200, PAD_T = 18, PAD_B = 8, PAD_X = 8;
+const plotH = CHART_H - PAD_T - PAD_B;
+const plotW = CHART_W - PAD_X * 2;
+const chartPoints = computed(() => {
+  const vals = chartValues.value, n = vals.length;
+  return vals.map((v, i) => ({
+    x: PAD_X + (n <= 1 ? plotW / 2 : (i / (n - 1)) * plotW),
+    y: PAD_T + plotH - (v / chartMax.value) * plotH,
+    v, i,
+  }));
+});
+const linePath = computed(() => {
+  const p = chartPoints.value;
+  if (!p.length) return '';
+  if (p.length < 2) return `M ${p[0].x} ${p[0].y}`;
+  let d = `M ${p[0].x.toFixed(1)} ${p[0].y.toFixed(1)}`;
+  for (let i = 0; i < p.length - 1; i++) {
+    const cx = (p[i].x + p[i + 1].x) / 2;
+    d += ` C ${cx.toFixed(1)} ${p[i].y.toFixed(1)} ${cx.toFixed(1)} ${p[i + 1].y.toFixed(1)} ${p[i + 1].x.toFixed(1)} ${p[i + 1].y.toFixed(1)}`;
+  }
+  return d;
+});
+const areaPath = computed(() => {
+  const p = chartPoints.value;
+  if (p.length < 2) return '';
+  const base = (PAD_T + plotH).toFixed(1);
+  return `${linePath.value} L ${p[p.length - 1].x.toFixed(1)} ${base} L ${p[0].x.toFixed(1)} ${base} Z`;
+});
+const gridLines = computed(() => Array.from({ length: 5 }, (_, k) => ({
+  y: PAD_T + plotH * (k / 4),
+  value: chartMax.value * (1 - k / 4),
+})));
+const colW = computed(() => plotW / Math.max(chartData.value.length, 1));
+
+const periodTotal = computed(() => chartValues.value.reduce((s, v) => s + v, 0));
+const monthlyAvg = computed(() => periodTotal.value / (chartData.value.length || 1));
+const bestMonth = computed(() => chartData.value.reduce((best: any, m) => (!best || m.revenue > best.revenue ? m : best), null));
+const growthPct = computed(() => {
+  const d = chartData.value;
+  if (d.length < 2) return null;
+  const k = chartMetric.value;
+  const cur = (d[d.length - 1] as any)[k], prev = (d[d.length - 2] as any)[k];
+  if (!prev) return cur > 0 ? 100 : 0;
+  return ((cur - prev) / prev) * 100;
+});
+const avgTicket = computed(() => stats.value.orders.total ? stats.value.revenue.total / stats.value.orders.total : 0);
 
 const quickActions = [
   { to: '/admin/produtos', label: 'Adicionar Produto', sub: 'Cadastrar novo produto', bg: 'bg-violet-100', color: 'text-violet-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>' },
@@ -553,11 +662,7 @@ async function loadDashboard() {
       },
     };
 
-    const months = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      return { label: d.toLocaleDateString('pt-BR', { month: 'short' }), start: d.toISOString(), end: new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString() };
-    });
-    monthlyRevenue.value = months.map(m => ({ label: m.label, value: sumIf(o => o.paidAt >= m.start && o.paidAt < m.end) }));
+    paidOrders.value = paid; // feeds the interactive monthly chart (revenue + orders)
   } catch (e) {
     console.error('[DashboardView] revenue', e);
   } finally {
