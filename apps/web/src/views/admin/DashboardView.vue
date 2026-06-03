@@ -685,8 +685,10 @@ async function loadStorage() {
 async function loadCategorySales() {
   try {
     const [prods, cats] = await Promise.all([
-      databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.limit(500), Query.select(['price', 'salesCount', 'categoryId'])]),
-      databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.limit(100), Query.select(['name'])]),
+      databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.limit(500), Query.select(['$id', 'price', 'salesCount', 'categoryId'])]),
+      // No select here: Query.select omits $id unless you ask for it, and we key
+      // the category map by $id. (7 categories — nothing to optimise anyway.)
+      databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.limit(100)]),
     ]);
     const catName: Record<string, string> = Object.fromEntries(cats.documents.map((c: any) => [c.$id, c.name]));
     const map: Record<string, { name: string; revenue: number; units: number }> = {};
@@ -720,7 +722,7 @@ async function loadDashboard() {
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'CANCELLED'), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(8), Query.select(['orderNumber', 'totalAmount', 'customerName', 'status', 'paidAt'])]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(8), Query.select(['$id', 'orderNumber', 'totalAmount', 'customerName', 'status', 'paidAt'])]),
       databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
     ]);
     // keep any revenue we already have (e.g. on KeepAlive revisit) so it doesn't flash to 0
