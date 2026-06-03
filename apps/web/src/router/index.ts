@@ -81,12 +81,6 @@ const router = createRouter({
 
 const AUTH_ROUTE_NAMES = ['login', 'register', 'google-callback', 'phone-required', 'forgot-password', 'reset-password', 'admin-login'];
 
-// A customer who already paid must always be able to reach what they bought,
-// even with no phone on file. Never bounce these to the phone gate — doing so
-// hid downloads and blocked the post-payment success page for phone-less
-// (e.g. Google) buyers.
-const PHONE_EXEMPT_ROUTES = ['downloads', 'orders', 'checkout-success'];
-
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
@@ -111,11 +105,12 @@ router.beforeEach(async (to) => {
     return { name: 'admin-login' };
   }
 
-  // Redirect authenticated users without phone to phone-required (only for
-  // auth-required routes, and never the purchase-retrieval routes above).
-  if (auth.isLoggedIn && !auth.user?.phone && to.meta.requiresAuth
-      && !AUTH_ROUTE_NAMES.includes(to.name as string)
-      && !PHONE_EXEMPT_ROUTES.includes(to.name as string)) {
+  // Phone (WhatsApp) is mandatory: bounce any logged-in user without one to the
+  // phone-required screen before any auth-required route. They must fill it in
+  // to proceed — including before reaching their downloads. The fix for the
+  // "stuck on this screen" bug is in PhoneRequiredView (it now creates the
+  // profile if missing), not in loosening this gate.
+  if (auth.isLoggedIn && !auth.user?.phone && to.meta.requiresAuth && !AUTH_ROUTE_NAMES.includes(to.name as string)) {
     return { name: 'phone-required', query: { redirect: to.fullPath } };
   }
 });
