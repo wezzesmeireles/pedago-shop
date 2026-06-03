@@ -82,6 +82,10 @@
           class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-violet-600 text-white hover:bg-violet-700 transition-colors">
           Todos
         </RouterLink>
+        <RouterLink to="/catalogo?destaque=1"
+          class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors whitespace-nowrap">
+          🔥 Mais Vendidos
+        </RouterLink>
         <RouterLink v-for="cat in categories" :key="cat.id" :to="`/catalogo?categoria=${encodeURIComponent(cat.slug)}`"
           class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors whitespace-nowrap">
           {{ cat.name }}
