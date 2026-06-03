@@ -71,15 +71,25 @@ async function save() {
       Query.limit(1),
     ]);
     const profileDoc = profileResult.documents[0];
-    if (!profileDoc) {
-      console.error('[phone-required] profile not found for userId:', authUser.$id);
-      phoneError.value = 'Erro ao salvar. Tente novamente.';
-      return;
+    if (profileDoc) {
+      await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileDoc.$id, {
+        phone: digits,
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      // No profile yet (typical for Google sign-ups, which only create the auth
+      // user). Create it with the phone instead of dead-ending the user here.
+      await databases.createDocument(DB_ID, COLLECTIONS.PROFILES, authUser.$id, {
+        userId: authUser.$id,
+        name: authUser.name ?? authUser.email ?? '',
+        email: authUser.email ?? '',
+        phone: digits,
+        role: 'CUSTOMER',
+        isActive: true,
+        createdAt: (authUser as any).$createdAt ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
     }
-    await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileDoc.$id, {
-      phone: digits,
-      updatedAt: new Date().toISOString(),
-    });
     await auth.fetchMe();
     if (!auth.user?.phone) {
       phoneError.value = 'Número não foi salvo. Tente novamente.';
