@@ -8,11 +8,7 @@
       <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div>
           <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">🩺 Saúde das Entregas</h2>
-          <p class="text-xs text-gray-500">Verifica os últimos
-            <select v-model.number="days" class="border rounded-lg px-1.5 py-0.5 text-xs mx-0.5">
-              <option :value="7">7</option><option :value="15">15</option><option :value="45">45</option><option :value="90">90</option>
-            </select> dias.
-          </p>
+          <p class="text-xs text-gray-500">Verifica os pedidos mais recentes.</p>
         </div>
         <button @click="runHealth" :disabled="loadingHealth"
           class="btn-primary text-sm py-2.5 px-4 disabled:opacity-60">
@@ -22,7 +18,7 @@
 
       <div v-if="health" class="space-y-2">
         <p v-if="health.totalIssues === 0" class="text-sm text-emerald-700 bg-emerald-50 rounded-xl p-3 font-medium">
-          ✓ Tudo certo! Nenhum problema encontrado nos últimos {{ health.windowDays }} dias.
+          ✓ Tudo certo! Nenhum problema nos {{ health.scanned }} pedidos mais recentes.
         </p>
         <template v-else>
           <ul class="text-sm space-y-1.5">
@@ -99,7 +95,6 @@ const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
 
 // ── Health ──
-const days = ref(45);
 const loadingHealth = ref(false);
 const health = ref<any>(null);
 const healthError = ref('');
@@ -113,7 +108,7 @@ const permsTotal = computed(() => {
 async function runHealth() {
   loadingHealth.value = true; healthError.value = ''; fixResult.value = '';
   try {
-    health.value = await invokeFunction('admin-ops', { action: 'health', days: days.value });
+    health.value = await invokeFunction('admin-ops', { action: 'health' });
   } catch (e: any) {
     healthError.value = e?.message ?? 'Erro ao verificar.';
   } finally {
@@ -124,7 +119,7 @@ async function runHealth() {
 async function runFix() {
   fixing.value = true; fixResult.value = ''; healthError.value = '';
   try {
-    const r = await invokeFunction<any>('admin-ops', { action: 'fix', which: 'all', days: days.value });
+    const r = await invokeFunction<any>('admin-ops', { action: 'fix', which: 'all' });
     fixResult.value = `Corrigido: ${r.tokensCreated} arquivo(s), ${r.permsFixed} permissão(ões), ${r.profilesCreated} perfil(is), ${r.reconciled} pagamento(s).`;
     await runHealth();
   } catch (e: any) {

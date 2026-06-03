@@ -47,14 +47,13 @@ export default async ({ req, res, log, error }) => {
     }
     return out
   }
-  // batch IN-query by chunks of 100
+  // batch IN-query by chunks of 100, run in parallel (keeps us under the 30s cap)
   async function listByIds(col, field, ids, extra = []) {
-    const out = []
-    for (let i = 0; i < ids.length; i += 100) {
-      const r = await db.listDocuments(DB, col, [Query.equal(field, ids.slice(i, i + 100)), ...extra, Query.limit(500)])
-      out.push(...r.documents)
-    }
-    return out
+    const chunks = []
+    for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100))
+    const results = await Promise.all(chunks.map(c =>
+      db.listDocuments(DB, col, [Query.equal(field, c), ...extra, Query.limit(500)])))
+    return results.flatMap(r => r.documents)
   }
 
   // MP token (for the reconcile check) — same source as reconcile-orders
@@ -64,12 +63,23 @@ export default async ({ req, res, log, error }) => {
     return t
   }
 
-  const days = Math.min(Math.max(parseInt(body.days ?? '45'), 1), 365)
-  const since = new Date(Date.now() - days * 864e5).toISOString()
+  // Bound the scan to the most recent N orders. Delivery problems are always
+  // recent, and a synchronous execution is hard-capped at 30s, so scanning the
+  // whole history (thousands of orders) is neither needed nor possible.
+  const maxScan = Math.min(Math.max(parseInt(body.limit ?? '400'), 50), 800)
 
   // ── SCAN (shared by health + fix) ────────────────────────────────────────────
   async function scan() {
-    const orders = await listAll('orders', [Query.greaterThan('createdAt', since), Query.orderDesc('createdAt')])
+    const orders = []
+    let cursor = null
+    while (orders.length < maxScan) {
+      const q = [Query.orderDesc('$createdAt'), Query.limit(100)]
+      if (cursor) q.push(Query.cursorAfter(cursor))
+      const r = await db.listDocuments(DB, 'orders', q)
+      orders.push(...r.documents)
+      if (r.documents.length < 100) break
+      cursor = r.documents[r.documents.length - 1].$id
+    }
     const orderIds = orders.map(o => o.$id)
     const items = orderIds.length ? await listByIds('order_items', 'orderId', orderIds) : []
     const tokens = orderIds.length ? await listByIds('download_tokens', 'orderId', orderIds) : []
@@ -89,19 +99,21 @@ export default async ({ req, res, log, error }) => {
     const itemsNoPerm = items.filter(it => orderUser[it.orderId] && !hasUserRead(it, orderUser[it.orderId]))
     const tokensNoPerm = tokens.filter(t => orderUser[t.orderId] && !hasUserRead(t, orderUser[t.orderId]))
 
-    // 3) awaiting-payment orders that MP already approved
-    const awaiting = orders.filter(o => o.status === 'AWAITING_PAYMENT' && o.mpPaymentId)
-    const approvedButAwaiting = []
+    // 3) awaiting-payment orders that MP already approved (parallel + capped so
+    //    the scan never blows the function timeout on a busy window).
+    const awaiting = orders.filter(o => o.status === 'AWAITING_PAYMENT' && o.mpPaymentId).slice(0, 80)
+    let approvedButAwaiting = []
     if (awaiting.length) {
       const tk = await mpToken()
       if (tk) {
-        for (const o of awaiting) {
+        const checks = await Promise.all(awaiting.map(async (o) => {
           try {
             const r = await fetch(`https://api.mercadopago.com/v1/payments/${o.mpPaymentId}`, { headers: { Authorization: `Bearer ${tk}` } })
             const p = await r.json()
-            if (p.status === 'approved') approvedButAwaiting.push({ orderId: o.$id, orderNumber: o.orderNumber, email: o.customerEmail })
-          } catch {}
-        }
+            return p.status === 'approved' ? { orderId: o.$id, orderNumber: o.orderNumber, email: o.customerEmail } : null
+          } catch { return null }
+        }))
+        approvedButAwaiting = checks.filter(Boolean)
       }
     }
 
@@ -123,7 +135,7 @@ export default async ({ req, res, log, error }) => {
     if (action === 'health') {
       const s = await scan()
       return res.json({
-        windowDays: days,
+        scanned: s.orders.length,
         paidWithoutTokens: s.paidWithoutTokens,
         missingOwnerPerms: { orders: s.ordersNoPerm.length, items: s.itemsNoPerm.length, tokens: s.tokensNoPerm.length },
         approvedButAwaiting: s.approvedButAwaiting,
