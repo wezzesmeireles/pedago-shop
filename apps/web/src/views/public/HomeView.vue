@@ -736,7 +736,7 @@ onMounted(async () => {
         const mapP = (p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice });
         let best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
           Query.equal('isActive', true), Query.isNull('deletedAt'),
-          Query.equal('isFeatured', true), Query.orderDesc('$createdAt'), Query.limit(12),
+          Query.equal('isFeatured', true), Query.orderDesc('salesCount'), Query.limit(12),
         ]);
         if (best.documents.length === 0) {
           best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
