@@ -185,6 +185,58 @@
       </div>
     </div>
 
+    <!-- ── Status dos Pedidos + Vendas por Categoria ─────────── -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+      <!-- Donut de status -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 shadow-sm">
+        <h2 class="font-bold text-slate-900 mb-4">Status dos Pedidos</h2>
+        <div class="flex items-center gap-5 sm:gap-6">
+          <div class="relative flex-shrink-0">
+            <svg width="124" height="124" viewBox="0 0 120 120" class="-rotate-90">
+              <circle cx="60" cy="60" r="42" fill="none" stroke="#f1f5f9" stroke-width="15" />
+              <circle v-for="(s, i) in statusSegments.items" :key="i" cx="60" cy="60" r="42" fill="none"
+                :stroke="s.color" stroke-width="15"
+                :stroke-dasharray="`${(s.frac * DONUT_C).toFixed(2)} ${DONUT_C.toFixed(2)}`"
+                :stroke-dashoffset="`${(-s.offset * DONUT_C).toFixed(2)}`"
+                class="transition-all duration-700" />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-2xl font-black text-slate-900 leading-none">{{ statusSegments.total }}</span>
+              <span class="text-[10px] text-slate-400 font-semibold mt-0.5">pedidos</span>
+            </div>
+          </div>
+          <div class="flex-1 space-y-2.5">
+            <div v-for="(s, i) in statusSegments.items" :key="i" class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ background: s.color }"></span>
+              <span class="text-sm text-slate-600 flex-1">{{ s.label }}</span>
+              <span class="text-sm font-bold text-slate-900">{{ s.value }}</span>
+              <span class="text-xs text-slate-400 w-9 text-right">{{ (s.frac * 100).toFixed(0) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vendas por categoria -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold text-slate-900">Vendas por Categoria</h2>
+          <span class="text-xs text-slate-400">receita estimada</span>
+        </div>
+        <div v-if="!categoryChart.length" class="h-32 flex items-center justify-center text-slate-300 text-sm">Sem dados ainda</div>
+        <div v-else class="space-y-3">
+          <div v-for="c in categoryChart" :key="c.name">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-semibold text-slate-600 truncate pr-2">{{ c.name }}</span>
+              <span class="text-xs font-bold text-slate-800 flex-shrink-0">{{ formatPrice(c.revenue) }} <span class="text-slate-400 font-normal">· {{ c.units }}</span></span>
+            </div>
+            <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-all duration-700" :style="{ width: c.pct + '%' }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Armazenamento ────────────────────────────────────── -->
     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
       <div class="flex items-center justify-between mb-5">
@@ -443,7 +495,8 @@ async function saveWhatsapp() {
 }
 
 const revenueFilter = ref<'day' | 'week' | 'month' | 'year'>('month');
-const stats = ref({ revenue: { total: 0, day: 0, week: 0, month: 0, year: 0 }, orders: { total: 0, month: 0, pending: 0 }, users: { total: 0 } });
+const stats = ref({ revenue: { total: 0, day: 0, week: 0, month: 0, year: 0 }, orders: { total: 0, month: 0, pending: 0, cancelled: 0 }, users: { total: 0 } });
+const categorySales = ref<{ name: string; revenue: number; units: number }[]>([]);
 
 const filteredRevenue = computed(() => {
   if (revenueFilter.value === 'day') return stats.value.revenue.day;
@@ -537,6 +590,34 @@ const growthPct = computed(() => {
 });
 const avgTicket = computed(() => stats.value.orders.total ? stats.value.revenue.total / stats.value.orders.total : 0);
 
+// ── Status dos pedidos (donut) ──────────────────────────────
+const DONUT_C = 2 * Math.PI * 42; // r = 42
+const statusSegments = computed(() => {
+  const o = stats.value.orders;
+  const items = [
+    { label: 'Pagos', value: o.total, color: '#10b981' },
+    { label: 'Aguardando', value: o.pending, color: '#f59e0b' },
+    { label: 'Cancelados', value: o.cancelled, color: '#ef4444' },
+  ];
+  const total = items.reduce((s, i) => s + i.value, 0);
+  let acc = 0;
+  return {
+    total,
+    items: items.map(i => {
+      const frac = total ? i.value / total : 0;
+      const seg = { ...i, frac, offset: acc };
+      acc += frac;
+      return seg;
+    }),
+  };
+});
+
+// ── Vendas por categoria ────────────────────────────────────
+const categoryChart = computed(() => {
+  const max = Math.max(...categorySales.value.map(c => c.revenue), 1);
+  return categorySales.value.slice(0, 6).map(c => ({ ...c, pct: Math.max((c.revenue / max) * 100, 3) }));
+});
+
 const quickActions = [
   { to: '/admin/produtos', label: 'Adicionar Produto', sub: 'Cadastrar novo produto', bg: 'bg-violet-100', color: 'text-violet-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>' },
   { to: '/admin/pedidos', label: 'Ver Pedidos', sub: 'Gerenciar todos os pedidos', bg: 'bg-emerald-100', color: 'text-emerald-600', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>' },
@@ -601,6 +682,27 @@ async function loadStorage() {
   }
 }
 
+async function loadCategorySales() {
+  try {
+    const [prods, cats] = await Promise.all([
+      databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.limit(500), Query.select(['price', 'salesCount', 'categoryId'])]),
+      databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.limit(100), Query.select(['name'])]),
+    ]);
+    const catName: Record<string, string> = Object.fromEntries(cats.documents.map((c: any) => [c.$id, c.name]));
+    const map: Record<string, { name: string; revenue: number; units: number }> = {};
+    for (const p of prods.documents as any[]) {
+      const key = p.categoryId || '__none';
+      const entry = (map[key] ??= { name: catName[p.categoryId] || 'Sem categoria', revenue: 0, units: 0 });
+      const units = Number(p.salesCount || 0);
+      entry.units += units;
+      entry.revenue += Number(p.price || 0) * units;
+    }
+    categorySales.value = Object.values(map).filter(c => c.units > 0).sort((a, b) => b.revenue - a.revenue);
+  } catch (e) {
+    console.error('[DashboardView] category sales', e);
+  }
+}
+
 async function loadDashboard() {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -612,10 +714,11 @@ async function loadDashboard() {
   // (counts are limit(1) queries that return only `.total`; recent orders
   // fetch just the 8 rows we render, selecting only the needed fields.)
   try {
-    const [paidCount, monthOrders, pending, usersRes, recentRes, topProds] = await Promise.all([
+    const [paidCount, monthOrders, pending, cancelled, usersRes, recentRes, topProds] = await Promise.all([
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('$createdAt', startOfMonth), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'CANCELLED'), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(8), Query.select(['orderNumber', 'totalAmount', 'customerName', 'status', 'paidAt'])]),
       databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
@@ -623,7 +726,7 @@ async function loadDashboard() {
     // keep any revenue we already have (e.g. on KeepAlive revisit) so it doesn't flash to 0
     stats.value = {
       revenue: stats.value.revenue,
-      orders: { total: paidCount.total, month: monthOrders.total, pending: pending.total },
+      orders: { total: paidCount.total, month: monthOrders.total, pending: pending.total, cancelled: cancelled.total },
       users: { total: usersRes.total },
     };
     topProducts.value = topProds.documents.map((p: any) => ({
@@ -640,6 +743,7 @@ async function loadDashboard() {
   }
 
   loadStorage(); // independent, non-blocking
+  loadCategorySales(); // independent, non-blocking
 
   // ── Phase 2: revenue dataset — heavier, but fetch ONLY the 2 fields we sum ──
   revenueLoading.value = true;
