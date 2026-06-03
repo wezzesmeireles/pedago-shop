@@ -117,7 +117,24 @@ export default async ({ req, res, log }) => {
         }
         log(`Order ${order.orderNumber} marked PAID`)
         if (!alreadyPaid) {
-          await notifyTelegram(`✅ Pagamento aprovado!\nPedido: ${order.orderNumber}\nCliente: ${order.customerEmail}\nValor: R$ ${Number(order.totalAmount || 0).toFixed(2)}`)
+          const itemsText = itemsResult.documents
+            .map(it => `• ${it.productName}${(it.quantity || 1) > 1 ? ` (x${it.quantity})` : ''}`)
+            .join('\n') || '—'
+          const pay = order.paymentMethod === 'PIX' ? '💠 PIX'
+            : order.paymentMethod === 'CREDIT_CARD' ? '💳 Cartão'
+            : (order.paymentMethod || '—')
+          let when = ''
+          try { when = new Date(now).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { when = now }
+          await notifyTelegram(
+            `🎉 Pagamento aprovado!\n\n` +
+            `🧾 Pedido: ${order.orderNumber}\n` +
+            `👤 ${order.customerName || 'Cliente'}\n` +
+            `✉️ ${order.customerEmail || '—'}\n` +
+            `💰 Valor: R$ ${Number(order.totalAmount || 0).toFixed(2)}\n` +
+            `💳 Pagamento: ${pay}\n` +
+            `🕒 ${when}\n\n` +
+            `📦 Itens:\n${itemsText}`
+          )
         }
 
       } else if (['rejected', 'cancelled', 'expired'].includes(payment.status)) {

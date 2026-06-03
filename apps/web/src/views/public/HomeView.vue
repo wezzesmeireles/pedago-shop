@@ -76,13 +76,13 @@
     </section>
 
     <!-- ── Atalhos de categoria ─────────────────────────── -->
-    <section v-if="categoriesWithProducts.length" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
+    <section v-if="categories.length" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
       <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
         <RouterLink to="/catalogo"
           class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-violet-600 text-white hover:bg-violet-700 transition-colors">
           Todos
         </RouterLink>
-        <RouterLink v-for="cat in categoriesWithProducts" :key="cat.id" :to="`/catalogo?categoria=${cat.slug}`"
+        <RouterLink v-for="cat in categories" :key="cat.id" :to="`/catalogo?categoria=${encodeURIComponent(cat.slug)}`"
           class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors whitespace-nowrap">
           {{ cat.name }}
         </RouterLink>
@@ -698,6 +698,8 @@ onMounted(async () => {
           Query.limit(100),
         ]);
         const catDocs = catResult.documents;
+        // All active categories — used for the navigation chips (always shown).
+        categories.value = catDocs.map((c: any) => ({ ...c, id: c.$id }));
         const catMap = new Map<string, any>();
         for (const cat of catDocs) {
           catMap.set(cat.$id, { ...cat, id: cat.$id, products: [] });
@@ -708,7 +710,7 @@ onMounted(async () => {
           Query.equal('isActive', true),
           Query.isNull('deletedAt'),
           Query.orderDesc('$createdAt'),
-          Query.limit(100),
+          Query.limit(300),
         ]);
         for (const p of prodResult.documents) {
           const mapped = {
