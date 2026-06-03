@@ -137,13 +137,21 @@ async function triggerDownload(token: string, fallbackFilename: string) {
       return
     }
 
-    // Step 3: Download from Appwrite Storage with user session auth
-    const session = await account.getSession('current')
+    // Step 3: Download from Appwrite Storage authenticated with the user's
+    // session SECRET (kept in cookieFallback because the API runs on a proxied
+    // path). X-Appwrite-Session must be the secret — session.$id does NOT
+    // authenticate and storage returns 401.
+    let secret = ''
+    try {
+      const fb = JSON.parse(localStorage.getItem('cookieFallback') || '{}')
+      secret = fb[`a_session_${projectId}`] || ''
+    } catch { /* ignore */ }
     const fileUrl = `${endpoint}/storage/buckets/product-files/files/${data.fileId}/download?project=${encodeURIComponent(projectId)}`
     const response = await fetch(fileUrl, {
+      credentials: 'include',
       headers: {
         'X-Appwrite-Project': projectId,
-        'X-Appwrite-Session': session.$id,
+        ...(secret ? { 'X-Appwrite-Session': secret } : {}),
       },
     })
 
@@ -175,8 +183,7 @@ async function loadOrder() {
 
   // Security: verify order belongs to current user
   try {
-    const { account: acc } = await import('@/lib/appwrite');
-    const me = await acc.get();
+    const me = await account.get();
     if (orderDoc.userId !== me.$id) {
       router.replace('/minha-conta/pedidos');
       return null;
