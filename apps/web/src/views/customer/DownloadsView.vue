@@ -77,9 +77,8 @@
               </div>
             </div>
 
-            <!-- Download count + expiry -->
+            <!-- Expiry -->
             <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              <p class="text-xs text-gray-400">{{ download.downloadCount }} {{ download.downloadCount === 1 ? 'download realizado' : 'downloads realizados' }}</p>
               <p class="text-xs" :class="download.expired ? 'text-red-400' : isExpiringSoon(download) ? 'text-amber-500' : 'text-gray-400'">
                 <span v-if="download.expired">Expirado</span>
                 <span v-else-if="isExpiringSoon(download)">Expira {{ formatExpiry(download.expiresAt) }}</span>

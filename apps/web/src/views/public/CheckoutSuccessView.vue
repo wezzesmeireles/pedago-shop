@@ -44,8 +44,7 @@
             </div>
 
             <div v-if="item.download_tokens?.length">
-              <div v-for="token in item.download_tokens" :key="token.id" class="flex flex-col xs:flex-row xs:items-center justify-between gap-2">
-                <p class="text-xs text-gray-400">{{ token.download_count }}/{{ token.max_downloads }} usos</p>
+              <div v-for="token in item.download_tokens" :key="token.id" class="flex flex-col xs:flex-row xs:items-center justify-end gap-2">
                 <!-- Link delivery -->
                 <a v-if="token.delivery_link" :href="token.delivery_link" target="_blank" rel="noopener"
                   class="inline-flex items-center justify-center gap-1.5 text-sm bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors font-medium w-full xs:w-auto">
