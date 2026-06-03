@@ -91,16 +91,16 @@
       <div class="xl:col-span-2 bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 shadow-sm">
         <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
           <div>
-            <h2 class="font-bold text-slate-900">{{ chartMetric === 'revenue' ? 'Receita' : 'Pedidos' }} por mês</h2>
+            <h2 class="font-bold text-slate-900 capitalize">{{ chartMetric === 'revenue' ? 'Receita' : 'Pedidos' }} · {{ currentMonth.monthYear }}</h2>
             <div class="flex items-center gap-2 mt-1">
-              <p class="text-2xl font-black text-slate-900">{{ chartMetric === 'revenue' ? formatPrice(periodTotal) : Math.round(periodTotal) }}</p>
+              <p class="text-2xl font-black text-slate-900">{{ chartMetric === 'revenue' ? formatPrice(currentMonthValue) : Math.round(currentMonthValue) }}</p>
               <span v-if="growthPct !== null"
                 :class="['inline-flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full', growthPct >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600']">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" :d="growthPct >= 0 ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'" /></svg>
                 {{ Math.abs(growthPct).toFixed(0) }}%
               </span>
             </div>
-            <p class="text-xs text-slate-400 mt-0.5">últimos {{ chartRange }} meses · vs. mês anterior</p>
+            <p class="text-xs text-slate-400 mt-0.5">vs. mês anterior · total {{ chartRange }} meses: {{ chartMetric === 'revenue' ? formatPrice(periodTotal) : Math.round(periodTotal) + ' pedidos' }}</p>
           </div>
           <div class="flex flex-col items-end gap-1.5">
             <div class="flex bg-slate-100 rounded-full p-0.5 text-[11px] font-bold">
@@ -578,6 +578,8 @@ const gridLines = computed(() => Array.from({ length: 5 }, (_, k) => ({
 const colW = computed(() => plotW / Math.max(chartData.value.length, 1));
 
 const periodTotal = computed(() => chartValues.value.reduce((s, v) => s + v, 0));
+const currentMonth = computed(() => chartData.value[chartData.value.length - 1] ?? { revenue: 0, orders: 0, monthYear: '' });
+const currentMonthValue = computed(() => chartMetric.value === 'revenue' ? currentMonth.value.revenue : currentMonth.value.orders);
 const monthlyAvg = computed(() => periodTotal.value / (chartData.value.length || 1));
 const bestMonth = computed(() => chartData.value.reduce((best: any, m) => (!best || m.revenue > best.revenue ? m : best), null));
 const growthPct = computed(() => {
