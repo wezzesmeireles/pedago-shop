@@ -200,12 +200,17 @@ async function reorder(cat: any, direction: 'up' | 'down') {
   const idx = categories.value.findIndex(c => c.$id === cat.$id);
   const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
   if (swapIdx < 0 || swapIdx >= categories.value.length) return;
-  const a = categories.value[idx];
-  const b = categories.value[swapIdx];
-  await Promise.all([
-    databases.updateDocument(DB_ID, COLLECTIONS.CATEGORIES, a.$id, { sortOrder: swapIdx }),
-    databases.updateDocument(DB_ID, COLLECTIONS.CATEGORIES, b.$id, { sortOrder: idx }),
-  ]);
+
+  // Move the item in a copy of the list…
+  const arr = [...categories.value];
+  [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
+
+  // …then renumber EVERYONE sequentially (robust against gaps/duplicates in the
+  // stored sortOrder — the old index-swap could silently fail otherwise).
+  const updates = arr
+    .map((c, i) => (c.sortOrder === i ? null : databases.updateDocument(DB_ID, COLLECTIONS.CATEGORIES, c.$id, { sortOrder: i })))
+    .filter(Boolean);
+  await Promise.all(updates as Promise<any>[]);
   await loadCategories();
 }
 
