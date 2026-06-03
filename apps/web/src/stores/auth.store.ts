@@ -54,9 +54,38 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
 
-      const profile = result.documents[0] as Record<string, any> | undefined;
-      const role = (profile?.role ?? 'CUSTOMER') as 'ADMIN' | 'CUSTOMER';
+      let profile = result.documents[0] as Record<string, any> | undefined;
 
+      // Self-heal: some users have an auth account but no profile — notably
+      // Google sign-ups, where OAuth only creates the auth user. Without a
+      // profile they don't show up in the admin (which lists from `profiles`)
+      // and their name/phone have nowhere to live. Create the missing profile
+      // so every logged-in user is represented. Idempotent: the fixed document
+      // id ($id === userId) means a concurrent create just 409s.
+      if (!profile) {
+        try {
+          profile = await databases.createDocument(DB_ID, COLLECTIONS.PROFILES, authUser.$id, {
+            userId: authUser.$id,
+            name: authUser.name ?? authUser.email ?? '',
+            email: authUser.email ?? '',
+            phone: (authUser as any).phone ?? '',
+            role: 'CUSTOMER',
+            isActive: true,
+            createdAt: authUser.$createdAt ?? new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }) as Record<string, any>;
+        } catch {
+          // Likely created by a concurrent tab/race — re-read so we still get it.
+          try {
+            const again = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+              Query.equal('userId', authUser.$id), Query.limit(1),
+            ]);
+            profile = again.documents[0] as Record<string, any> | undefined;
+          } catch { /* ignore */ }
+        }
+      }
+
+      const role = (profile?.role ?? 'CUSTOMER') as 'ADMIN' | 'CUSTOMER';
 
       user.value = {
         id: authUser.$id,
