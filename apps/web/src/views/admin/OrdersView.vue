@@ -265,6 +265,16 @@
           </div>
         </div>
 
+        <!-- Reissue downloads (recreate tokens + owner permissions) -->
+        <div v-if="selectedOrder.status === 'PAID'" class="bg-violet-50 border border-violet-100 rounded-xl p-4">
+          <p class="text-xs font-bold text-violet-700 mb-2">Cliente não consegue baixar?</p>
+          <button @click="reissueOrder(selectedOrder.id)" :disabled="reissuing"
+            class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all disabled:opacity-50">
+            {{ reissuing ? 'Reemitindo...' : 'Reemitir download' }}
+          </button>
+          <p v-if="reissueMsg" class="text-xs text-emerald-700 mt-2 font-medium">{{ reissueMsg }}</p>
+        </div>
+
         <!-- Reconcile individual order -->
         <div v-if="selectedOrder.status === 'AWAITING_PAYMENT'" class="bg-amber-50 border border-amber-100 rounded-xl p-4">
           <p class="text-xs font-bold text-amber-700 mb-2">Pagamento não reconhecido automaticamente?</p>
@@ -314,6 +324,8 @@ const selectedOrder = ref<any>(null);
 const updatingStatus = ref(false);
 const reconciling = ref(false);
 const reconcileMsg = ref<{ ok: boolean; text: string } | null>(null);
+const reissuing = ref(false);
+const reissueMsg = ref('');
 const loadingOrders = ref(false);
 const totalCount = ref(0);
 const dateFilterModalOrders = ref<any[]>([]);
@@ -463,7 +475,7 @@ async function loadOrders(page = 1) {
 }
 
 async function openDetails(id: string) {
-  detailsOpen.value = true; loadingDetail.value = true; selectedOrder.value = null;
+  detailsOpen.value = true; loadingDetail.value = true; selectedOrder.value = null; reissueMsg.value = '';
   try {
     const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, id);
     // Load order items with download tokens
@@ -522,6 +534,20 @@ async function updateStatus(id: string, status: string) {
     selectedOrder.value = { ...selectedOrder.value, status };
     await loadOrders(currentPage.value);
   } finally { updatingStatus.value = false; }
+}
+
+async function reissueOrder(orderId: string) {
+  reissuing.value = true; reissueMsg.value = '';
+  try {
+    const r = await invokeFunction<any>('admin-ops', { action: 'reissue', orderId });
+    const n = (r.items ?? []).filter((i: any) => i.token || i.deliveryLink).length;
+    await openDetails(orderId);
+    reissueMsg.value = `✓ Entrega garantida (${n} item(s)). Peça à cliente para abrir "Meus Downloads".`;
+  } catch (e: any) {
+    reissueMsg.value = 'Erro: ' + (e?.message ?? e);
+  } finally {
+    reissuing.value = false;
+  }
 }
 
 async function reconcileOrder(orderId: string) {

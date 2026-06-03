@@ -1,0 +1,7 @@
+{
+  "name": "admin-ops",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^16.0.0"
+  }
+}
