@@ -63,16 +63,13 @@
                   <span class="text-xs font-bold">🔥</span>
                   <span>Mais Vendidos</span>
                 </button>
-                <!-- Filtro Grátis -->
-                <button @click="toggleFree"
-                  :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all flex items-center gap-1.5', filters.onlyFree ? 'bg-emerald-500 text-white' : 'hover:bg-emerald-50 text-emerald-700 border border-emerald-200']">
-                  <span class="text-xs font-bold">🎁</span>
-                  <span>Grátis</span>
-                </button>
                 <button v-for="cat in categories" :key="cat.id"
                   @click="setCategory(cat.slug)"
-                  :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all flex justify-between', filters.category === cat.slug && !filters.onlyFree && !filters.featured ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 text-gray-700']">
-                  <span>{{ cat.name }}</span>
+                  :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all flex justify-between items-center gap-1.5',
+                    isGratis(cat)
+                      ? (filters.category === cat.slug && !filters.featured ? 'bg-emerald-500 text-white' : 'hover:bg-emerald-50 text-emerald-700 border border-emerald-200')
+                      : (filters.category === cat.slug && !filters.featured ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 text-gray-700')]">
+                  <span class="flex items-center gap-1.5"><span v-if="isGratis(cat)">🎁</span>{{ cat.name }}</span>
                   <span class="text-xs opacity-70">{{ cat._count?.products }}</span>
                 </button>
               </div>
@@ -205,6 +202,12 @@ const filters = reactive({
 });
 
 const categories = computed(() => catalogStore.categories);
+
+// The "Grátis" category gets a distinct green styling (it replaces the old
+// auto price=0 filter — now it's a normal, reorderable category).
+function isGratis(cat: any) {
+  return cat?.slug === 'gratis' || /gr[aá]tis/i.test(cat?.name || '');
+}
 
 const activeFilterCount = computed(() => {
   let count = 0;

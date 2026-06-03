@@ -87,8 +87,8 @@
           🔥 Mais Vendidos
         </RouterLink>
         <RouterLink v-for="cat in categories" :key="cat.id" :to="`/catalogo?categoria=${encodeURIComponent(cat.slug)}`"
-          class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700 transition-colors whitespace-nowrap">
-          {{ cat.name }}
+          :class="['flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full transition-colors whitespace-nowrap', cat.slug === 'gratis' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700']">
+          <span v-if="cat.slug === 'gratis'">🎁 </span>{{ cat.name }}
         </RouterLink>
       </div>
     </section>
@@ -163,7 +163,7 @@
             <h2 class="text-xl font-black text-gray-800 flex items-center gap-2">🎁 Atividades Grátis</h2>
             <p class="text-sm text-emerald-700/80 mt-0.5">Baixe agora sem pagar nada — experimente a qualidade!</p>
           </div>
-          <RouterLink to="/catalogo?gratis=1"
+          <RouterLink to="/catalogo?categoria=gratis"
             class="hidden sm:flex text-sm text-emerald-700 hover:text-emerald-800 font-semibold items-center gap-1 group bg-white hover:bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
             Ver todas
             <svg class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
@@ -727,9 +727,10 @@ onMounted(async () => {
           if (!catId || !catMap.has(catId)) continue;
           if (catMap.get(catId)!.products.length < 6) catMap.get(catId)!.products.push(mapped);
         }
-        // Mostra toda categoria ativa que tenha ao menos 1 produto
+        // Toda categoria ativa com ≥1 produto — exceto a "Grátis", que tem a
+        // sua própria seção verde dedicada (evita vitrine duplicada).
         categoriesWithProducts.value = Array.from(catMap.values())
-          .filter((c) => c.products.length >= 1)
+          .filter((c) => c.products.length >= 1 && c.slug !== 'gratis')
           .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
       } catch (e) { console.error('categories section error:', e); }
     })(),
@@ -753,10 +754,13 @@ onMounted(async () => {
     })(),
     (async () => {
       try {
-        // Grátis
+        // "Atividades Grátis" — products in the (curated) Grátis category.
+        const gc = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.equal('slug', 'gratis'), Query.limit(1)]);
+        const gid = gc.documents[0]?.$id;
+        if (!gid) { freeProducts.value = []; return; }
         const free = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
           Query.equal('isActive', true), Query.isNull('deletedAt'),
-          Query.equal('price', 0), Query.orderDesc('$createdAt'), Query.limit(6),
+          Query.equal('categoryId', gid), Query.orderDesc('$createdAt'), Query.limit(12),
         ]);
         freeProducts.value = free.documents.map((p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice }));
       } catch (e) { console.error('free products error:', e); }
