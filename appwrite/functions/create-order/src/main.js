@@ -1,4 +1,4 @@
-import { Client, Databases, ID, Query } from 'node-appwrite'
+import { Client, Databases, ID, Query, Permission, Role } from 'node-appwrite'
 import crypto from 'crypto'
 
 export default async ({ req, res, log, error }) => {
@@ -57,6 +57,12 @@ export default async ({ req, res, log, error }) => {
   const isFree = totalAmount === 0
   const orderId = ID.unique()
   const now = new Date().toISOString()
+
+  // Per-document read for the buyer. The collections only grant collection-level
+  // read to label:admin, so without this the customer can't read their own
+  // order/items/tokens — breaking "Meus Pedidos", "Meus Downloads" and the
+  // checkout-success page. Admin still reads everything via the admin label.
+  const ownerRead = [Permission.read(Role.user(userId))]
 
   const countResult = await db.listDocuments(DB, 'orders', [Query.limit(1)])
   const orderNumber = `ORD-${new Date().getFullYear()}-${String(countResult.total + 1).padStart(6, '0')}`
@@ -150,7 +156,7 @@ export default async ({ req, res, log, error }) => {
     }) : null,
     createdAt: now,
     updatedAt: now,
-  })
+  }, ownerRead)
 
   const createdItems = []
   const tokenExpiry = new Date()
@@ -165,7 +171,7 @@ export default async ({ req, res, log, error }) => {
       quantity: oi.quantity,
       deliveryType: oi.product.deliveryType,
       deliveryLink: oi.product.deliveryLink ?? null,
-    })
+    }, ownerRead)
     createdItems.push(item)
 
     if (isFree) {
@@ -177,7 +183,7 @@ export default async ({ req, res, log, error }) => {
         downloadCount: 0,
         expiresAt: tokenExpiry.toISOString(),
         deliveryLink: oi.product.deliveryLink ?? null,
-      })
+      }, ownerRead)
     }
   }
 

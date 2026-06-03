@@ -1,4 +1,4 @@
-import { Client, Databases, ID, Query } from 'node-appwrite'
+import { Client, Databases, ID, Query, Permission, Role } from 'node-appwrite'
 import crypto from 'crypto'
 
 export default async ({ req, res, log }) => {
@@ -112,7 +112,7 @@ export default async ({ req, res, log }) => {
               downloadCount: 0,
               expiresAt: tokenExpiry.toISOString(),
               deliveryLink: item.deliveryLink ?? null,
-            })
+            }, order.userId ? [Permission.read(Role.user(order.userId))] : undefined)
           }
         }
         log(`Order ${order.orderNumber} marked PAID`)
