@@ -134,7 +134,7 @@
     </section>
 
     <!-- ── Mais Vendidos ────────────────────────────────── -->
-    <section v-if="bestSellers.length >= 4" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <section v-if="bestSellers.length >= 1" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-xl font-black text-gray-800 flex items-center gap-2.5">
           <span class="w-1.5 h-7 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 inline-block"></span>
@@ -723,20 +723,28 @@ onMounted(async () => {
           if (!catId || !catMap.has(catId)) continue;
           if (catMap.get(catId)!.products.length < 6) catMap.get(catId)!.products.push(mapped);
         }
-        // Esconde categorias com poucos produtos (fileira "quebrada")
+        // Mostra toda categoria ativa que tenha ao menos 1 produto
         categoriesWithProducts.value = Array.from(catMap.values())
-          .filter((c) => c.products.length >= 4)
+          .filter((c) => c.products.length >= 1)
           .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
       } catch (e) { console.error('categories section error:', e); }
     })(),
     (async () => {
       try {
-        // Mais vendidos
-        const best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+        // "Mais Vendidos" — curadoria manual via o "Destaque" do produto (admin).
+        // Se nenhum estiver marcado, cai pro top de vendas (salesCount).
+        const mapP = (p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice });
+        let best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
           Query.equal('isActive', true), Query.isNull('deletedAt'),
-          Query.greaterThan('salesCount', 0), Query.orderDesc('salesCount'), Query.limit(6),
+          Query.equal('isFeatured', true), Query.orderDesc('$createdAt'), Query.limit(12),
         ]);
-        bestSellers.value = best.documents.map((p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice }));
+        if (best.documents.length === 0) {
+          best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+            Query.equal('isActive', true), Query.isNull('deletedAt'),
+            Query.greaterThan('salesCount', 0), Query.orderDesc('salesCount'), Query.limit(6),
+          ]);
+        }
+        bestSellers.value = best.documents.map(mapP);
       } catch (e) { console.error('best sellers error:', e); }
     })(),
     (async () => {

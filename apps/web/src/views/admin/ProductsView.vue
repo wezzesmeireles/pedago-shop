@@ -111,7 +111,7 @@
               </td>
               <td class="px-4 py-3.5">
                 <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button @click="toggleFeatured(p)" :class="['p-1.5 rounded-lg transition-colors', p.isFeatured ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50']" :title="p.isFeatured ? 'Remover destaque' : 'Colocar em destaque'">
+                  <button @click="toggleFeatured(p)" :class="['p-1.5 rounded-lg transition-colors', p.isFeatured ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50']" :title="p.isFeatured ? 'Remover de Mais Vendidos' : 'Colocar em Mais Vendidos'">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                   </button>
                   <button @click="openEdit(p)" class="p-1.5 text-slate-500 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Editar">
@@ -289,10 +289,10 @@
             <span class="text-sm text-slate-700">Ativo</span>
           </label>
           <label class="flex items-center gap-2.5 cursor-pointer">
-            <button type="button" @click="form.isFeatured = !form.isFeatured" :class="['w-10 h-5 rounded-full transition-colors relative', form.isFeatured ? 'bg-amber-500' : 'bg-slate-300']">
+            <button type="button" @click="form.isFeatured = !form.isFeatured" :class="['w-10 h-5 rounded-full transition-colors relative flex-shrink-0', form.isFeatured ? 'bg-amber-500' : 'bg-slate-300']">
               <span :class="['absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', form.isFeatured ? 'translate-x-5' : 'translate-x-0.5']"></span>
             </button>
-            <span class="text-sm text-slate-700">Destaque</span>
+            <span class="text-sm text-slate-700 leading-tight">★ Destaque <span class="text-xs text-slate-400">(aparece em "Mais Vendidos")</span></span>
           </label>
         </div>
 
