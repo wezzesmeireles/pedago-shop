@@ -78,6 +78,30 @@ export default async ({ req, res, log }) => {
 
   for (const order of pendingOrders) {
     try {
+      // CREDIT_CARD orders: no mpPaymentId at creation time. Try to find the
+      // approved payment via external_reference (the order $id we set in the
+      // preference). If found, persist the real payment ID so this same code
+      // below can run the standard flow. If not found, skip — the webhook will
+      // process the order once MP sends the notification.
+      if (!order.mpPaymentId) {
+        const searchResp = await fetch(
+          `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(order.$id)}&sort=date_created&criteria=desc&limit=1`,
+          { headers: { Authorization: `Bearer ${mpToken}` } },
+        )
+        const searchData = await searchResp.json()
+        const found = searchData.results?.[0]
+        if (found && found.status === 'approved') {
+          // Persist so future calls (webhook, reconcile) find us by mpPaymentId
+          order.mpPaymentId = String(found.id)
+          await db.updateDocument(DB, 'orders', order.$id, {
+            mpPaymentId: order.mpPaymentId,
+            updatedAt: now,
+          })
+        } else {
+          continue
+        }
+      }
+
       const mpResp = await fetch(`https://api.mercadopago.com/v1/payments/${order.mpPaymentId}`, {
         headers: { Authorization: `Bearer ${mpToken}` },
       })

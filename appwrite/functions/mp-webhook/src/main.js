@@ -1,4 +1,4 @@
-import { Client, Databases, ID, Query } from 'node-appwrite'
+import { Client, Databases, ID, Query, Permission, Role } from 'node-appwrite'
 import crypto from 'crypto'
 
 export default async ({ req, res, log, error }) => {
@@ -70,11 +70,31 @@ export default async ({ req, res, log, error }) => {
   })
   const payment = await mpResp.json()
 
-  const ordersResult = await db.listDocuments(DB, 'orders', [
+  let ordersResult = await db.listDocuments(DB, 'orders', [
     Query.equal('mpPaymentId', paymentId),
     Query.limit(1),
   ])
-  const order = ordersResult.documents[0]
+  let order = ordersResult.documents[0]
+
+  // CREDIT_CARD payments: the order has mpPreferenceId (not mpPaymentId) at
+  // creation time, so we fall back to the external_reference we set in the
+  // preference (which is the order $id).
+  if (!order && payment.external_reference) {
+    ordersResult = await db.listDocuments(DB, 'orders', [
+      Query.equal('$id', payment.external_reference),
+      Query.limit(1),
+    ])
+    order = ordersResult.documents[0]
+    if (order) {
+      // Persist the real payment ID so future webhook calls and
+      // reconcile-orders can find us by mpPaymentId too.
+      await db.updateDocument(DB, 'orders', order.$id, {
+        mpPaymentId: paymentId,
+        updatedAt: now,
+      })
+    }
+  }
+
   if (!order) {
     log(`No order found for mpPaymentId ${paymentId}`)
     return res.json({ ok: true })
@@ -108,7 +128,7 @@ export default async ({ req, res, log, error }) => {
           downloadCount: 0,
           expiresAt: tokenExpiry.toISOString(),
           deliveryLink: item.deliveryLink ?? null,
-        })
+        }, order.userId ? [Permission.read(Role.user(order.userId))] : undefined)
       }
 
       try {
