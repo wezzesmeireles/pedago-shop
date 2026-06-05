@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { databases, DB_ID, COLLECTIONS, account, functions } from '@/lib/appwrite';
+import { databases, DB_ID, COLLECTIONS, account, functions, appwriteEndpoint } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
@@ -108,7 +108,6 @@ const awaitingPayment = ref(false);
 
 let pollInterval: ReturnType<typeof setInterval>;
 
-const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
 
 async function triggerDownload(token: string, fallbackFilename: string) {
@@ -146,7 +145,7 @@ async function triggerDownload(token: string, fallbackFilename: string) {
       const fb = JSON.parse(localStorage.getItem('cookieFallback') || '{}')
       secret = fb[`a_session_${projectId}`] || ''
     } catch { /* ignore */ }
-    const fileUrl = `${endpoint}/storage/buckets/product-files/files/${data.fileId}/download?project=${encodeURIComponent(projectId)}`
+    const fileUrl = `${appwriteEndpoint}/storage/buckets/product-files/files/${data.fileId}/download?project=${encodeURIComponent(projectId)}`
     const response = await fetch(fileUrl, {
       credentials: 'include',
       headers: {

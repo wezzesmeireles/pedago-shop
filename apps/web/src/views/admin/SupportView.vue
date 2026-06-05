@@ -90,8 +90,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { invokeFunction } from '@/services/api';
+import { appwriteEndpoint } from '@/lib/appwrite';
 
-const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
 
 // ── Health ──
@@ -154,7 +154,7 @@ async function searchCustomer() {
 async function download(d: any) {
   let secret = '';
   try { const fb = JSON.parse(localStorage.getItem('cookieFallback') || '{}'); secret = fb[`a_session_${projectId}`] || ''; } catch {}
-  const url = `${endpoint}/storage/buckets/product-files/files/${d.fileId}/download?project=${encodeURIComponent(projectId)}`;
+  const url = `${appwriteEndpoint}/storage/buckets/product-files/files/${d.fileId}/download?project=${encodeURIComponent(projectId)}`;
   try {
     const r = await fetch(url, { credentials: 'include', headers: { 'X-Appwrite-Project': projectId, ...(secret ? { 'X-Appwrite-Session': secret } : {}) } });
     if (!r.ok) throw new Error(`Storage ${r.status}`);

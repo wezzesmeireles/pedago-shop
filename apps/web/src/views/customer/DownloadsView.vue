@@ -94,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { databases, DB_ID, COLLECTIONS, account, functions } from '@/lib/appwrite';
+import { databases, DB_ID, COLLECTIONS, account, functions, appwriteEndpoint } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 
 interface DownloadEntry {
@@ -113,7 +113,6 @@ interface DownloadEntry {
 const loading = ref(true);
 const allDownloads = ref<DownloadEntry[]>([]);
 
-const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string;
 const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
 
 function isExpiringSoon(d: DownloadEntry): boolean {
@@ -160,7 +159,7 @@ async function triggerDownload(token: string, fallbackFilename: string) {
       const fb = JSON.parse(localStorage.getItem('cookieFallback') || '{}')
       secret = fb[`a_session_${projectId}`] || ''
     } catch { /* ignore */ }
-    const fileUrl = `${endpoint}/storage/buckets/product-files/files/${data.fileId}/download?project=${encodeURIComponent(projectId)}`
+    const fileUrl = `${appwriteEndpoint}/storage/buckets/product-files/files/${data.fileId}/download?project=${encodeURIComponent(projectId)}`
     const response = await fetch(fileUrl, {
       credentials: 'include',
       headers: {

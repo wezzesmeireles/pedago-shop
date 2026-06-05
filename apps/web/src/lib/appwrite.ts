@@ -36,3 +36,5 @@ export const BUCKETS = {
   PRODUCT_FILES: 'product-files',
   PRODUCT_COVERS: 'product-covers',
 } as const
+
+export const appwriteEndpoint = endpoint
