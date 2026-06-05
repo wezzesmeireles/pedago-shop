@@ -162,7 +162,7 @@ export default async ({ req, res, log, error }) => {
             if (existing.total === 0) {
               await db.createDocument(DB, 'download_tokens', ID.unique(), {
                 token: crypto.randomUUID(), orderId: p.orderId, orderItemId: it.$id,
-                maxDownloads: 5, downloadCount: 0, expiresAt: tokenExpiry(), deliveryLink: it.deliveryLink ?? null,
+                maxDownloads: 999999, downloadCount: 0, expiresAt: tokenExpiry(), deliveryLink: it.deliveryLink ?? null,
               }, ownerRead(uid))
               result.tokensCreated++
             }
@@ -204,7 +204,7 @@ export default async ({ req, res, log, error }) => {
             if (existing.total === 0) {
               await db.createDocument(DB, 'download_tokens', ID.unique(), {
                 token: crypto.randomUUID(), orderId: a.orderId, orderItemId: it.$id,
-                maxDownloads: 5, downloadCount: 0, expiresAt: tokenExpiry(), deliveryLink: it.deliveryLink ?? null,
+                maxDownloads: 999999, downloadCount: 0, expiresAt: tokenExpiry(), deliveryLink: it.deliveryLink ?? null,
               }, ownerRead(o?.userId))
             }
           }

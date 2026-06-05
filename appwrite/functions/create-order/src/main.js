@@ -179,7 +179,7 @@ export default async ({ req, res, log, error }) => {
         token: crypto.randomUUID(),
         orderId,
         orderItemId: item.$id,
-        maxDownloads: 5,
+        maxDownloads: 999999,
         downloadCount: 0,
         expiresAt: tokenExpiry.toISOString(),
         deliveryLink: oi.product.deliveryLink ?? null,
