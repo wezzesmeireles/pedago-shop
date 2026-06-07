@@ -38,3 +38,50 @@ export const BUCKETS = {
 } as const
 
 export const appwriteEndpoint = endpoint
+
+const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string
+
+// Download a file from a `Role.users()` Storage bucket from the browser.
+//
+// Authenticating a raw fetch to Storage was the source of "download works for me
+// but fails for some customers": the old code read the session SECRET out of the
+// localStorage `cookieFallback`, which is empty whenever the SDK keeps the
+// session in a real cookie, or when localStorage is blocked (private mode, some
+// school tablets). We now mint a short-lived JWT instead — `account.createJWT()`
+// uses whatever auth the SDK already has working (cookie OR fallback), so if the
+// user could load this page they can download. The cookieFallback secret stays
+// only as a last-ditch fallback. The request is same-origin (the /v1 proxy), so
+// the custom auth header triggers no CORS preflight.
+export async function fetchProductFile(fileId: string): Promise<Blob> {
+  const headers: Record<string, string> = { 'X-Appwrite-Project': projectId }
+
+  try {
+    const { jwt } = await account.createJWT()
+    if (jwt) headers['X-Appwrite-JWT'] = jwt
+  } catch { /* fall through to the cookieFallback secret */ }
+
+  if (!headers['X-Appwrite-JWT']) {
+    try {
+      const fb = JSON.parse(localStorage.getItem('cookieFallback') || '{}')
+      const secret = fb[`a_session_${projectId}`] || ''
+      if (secret) headers['X-Appwrite-Session'] = secret
+    } catch { /* ignore */ }
+  }
+
+  const url = `${endpoint}/storage/buckets/${BUCKETS.PRODUCT_FILES}/files/${fileId}/download?project=${encodeURIComponent(projectId)}`
+  const res = await fetch(url, { credentials: 'include', headers })
+  if (!res.ok) throw new Error(`Storage fetch failed: ${res.status}`)
+  return res.blob()
+}
+
+// Trigger a browser "Save as" for a Blob.
+export function saveBlob(blob: Blob, filename: string) {
+  const blobUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = blobUrl
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(blobUrl)
+}

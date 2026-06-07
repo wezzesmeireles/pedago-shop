@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { databases, DB_ID, COLLECTIONS, account, functions, appwriteEndpoint } from '@/lib/appwrite';
+import { databases, DB_ID, COLLECTIONS, account, functions, fetchProductFile, saveBlob } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
@@ -107,8 +107,6 @@ const loading = ref(true);
 const awaitingPayment = ref(false);
 
 let pollInterval: ReturnType<typeof setInterval>;
-
-const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
 
 async function triggerDownload(token: string, fallbackFilename: string) {
   try {
@@ -136,35 +134,10 @@ async function triggerDownload(token: string, fallbackFilename: string) {
       return
     }
 
-    // Step 3: Download from Appwrite Storage authenticated with the user's
-    // session SECRET (kept in cookieFallback because the API runs on a proxied
-    // path). X-Appwrite-Session must be the secret — session.$id does NOT
-    // authenticate and storage returns 401.
-    let secret = ''
-    try {
-      const fb = JSON.parse(localStorage.getItem('cookieFallback') || '{}')
-      secret = fb[`a_session_${projectId}`] || ''
-    } catch { /* ignore */ }
-    const fileUrl = `${appwriteEndpoint}/storage/buckets/product-files/files/${data.fileId}/download?project=${encodeURIComponent(projectId)}`
-    const response = await fetch(fileUrl, {
-      credentials: 'include',
-      headers: {
-        'X-Appwrite-Project': projectId,
-        ...(secret ? { 'X-Appwrite-Session': secret } : {}),
-      },
-    })
-
-    if (!response.ok) throw new Error(`Storage fetch failed: ${response.status}`)
-
-    const blob = await response.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = data.filename ?? fallbackFilename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(blobUrl)
+    // Step 3: Download the file from Storage, authenticated via JWT (see
+    // fetchProductFile — this is the part that used to fail for some clients).
+    const blob = await fetchProductFile(data.fileId)
+    saveBlob(blob, data.filename ?? fallbackFilename)
   } catch (err: any) {
     console.error('Download error:', err)
     alert(err.message ?? 'Erro ao baixar arquivo')

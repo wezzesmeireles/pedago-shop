@@ -90,9 +90,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { invokeFunction } from '@/services/api';
-import { appwriteEndpoint } from '@/lib/appwrite';
-
-const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
+import { fetchProductFile, saveBlob } from '@/lib/appwrite';
 
 // ── Health ──
 const loadingHealth = ref(false);
@@ -152,18 +150,10 @@ async function searchCustomer() {
 }
 
 async function download(d: any) {
-  let secret = '';
-  try { const fb = JSON.parse(localStorage.getItem('cookieFallback') || '{}'); secret = fb[`a_session_${projectId}`] || ''; } catch {}
-  const url = `${appwriteEndpoint}/storage/buckets/product-files/files/${d.fileId}/download?project=${encodeURIComponent(projectId)}`;
   try {
-    const r = await fetch(url, { credentials: 'include', headers: { 'X-Appwrite-Project': projectId, ...(secret ? { 'X-Appwrite-Session': secret } : {}) } });
-    if (!r.ok) throw new Error(`Storage ${r.status}`);
-    const blob = await r.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${(d.productName || 'arquivo').replace(/[^\w\sÀ-ÿ.-]/g, '').trim() || 'arquivo'}.pdf`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
+    const blob = await fetchProductFile(d.fileId);
+    const filename = `${(d.productName || 'arquivo').replace(/[^\w\sÀ-ÿ.-]/g, '').trim() || 'arquivo'}.pdf`;
+    saveBlob(blob, filename);
   } catch (e: any) {
     alert('Erro ao baixar: ' + (e?.message ?? e));
   }
