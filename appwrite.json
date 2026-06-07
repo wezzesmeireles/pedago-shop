@@ -93,7 +93,7 @@
       "entrypoint": "src/main.js",
       "execute": [],
       "events": [],
-      "schedule": "0 */6 * * *",
+      "schedule": "*/5 * * * *",
       "timeout": 60,
       "ignore": ["node_modules", ".npm"],
       "path": "appwrite/functions/reconcile-orders"

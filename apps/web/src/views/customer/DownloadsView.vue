@@ -5,6 +5,19 @@
       <span v-if="!loading && allDownloads.length" class="text-sm text-gray-500">{{ allDownloads.length }} {{ allDownloads.length === 1 ? 'arquivo' : 'arquivos' }}</span>
     </div>
 
+    <!-- In-app browser warning (Instagram/Facebook can't save files) -->
+    <button v-if="inApp.inApp" @click="showOpenInBrowser = true"
+      class="w-full text-left mb-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100/70 transition-colors">
+      <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/>
+      </svg>
+      <span class="text-sm text-amber-800">
+        Você está no navegador {{ inApp.name ? `do ${inApp.name}` : 'do app' }}. Para baixar, <strong class="underline">abra no Chrome/Safari</strong> — toque aqui para ver como.
+      </span>
+    </button>
+
+    <OpenInBrowserModal v-model="showOpenInBrowser" :name="inApp.name" />
+
     <!-- Loading skeleton -->
     <div v-if="loading" class="space-y-3">
       <div v-for="i in 3" :key="i" class="card p-5 stagger-item" :style="{ '--i': i - 1 }">
@@ -96,6 +109,8 @@
 import { ref, onMounted } from 'vue';
 import { databases, DB_ID, COLLECTIONS, account, functions, fetchProductFile, saveBlob } from '@/lib/appwrite';
 import { Query } from 'appwrite';
+import { detectInAppBrowser } from '@/lib/inAppBrowser';
+import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 interface DownloadEntry {
   token: string;
@@ -112,6 +127,11 @@ interface DownloadEntry {
 
 const loading = ref(true);
 const allDownloads = ref<DownloadEntry[]>([]);
+
+// In-app browsers (Instagram/Facebook/etc.) can't save files — detect and route
+// the user to a real browser instead of letting the download silently fail.
+const inApp = detectInAppBrowser();
+const showOpenInBrowser = ref(false);
 
 function isExpiringSoon(d: DownloadEntry): boolean {
   if (d.expired) return false;
@@ -160,6 +180,8 @@ async function triggerDownload(token: string, fallbackFilename: string) {
 
 async function downloadFile(d: DownloadEntry) {
   if (d.expired) return; // downloads are unlimited; only expiry blocks
+  // Instagram/FB webview can't save files — show how to open in a real browser.
+  if (inApp.inApp) { showOpenInBrowser.value = true; return; }
   await triggerDownload(d.token, 'download.pdf');
   d.downloadCount++;
 }

@@ -44,8 +44,13 @@ export default async ({ req, res, log }) => {
     } catch (err) { log('Telegram failed: ' + err.message) }
   }
 
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const now = new Date().toISOString()
+  // Confirm RECENT pending orders (last 3 days). The MP webhook rarely fires, so
+  // this cron is the real confirmation path and must look at FRESH orders — not
+  // only ones older than 24h, which left a PIX paid right after the buyer leaves
+  // the success page sitting unconfirmed for a whole day. Expired/rejected PIX
+  // flip to CANCELLED below, so the pending pool self-cleans and stays small.
+  const recentCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
 
   // Paginate all pending orders instead of hard cap at 100
   let pendingOrders = []
@@ -61,7 +66,8 @@ export default async ({ req, res, log }) => {
       const r = await db.listDocuments(DB, 'orders', [
         Query.equal('status', 'AWAITING_PAYMENT'),
         Query.isNotNull('mpPaymentId'),
-        Query.lessThan('createdAt', dayAgo),
+        Query.greaterThan('createdAt', recentCutoff),
+        Query.orderAsc('createdAt'),
         Query.limit(100),
         Query.offset(offset),
       ])

@@ -31,7 +31,7 @@ const FUNCTION_DEFS = [
   { id: 'admin-users',      name: 'admin-users',       timeout: 15,  schedule: '' },
   { id: 'create-admin',     name: 'create-admin',      timeout: 15,  schedule: '' },
   { id: 'recent-purchases', name: 'recent-purchases',  timeout: 15,  schedule: '' },
-  { id: 'reconcile-orders', name: 'reconcile-orders',  timeout: 60,  schedule: '0 */6 * * *' },
+  { id: 'reconcile-orders', name: 'reconcile-orders',  timeout: 60,  schedule: '*/5 * * * *' },
 ]
 
 async function ensureFunction(def) {

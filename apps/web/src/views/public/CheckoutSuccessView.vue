@@ -12,6 +12,19 @@
         <p class="text-gray-500 text-sm stagger-item" style="--i:2">Seus arquivos estão prontos para download.</p>
       </div>
 
+      <!-- In-app browser warning (Instagram/Facebook can't save files) -->
+      <button v-if="inApp.inApp" @click="showOpenInBrowser = true"
+        class="w-full text-left mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100/70 transition-colors">
+        <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/>
+        </svg>
+        <span class="text-sm text-amber-800">
+          Você está no navegador {{ inApp.name ? `do ${inApp.name}` : 'do app' }}. Para baixar, <strong class="underline">abra no Chrome/Safari</strong> — toque aqui para ver como.
+        </span>
+      </button>
+
+      <OpenInBrowserModal v-model="showOpenInBrowser" :name="inApp.name" />
+
       <!-- Loading -->
       <div v-if="loading" class="space-y-3 mb-6">
         <div class="h-4 shimmer rounded"></div>
@@ -98,6 +111,8 @@ import { databases, DB_ID, COLLECTIONS, account, functions, fetchProductFile, sa
 import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
+import { detectInAppBrowser } from '@/lib/inAppBrowser';
+import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -105,6 +120,11 @@ const cart = useCartStore();
 const order = ref<any>(null);
 const loading = ref(true);
 const awaitingPayment = ref(false);
+
+// In-app browsers (Instagram/Facebook/etc.) can't save files — route the user
+// to a real browser instead of letting the download silently fail.
+const inApp = detectInAppBrowser();
+const showOpenInBrowser = ref(false);
 
 let pollInterval: ReturnType<typeof setInterval>;
 
@@ -145,6 +165,8 @@ async function triggerDownload(token: string, fallbackFilename: string) {
 }
 
 async function downloadFile(_item: any, token: any) {
+  // Instagram/FB webview can't save files — show how to open in a real browser.
+  if (inApp.inApp) { showOpenInBrowser.value = true; return; }
   await triggerDownload(token.token, 'download.pdf');
   token.download_count++;
 }
@@ -214,7 +236,9 @@ function startWaiting(orderId: string) {
         awaitingPayment.value = false;
       }
     } catch {}
-    if (attempts >= 24) {
+    // Poll for ~5 min (PIX buyers often take a few minutes in their bank app).
+    // After that the every-5-min reconcile cron confirms it on the next tick.
+    if (attempts >= 60) {
       clearInterval(pollInterval);
       awaitingPayment.value = false;
     }
