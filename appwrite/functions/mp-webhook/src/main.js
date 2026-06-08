@@ -140,11 +140,26 @@ export default async ({ req, res, log, error }) => {
       } catch {}
     }
 
-    // Telegram notifications
+    // Telegram notifications — guarded by an atomic claim so the webhook and
+    // reconcile-orders (which also notifies, and runs concurrently via checkout
+    // polling) never both message for the same order. createDocument with a
+    // deterministic id is atomic: only the first caller succeeds, the rest 409.
+    let wonNotifyClaim = false
+    try {
+      await db.createDocument(DB, 'webhook_events', `paid_${order.$id}`, {
+        source: 'telegram-paid',
+        eventId: order.$id,
+        eventType: 'order.paid',
+        status: 'notified',
+        createdAt: now,
+      })
+      wonNotifyClaim = true
+    } catch { /* already claimed (409) → skip duplicate notification */ }
+
     try {
       const cfg = await db.getDocument(DB, 'site_config', 'global')
       const siteConfig = JSON.parse(cfg.value)
-      if (siteConfig.telegramBotToken) {
+      if (wonNotifyClaim && siteConfig.telegramBotToken) {
         const recipients = siteConfig.telegramRecipients ?? []
         const chatIds = recipients.length > 0
           ? recipients.map(r => r.chatId)

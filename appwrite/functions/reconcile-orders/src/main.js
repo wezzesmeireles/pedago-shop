@@ -44,6 +44,27 @@ export default async ({ req, res, log }) => {
     } catch (err) { log('Telegram failed: ' + err.message) }
   }
 
+  // Atomic "paid notification" claim. This path runs concurrently (checkout
+  // polls reconcile every 5s without awaiting, plus the cron and the MP
+  // webhook), so the `status !== 'PAID'` guard alone races: several in-flight
+  // runs all read AWAITING_PAYMENT and each fires Telegram → duplicate messages.
+  // createDocument with a deterministic id is atomic in Appwrite: exactly one
+  // concurrent caller wins, the rest get a 409. Whoever wins sends the message.
+  async function claimPaidNotification(orderDocId) {
+    try {
+      await db.createDocument(DB, 'webhook_events', `paid_${orderDocId}`, {
+        source: 'telegram-paid',
+        eventId: orderDocId,
+        eventType: 'order.paid',
+        status: 'notified',
+        createdAt: new Date().toISOString(),
+      })
+      return true
+    } catch {
+      return false // already claimed (409) → skip duplicate notification
+    }
+  }
+
   const now = new Date().toISOString()
   // Confirm RECENT pending orders (last 3 days). The MP webhook rarely fires, so
   // this cron is the real confirmation path and must look at FRESH orders — not
@@ -146,7 +167,7 @@ export default async ({ req, res, log }) => {
           }
         }
         log(`Order ${order.orderNumber} marked PAID`)
-        if (!alreadyPaid) {
+        if (!alreadyPaid && await claimPaidNotification(order.$id)) {
           const itemsText = itemsResult.documents
             .map(it => `• ${it.productName}${(it.quantity || 1) > 1 ? ` (x${it.quantity})` : ''}`)
             .join('\n') || '—'
