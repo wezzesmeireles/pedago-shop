@@ -265,10 +265,12 @@ async function createOrders() {
   await addDatetime(COL,'updatedAt',       false);
 
   await waitForAttributes(db, DB_ID, COL, 15);
-  await addIndex(COL, 'userId_key',         IndexType.Key,    ['userId']);
-  await addIndex(COL, 'status_key',         IndexType.Key,    ['status']);
-  await addIndex(COL, 'orderNumber_unique', IndexType.Unique, ['orderNumber']);
-  await addIndex(COL, 'mpPaymentId_key',    IndexType.Key,    ['mpPaymentId']);
+  await addIndex(COL, 'userId_key',           IndexType.Key,      ['userId']);
+  await addIndex(COL, 'status_key',           IndexType.Key,      ['status']);
+  await addIndex(COL, 'orderNumber_unique',   IndexType.Unique,   ['orderNumber']);
+  await addIndex(COL, 'mpPaymentId_key',      IndexType.Key,      ['mpPaymentId']);
+  // Required by the admin Orders search bar: Query.search('customerName', …)
+  await addIndex(COL, 'customerName_fulltext', IndexType.Fulltext, ['customerName']);
 }
 
 async function createOrderItems() {

@@ -469,6 +469,15 @@ async function loadOrders(page = 1) {
     totalCount.value = result.total;
     totalPages.value = Math.ceil(result.total / limit);
     currentPage.value = page;
+  } catch (e: any) {
+    // Don't let a failed query silently freeze the list (e.g. a missing
+    // fulltext index returning 400). Surface it and reset the view.
+    orders.value = [] as any;
+    totalCount.value = 0;
+    totalPages.value = 1;
+    reconcileMsg.value = { ok: false, text: 'Erro ao buscar pedidos. Tente um termo diferente.' };
+    setTimeout(() => { reconcileMsg.value = null; }, 6000);
+    console.error('loadOrders failed:', e?.message ?? e);
   } finally {
     loadingOrders.value = false;
   }
