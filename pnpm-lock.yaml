@@ -17,9 +17,21 @@ importers:
       '@capacitor/android':
         specifier: ^6.2.0
         version: 6.2.1(@capacitor/core@6.2.1)
+      '@capacitor/app':
+        specifier: ^6.0.2
+        version: 6.0.3(@capacitor/core@6.2.1)
+      '@capacitor/browser':
+        specifier: ^6.0.5
+        version: 6.0.6(@capacitor/core@6.2.1)
       '@capacitor/core':
         specifier: ^6.2.0
         version: 6.2.1
+      '@capacitor/splash-screen':
+        specifier: ^6.0.3
+        version: 6.0.4(@capacitor/core@6.2.1)
+      '@capacitor/status-bar':
+        specifier: ^6.0.2
+        version: 6.0.3(@capacitor/core@6.2.1)
     devDependencies:
       '@capacitor/cli':
         specifier: ^6.2.0
