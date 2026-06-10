@@ -362,14 +362,31 @@ async function createWebhookEvents() {
 // ── Storage ───────────────────────────────────────────────────────────────────
 
 async function createStorageBucket() {
-  console.log('\n🪣  Storage bucket');
-  await idempotent('bucket "product-files" (authenticated users read)', () =>
+  console.log('\n🪣  Storage buckets');
+  // Admins (label:admin) upload/manage product files & covers from the admin UI;
+  // without create/update/delete here, saveProduct's storage.createFile fails with
+  // "current user is not authorized".
+  const adminWrite = [
+    Permission.create(Role.label('admin')),
+    Permission.update(Role.label('admin')),
+    Permission.delete(Role.label('admin')),
+  ];
+  await idempotent('bucket "product-files" (users read, admin write)', () =>
     storage.createBucket(
       'product-files',
       'product-files',
-      [Permission.read(Role.users())],  // authenticated users can read/download
+      [Permission.read(Role.users()), ...adminWrite],  // authenticated users can read/download
       false, // fileSecurity: false (bucket-level permissions apply)
       true,  // enabled
+    )
+  );
+  await idempotent('bucket "product-covers" (public read, admin write)', () =>
+    storage.createBucket(
+      'product-covers',
+      'product-covers',
+      [Permission.read(Role.any()), ...adminWrite],  // covers are public
+      false,
+      true,
     )
   );
 }
