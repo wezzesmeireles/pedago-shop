@@ -1,14 +1,17 @@
 import { Client, Account, Databases, Storage, Functions } from 'appwrite'
+import { resolveEndpoint } from './endpoint'
 
-// Always talk to the API on the SAME origin the page was opened with (www vs
-// non-www vs localhost). The configured endpoint only provides the path (/v1);
-// we swap its host for the current origin so a visitor on www.sitepedagogico…
-// doesn't make a cross-origin call to sitepedagogico… (which Appwrite blocks
-// via CORS → blank page). The Vercel/Vite proxy forwards /v1 to Appwrite.
+// Web: talk to the API on the SAME origin the page was opened with (www vs
+// non-www vs localhost) so the call is same-origin and the Vercel/Vite proxy
+// forwards /v1 to Appwrite (cross-origin would be blocked by CORS → blank page).
+// Mobile (Capacitor): origin is https://localhost, so we keep the absolute
+// endpoint instead. See resolveEndpoint for the full rationale.
 const configuredEndpoint = (import.meta.env.VITE_APPWRITE_ENDPOINT as string) || '/v1'
-const endpointPath = configuredEndpoint.replace(/^https?:\/\/[^/]+/, '') || '/v1'
-const endpoint =
-  typeof window !== 'undefined' ? window.location.origin + endpointPath : configuredEndpoint
+const endpoint = resolveEndpoint({
+  configured: configuredEndpoint,
+  origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+  isMobile: import.meta.env.VITE_TARGET === 'mobile',
+})
 
 const client = new Client()
   .setEndpoint(endpoint)
