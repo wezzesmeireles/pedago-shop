@@ -1,7 +1,10 @@
 # Design — App mobile (Capacitor) da loja Site Pedagógico
 
 **Data:** 2026-06-10
-**Status:** Aprovado para planejamento
+**Status:** Em implementação (v1 Android) — código pronto (build mobile, endpoint
+absoluto, plugins nativos, cartão in-app, scaffold Capacitor + Android). Pendente:
+arte do ícone 1024×1024, platform `localhost` no Appwrite, run no device, keystore
+e AAB. Plano: `docs/superpowers/plans/2026-06-10-mobile-app-capacitor.md`.
 **Autor:** Wesley + Claude
 
 ## 1. Objetivo
