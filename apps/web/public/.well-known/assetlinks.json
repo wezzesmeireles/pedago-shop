@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sitepedagogico.app",
+      "sha256_cert_fingerprints": [
+        "17:BD:B9:53:56:B3:F3:3F:AB:6F:46:87:E0:78:1E:C9:0C:E8:AC:67:C7:D8:12:48:71:2A:93:4F:3A:AC:E5:B7",
+        "92:D2:4C:D0:66:7D:AB:40:F4:86:20:B1:DB:57:50:5E:2D:98:2A:00:53:4A:77:D2:F4:A2:0B:D6:2A:9B:B3:83"
+      ]
+    }
+  }
+]

@@ -147,7 +147,13 @@ export const useAuthStore = defineStore('auth', () => {
       let settled = false;
       let handle: { remove: () => void } | undefined;
       App.addListener('appUrlOpen', async ({ url: cbUrl }) => {
-        if (!cbUrl || !cbUrl.startsWith('com.sitepedagogico.app://oauth')) return;
+        // Aceita o App Link verificado (https .../app-oauth) E o esquema custom
+        // de fallback (com.sitepedagogico.app://oauth).
+        const isCallback =
+          !!cbUrl &&
+          (cbUrl.startsWith('com.sitepedagogico.app://oauth') ||
+            cbUrl.includes('sitepedagogico.com.br/app-oauth'));
+        if (!isCallback) return;
         settled = true;
         try {
           await Browser.close().catch(() => {});

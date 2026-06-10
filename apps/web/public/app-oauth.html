@@ -5,30 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Entrando…</title>
   <style>
-    body { font-family: system-ui, sans-serif; text-align: center; padding: 48px 20px; color: #444; }
-    .spin { width: 36px; height: 36px; border: 4px solid #ddd; border-top-color: #7c3aed; border-radius: 50%; margin: 0 auto 20px; animation: r 0.8s linear infinite; }
+    body { font-family: system-ui, sans-serif; text-align: center; padding: 48px 20px; color: #333; }
+    .spin { width: 36px; height: 36px; border: 4px solid #eee; border-top-color: #7c3aed; border-radius: 50%; margin: 0 auto 20px; animation: r .8s linear infinite; }
     @keyframes r { to { transform: rotate(360deg); } }
-    a { color: #7c3aed; }
+    a.btn { display: inline-block; margin-top: 8px; background: #7c3aed; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 16px; }
   </style>
 </head>
 <body>
   <div class="spin"></div>
   <p>Concluindo o login no aplicativo…</p>
-  <p id="fallback" style="display:none;margin-top:24px"></p>
+  <p style="margin-top:24px"><a class="btn" id="open" href="#">Abrir o aplicativo</a></p>
   <script>
-    // O Appwrite redireciona pra cá (host permitido) com ?userId=&secret= no
-    // sucesso, ou ?error=... na falha. Reabrimos o app via deep link com esses
-    // parâmetros — o app cria a sessão. Esta página só existe para fazer a ponte
-    // Custom Tab (Chrome) -> app, já que o Google bloqueia OAuth em WebView.
+    // Normalmente o App Link verificado já abriu o app direto (esta página nem
+    // carrega). Se o Android não interceptou (verificação pendente), tentamos o
+    // esquema custom; e o botão (toque do usuário = gesto) garante a abertura,
+    // pois o Chrome bloqueia redirecionamento automático para esquemas de app.
     (function () {
       var q = window.location.search || '';
       var target = 'com.sitepedagogico.app://oauth' + q;
-      window.location.replace(target);
-      setTimeout(function () {
-        var el = document.getElementById('fallback');
-        el.style.display = 'block';
-        el.innerHTML = 'Se o aplicativo não abrir, <a href="' + target + '">toque aqui</a>.';
-      }, 1600);
+      document.getElementById('open').href = target;
+      // tentativa automática (funciona em parte dos casos)
+      try { window.location.replace(target); } catch (e) {}
     })();
   </script>
 </body>

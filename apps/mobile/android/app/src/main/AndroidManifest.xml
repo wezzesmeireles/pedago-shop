@@ -22,9 +22,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep link de retorno do OAuth Google: a pagina-ponte
-                 (sitepedagogico.com.br/app-oauth.html) redireciona pra ca com
-                 userId+secret, reabrindo o app pra criar a sessao. -->
+            <!-- App Link VERIFICADO: o Android intercepta o retorno do OAuth
+                 (https://sitepedagogico.com.br/app-oauth*) e abre o app DIRETO,
+                 sem depender do Chrome redirecionar. Verificado via
+                 /.well-known/assetlinks.json no dominio. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="sitepedagogico.com.br"
+                      android:pathPrefix="/app-oauth" />
+            </intent-filter>
+
+            <!-- Fallback por esquema custom: se a verificacao do App Link falhar,
+                 a pagina-ponte ainda reabre o app por aqui. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
