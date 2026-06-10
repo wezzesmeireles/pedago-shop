@@ -6,6 +6,7 @@
     "build": "vue-tsc && vite build",
     "build:mobile": "vue-tsc && vite build --mode mobile",
     "preview": "vite preview",
+    "test": "vitest run",
     "lint": "eslint src --ext .ts,.vue"
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "terser": "^5.48.0",
     "typescript": "^5.4.5",
     "vite": "^5.3.3",
+    "vitest": "^2.1.9",
     "vue-tsc": "^2.0.26"
   }
 }
