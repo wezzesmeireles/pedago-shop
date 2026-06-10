@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
+    "build:mobile": "vue-tsc && vite build --mode mobile",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.vue"
   },
