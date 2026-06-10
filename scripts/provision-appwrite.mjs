@@ -225,6 +225,9 @@ async function createProducts() {
   await addString(COL,  'fileKey',        512,   false);
   await addEnum(COL,    'deliveryType',   ['LINK', 'FILE'], false);
   await addString(COL,  'deliveryLink',   1024,  false);
+  await addString(COL,  'youtubeUrl',     1024,  false);
+  await addString(COL,  'instagramUrl',   1024,  false);
+  await addInteger(COL, 'fileSize',       false);
   // array attribute for tags
   await idempotent(`  attr ${COL}.tags String[](100)`, () =>
     db.createStringAttribute(DB_ID, COL, 'tags', 100, false, undefined, true)
@@ -233,7 +236,7 @@ async function createProducts() {
   await addDatetime(COL,'createdAt',      false);
   await addDatetime(COL,'updatedAt',      false);
 
-  await waitForAttributes(db, DB_ID, COL, 19);
+  await waitForAttributes(db, DB_ID, COL, 22);
   await addIndex(COL, 'slug_unique',    IndexType.Unique, ['slug']);
   await addIndex(COL, 'isActive_key',   IndexType.Key,    ['isActive']);
   await addIndex(COL, 'isFeatured_key', IndexType.Key,    ['isFeatured']);

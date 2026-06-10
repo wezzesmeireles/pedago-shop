@@ -394,7 +394,7 @@ function openCreate() {
 
 function openEdit(product: any) {
   editingProduct.value = product;
-  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, pageCount: product.pageCount ?? '', categoryId: product.categoryId, isActive: product.isActive, isFeatured: product.isFeatured, deliveryType: product.deliveryType || 'pdf', deliveryLink: product.deliveryLink || '', youtubeUrl: product.youtubeUrl || '', instagramUrl: product.instagramUrl || '' });
+  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, pageCount: product.pageCount ?? '', categoryId: product.categoryId, isActive: product.isActive, isFeatured: product.isFeatured, deliveryType: product.deliveryType === 'LINK' ? 'link' : 'pdf', deliveryLink: product.deliveryLink || '', youtubeUrl: product.youtubeUrl || '', instagramUrl: product.instagramUrl || '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = product.coverImageUrl || ''; existingFileKey.value = product.fileKey || ''; errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -437,7 +437,8 @@ async function saveProduct() {
       price: parseFloat(form.price), categoryId: form.categoryId || null,
       pageCount: form.pageCount !== '' && form.pageCount != null ? parseInt(String(form.pageCount), 10) : null,
       isActive: form.isActive, isFeatured: form.isFeatured,
-      deliveryType: form.deliveryType,
+      // Schema stores the enum as FILE/LINK; the form uses pdf/link internally.
+      deliveryType: form.deliveryType === 'link' ? 'LINK' : 'FILE',
       deliveryLink: form.deliveryType === 'link' ? form.deliveryLink : null,
       youtubeUrl: form.youtubeUrl || null,
       instagramUrl: form.instagramUrl || null,
