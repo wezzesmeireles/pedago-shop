@@ -18,3 +18,13 @@ export function resolveEndpoint(opts: {
   const path = configured.replace(/^https?:\/\/[^/]+/, '') || '/v1';
   return origin + path;
 }
+
+// Origin público do site, pra montar links que VOLTAM por fora do app (e-mail de
+// recuperação de senha, compartilhamento). No app `window.location.origin` é
+// `https://localhost` (inexistente), então usamos o domínio real do site.
+export const webOrigin =
+  import.meta.env.VITE_TARGET === 'mobile'
+    ? 'https://sitepedagogico.com.br'
+    : typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://sitepedagogico.com.br';

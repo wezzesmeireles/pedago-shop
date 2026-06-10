@@ -60,6 +60,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { account } from '@/lib/appwrite';
+import { webOrigin } from '@/lib/endpoint';
 import AppButton from '@/components/ui/AppButton.vue';
 
 const email = ref('');
@@ -73,7 +74,7 @@ async function handleSubmit() {
   try {
     await account.createRecovery(
       email.value.trim(),
-      `${window.location.origin}/auth/reset-senha`,
+      `${webOrigin}/auth/reset-senha`,
     );
     sent.value = true;
   } catch (err: any) {
