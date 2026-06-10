@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { Query, OAuthProvider } from 'appwrite';
-import { account, databases, functions, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { account, databases, functions, DB_ID, COLLECTIONS, appwriteEndpoint } from '@/lib/appwrite';
 
 interface User {
   id: string;
@@ -119,10 +119,68 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function loginWithGoogle() {
+    // No app (Capacitor) o Google bloqueia OAuth em WebView e o origin é
+    // https://localhost (inacessível). Abrimos o Google no Chrome (Custom Tabs)
+    // e voltamos por deep link através da página-ponte no domínio real.
+    if (import.meta.env.VITE_TARGET === 'mobile') {
+      return loginWithGoogleNative();
+    }
     const successUrl = `${window.location.origin}/auth/google-callback`;
     const failUrl = `${window.location.origin}/login`;
     // createOAuth2Token passes userId+secret in URL — works cross-domain
     return account.createOAuth2Token(OAuthProvider.Google, successUrl, failUrl);
+  }
+
+  // Fluxo OAuth nativo: Custom Tab -> Google -> Appwrite -> app-oauth.html
+  // (host permitido) -> deep link com.sitepedagogico.app://oauth?userId&secret
+  // -> cria a sessão. Resolve quando a sessão é criada; rejeita em erro/cancel.
+  async function loginWithGoogleNative(): Promise<void> {
+    const { Browser } = await import('@capacitor/browser');
+    const { App } = await import('@capacitor/app');
+    const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
+    const bridge = 'https://sitepedagogico.com.br/app-oauth.html';
+    const url =
+      `${appwriteEndpoint}/account/tokens/oauth2/google?project=${encodeURIComponent(projectId)}` +
+      `&success=${encodeURIComponent(bridge)}&failure=${encodeURIComponent(bridge + '?error=1')}`;
+
+    return new Promise<void>((resolve, reject) => {
+      let settled = false;
+      let handle: { remove: () => void } | undefined;
+      App.addListener('appUrlOpen', async ({ url: cbUrl }) => {
+        if (!cbUrl || !cbUrl.startsWith('com.sitepedagogico.app://oauth')) return;
+        settled = true;
+        try {
+          await Browser.close().catch(() => {});
+          const query = cbUrl.includes('?') ? cbUrl.slice(cbUrl.indexOf('?') + 1) : '';
+          const params = new URLSearchParams(query);
+          if (params.get('error')) throw new Error('Login com Google cancelado.');
+          const userId = params.get('userId');
+          const secret = params.get('secret');
+          if (!userId || !secret) throw new Error('Falha no login com Google.');
+          await account.createSession(userId, secret);
+          await fetchMe();
+          resolve();
+        } catch (e) {
+          reject(e);
+        } finally {
+          handle?.remove();
+        }
+      }).then((h) => {
+        handle = h;
+        // Se o usuário fechar o Chrome sem concluir, libera o listener. Esperamos
+        // um instante porque o deep link de sucesso também FECHA o Custom Tab —
+        // sem o atraso, o 'browserFinished' cancelaria antes do 'appUrlOpen'.
+        Browser.addListener('browserFinished', () => {
+          setTimeout(() => {
+            if (!settled) {
+              handle?.remove();
+              reject(new Error('cancelled'));
+            }
+          }, 700);
+        });
+      });
+      Browser.open({ url });
+    });
   }
 
   async function register(name: string, email: string, password: string, phone?: string) {

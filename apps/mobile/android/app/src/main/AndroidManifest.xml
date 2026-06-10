@@ -22,6 +22,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep link de retorno do OAuth Google: a pagina-ponte
+                 (sitepedagogico.com.br/app-oauth.html) redireciona pra ca com
+                 userId+secret, reabrindo o app pra criar a sessao. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.sitepedagogico.app" android:host="oauth" />
+            </intent-filter>
+
         </activity>
 
         <provider
