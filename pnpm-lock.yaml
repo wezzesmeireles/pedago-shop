@@ -14,6 +14,21 @@ importers:
 
   apps/web:
     dependencies:
+      '@capacitor/app':
+        specifier: ^6.0.3
+        version: 6.0.3(@capacitor/core@6.2.1)
+      '@capacitor/browser':
+        specifier: ^6.0.6
+        version: 6.0.6(@capacitor/core@6.2.1)
+      '@capacitor/core':
+        specifier: ^6.2.1
+        version: 6.2.1
+      '@capacitor/splash-screen':
+        specifier: ^6.0.4
+        version: 6.0.4(@capacitor/core@6.2.1)
+      '@capacitor/status-bar':
+        specifier: ^6.0.3
+        version: 6.0.3(@capacitor/core@6.2.1)
       '@sitepedagogico/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -613,6 +628,29 @@ packages:
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
+
+  '@capacitor/app@6.0.3':
+    resolution: {integrity: sha512-4gFUCbcVz0N/YYN32OBFerocWXslIv3Nc90gDiRsBkJc0plwK6kIUT6PKa5WtW2kfhteUeCVXQbvArH2fH+0Ug==}
+    peerDependencies:
+      '@capacitor/core': ^6.0.0
+
+  '@capacitor/browser@6.0.6':
+    resolution: {integrity: sha512-VHOPkMR+JqKz2mf5YncnnOWvFdVYFTTLnPW+JRcsP1LobXmA0gtchER35PQ7XXqXU16eeacrehX+XF+rC6wmQw==}
+    peerDependencies:
+      '@capacitor/core': ^6.0.0
+
+  '@capacitor/core@6.2.1':
+    resolution: {integrity: sha512-urZwxa7hVE/BnA18oCFAdizXPse6fCKanQyEqpmz6cBJ2vObwMpyJDG5jBeoSsgocS9+Ax+9vb4ducWJn0y2qQ==}
+
+  '@capacitor/splash-screen@6.0.4':
+    resolution: {integrity: sha512-uJXR+28cdaie7zIIUBvgkWgHim6Gr1itJym9voIMTmrjXkOaPtejwxYJsdQWPJz9zgGnSbXuC1mNNibLgv3OpQ==}
+    peerDependencies:
+      '@capacitor/core': ^6.0.0
+
+  '@capacitor/status-bar@6.0.3':
+    resolution: {integrity: sha512-nFlgSmtx6Zwaw0tEvZgQsWHBeOfWWB/AvEoCApopLT4mHkBVoSrwkLvy2PjZs5wxCbsmqvQczr3XCyTwaDZVQg==}
+    peerDependencies:
+      '@capacitor/core': ^6.0.0
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -3711,6 +3749,9 @@ packages:
   tslib@1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
 
+  tslib@2.8.1:
+    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
+
   tty-browserify@0.0.0:
     resolution: {integrity: sha512-JVa5ijo+j/sOoHGjw0sxw734b1LhBkQ3bvUGNdxnVXDCX81Yx7TFgnZygxrIIWn23hbfTaMYLwRmAxFyDuFmIw==}
 
@@ -4699,6 +4740,26 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@capacitor/app@6.0.3(@capacitor/core@6.2.1)':
+    dependencies:
+      '@capacitor/core': 6.2.1
+
+  '@capacitor/browser@6.0.6(@capacitor/core@6.2.1)':
+    dependencies:
+      '@capacitor/core': 6.2.1
+
+  '@capacitor/core@6.2.1':
+    dependencies:
+      tslib: 2.8.1
+
+  '@capacitor/splash-screen@6.0.4(@capacitor/core@6.2.1)':
+    dependencies:
+      '@capacitor/core': 6.2.1
+
+  '@capacitor/status-bar@6.0.3(@capacitor/core@6.2.1)':
+    dependencies:
+      '@capacitor/core': 6.2.1
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true
@@ -8094,6 +8155,8 @@ snapshots:
   ts-interface-checker@0.1.13: {}
 
   tslib@1.14.1: {}
+
+  tslib@2.8.1: {}
 
   tty-browserify@0.0.0: {}
 

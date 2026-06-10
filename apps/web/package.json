@@ -10,6 +10,11 @@
     "lint": "eslint src --ext .ts,.vue"
   },
   "dependencies": {
+    "@capacitor/app": "^6.0.3",
+    "@capacitor/browser": "^6.0.6",
+    "@capacitor/core": "^6.2.1",
+    "@capacitor/splash-screen": "^6.0.4",
+    "@capacitor/status-bar": "^6.0.3",
     "@sitepedagogico/shared": "workspace:*",
     "@vueuse/core": "^10.11.0",
     "@vueuse/head": "^2.0.0",
