@@ -1,0 +1,15 @@
+# Build nativo (regenerável)
+android/app/build/
+android/build/
+android/.gradle/
+android/captures/
+android/local.properties
+android/app/release/
+
+# Keystore — NUNCA versionar
+*.keystore
+*.jks
+keystore.properties
+
+# Assets copiados pelo cap sync (vêm do apps/web/dist)
+android/app/src/main/assets/public/

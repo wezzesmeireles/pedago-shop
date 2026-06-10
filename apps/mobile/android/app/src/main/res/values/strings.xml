@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Site Pedagógico</string>
+    <string name="title_activity_main">Site Pedagógico</string>
+    <string name="package_name">com.sitepedagogico.app</string>
+    <string name="custom_url_scheme">com.sitepedagogico.app</string>
+</resources>
