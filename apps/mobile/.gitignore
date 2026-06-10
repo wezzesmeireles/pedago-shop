@@ -13,3 +13,10 @@ keystore.properties
 
 # Assets copiados pelo cap sync (vêm do apps/web/dist)
 android/app/src/main/assets/public/
+
+# Ferramentas/artefatos de release (regeneráveis, não versionar)
+android/bundletool.jar
+android/*.apks
+android/*.apk
+android/app-release-apks.zip
+android/apks_out/
