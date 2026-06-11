@@ -77,8 +77,15 @@ export async function fetchProductFile(fileId: string): Promise<Blob> {
   return res.blob()
 }
 
-// Trigger a browser "Save as" for a Blob.
+// Trigger a "Save as" for a Blob. No app (Capacitor) o WebView ignora o
+// <a download> de blob, então salvamos via Filesystem + folha de compartilhar.
 export function saveBlob(blob: Blob, filename: string) {
+  if (import.meta.env.VITE_TARGET === 'mobile') {
+    import('@/mobile/download')
+      .then((m) => m.saveAndOpenBlob(blob, filename))
+      .catch((e) => console.error('mobile saveBlob falhou:', e))
+    return
+  }
   const blobUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = blobUrl

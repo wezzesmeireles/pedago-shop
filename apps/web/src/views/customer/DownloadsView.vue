@@ -164,7 +164,13 @@ async function triggerDownload(token: string, fallbackFilename: string) {
 
     // Step 2: Handle response — link delivery or redirect
     if (data.redirectUrl || data.type === 'link') {
-      window.open(data.redirectUrl ?? data.url, '_blank')
+      const linkUrl = data.redirectUrl ?? data.url
+      if (import.meta.env.VITE_TARGET === 'mobile') {
+        const { openUrl } = await import('@/mobile/download')
+        await openUrl(linkUrl)
+      } else {
+        window.open(linkUrl, '_blank')
+      }
       return
     }
 
