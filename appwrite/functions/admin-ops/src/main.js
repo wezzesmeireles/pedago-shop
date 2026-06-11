@@ -1,4 +1,4 @@
-import { Client, Databases, Users, ID, Query, Permission, Role } from 'node-appwrite'
+import { Client, Databases, Users, ID, Query, Permission, Role, Messaging } from 'node-appwrite'
 import crypto from 'crypto'
 
 // Admin support toolbox. One function, several actions, all requiring an admin
@@ -265,6 +265,33 @@ export default async ({ req, res, log, error }) => {
         }
       }
       return res.json({ ok: true, user: { id: ids[0], name: found.users[0].name, email: found.users[0].email }, downloads })
+    }
+
+    // Broadcast push (publicidade) pra TODOS os usuários. Só admin chega aqui
+    // (AuthZ no topo). Envia em lotes de 100 usuários; quem não tem token é
+    // ignorado pelo Appwrite. data.route = link informado ou '/' (home).
+    if (action === 'broadcast-push') {
+      const title = (body.title ?? '').trim()
+      const text = (body.body ?? '').trim()
+      if (!title || !text) return res.json({ error: 'title e body obrigatórios' }, 400)
+      const route = (body.link ?? '').trim() || '/'
+
+      const profiles = await listAll('profiles')
+      const userIds = [...new Set(profiles.map(p => p.userId).filter(Boolean))]
+      if (!userIds.length) return res.json({ ok: true, users: 0, batches: 0 })
+
+      const messaging = new Messaging(client)
+      let batches = 0
+      for (let i = 0; i < userIds.length; i += 100) {
+        const chunk = userIds.slice(i, i + 100)
+        try {
+          await messaging.createPush(ID.unique(), title, text, [], chunk, [], { route })
+          batches++
+        } catch (err) {
+          log('broadcast batch falhou: ' + err.message)
+        }
+      }
+      return res.json({ ok: true, users: userIds.length, batches })
     }
 
     return res.json({ error: 'unknown action' }, 400)

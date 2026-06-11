@@ -35,9 +35,10 @@ function ensureListeners() {
   })
 }
 
-// Chamar quando um ADMIN loga no app. Pede permissão (Android 13+ runtime),
-// registra no FCM e grava o target. Sem permissão → segue sem push (Telegram cobre).
-export async function registerAdminPush(userId: string): Promise<void> {
+// Chamar quando QUALQUER usuário loga no app. Pede permissão (Android 13+
+// runtime), registra no FCM e grava o target. Admin recebe push de venda;
+// todos podem receber broadcast do admin. Sem permissão → segue sem push.
+export async function registerPush(userId: string): Promise<void> {
   try {
     currentUserId = userId
     ensureListeners()
@@ -55,7 +56,9 @@ export async function registerAdminPush(userId: string): Promise<void> {
 // Liga o toque na notificação à navegação. Chamar uma vez no init nativo.
 export function setupPushTap(router: Router): void {
   PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    const route = (action.notification?.data?.route as string) || '/admin/pedidos'
+    // Cada push manda seu próprio route em data: venda → '/admin/pedidos';
+    // broadcast → o link do admin ou '/'. Default home se vier vazio.
+    const route = (action.notification?.data?.route as string) || '/'
     try { router.push(route) } catch { /* ignore */ }
   })
 }
