@@ -95,6 +95,15 @@ export const useAuthStore = defineStore('auth', () => {
         avatarUrl: profile?.avatarUrl,
         phone: profile?.phone ?? undefined,
       };
+
+      // No app, admin recebe push de cada venda. Registra o token FCM do
+      // aparelho como push target ao confirmar a sessão de admin. Import
+      // dinâmico guardado → nada de Capacitor no bundle web.
+      if (import.meta.env.VITE_TARGET === 'mobile' && role === 'ADMIN') {
+        import('@/mobile/push')
+          .then((m) => m.registerAdminPush(authUser.$id))
+          .catch(() => { /* push é best-effort */ });
+      }
     } catch (e) {
       user.value = null;
     }

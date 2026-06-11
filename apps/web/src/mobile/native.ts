@@ -3,9 +3,13 @@ import { App as CapApp } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { SplashScreen } from '@capacitor/splash-screen'
+import { setupPushTap } from './push'
 
 // Inicializa comportamentos nativos da casca Capacitor. Chamado só no modo mobile.
 export async function initNative(router: Router): Promise<void> {
+  // Toque numa notificação push → navega (ex.: /admin/pedidos).
+  setupPushTap(router)
+
   // Botão "voltar" do Android: volta no histórico do vue-router; na raiz, sai.
   CapApp.addListener('backButton', ({ canGoBack }) => {
     if (canGoBack && window.history.length > 1) {

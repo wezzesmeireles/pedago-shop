@@ -1,4 +1,4 @@
-import { Client, Databases, ID, Query, Permission, Role } from 'node-appwrite'
+import { Client, Databases, ID, Query, Permission, Role, Messaging } from 'node-appwrite'
 import crypto from 'crypto'
 
 export default async ({ req, res, log }) => {
@@ -42,6 +42,23 @@ export default async ({ req, res, log }) => {
         })
       }
     } catch (err) { log('Telegram failed: ' + err.message) }
+  }
+
+  // Push nativo pro app do admin (FCM via Appwrite Messaging). Espelha o
+  // Telegram: enviado pra todos os usuários com role ADMIN (cada aparelho do
+  // admin é um push target). Best-effort: falha aqui nunca quebra o pedido.
+  async function sendAdminPush(title, pushBody, data) {
+    try {
+      const admins = await db.listDocuments(DB, 'profiles', [
+        Query.equal('role', 'ADMIN'), Query.limit(100),
+      ])
+      const userIds = admins.documents.map(d => d.userId).filter(Boolean)
+      if (!userIds.length) return
+      const messaging = new Messaging(client)
+      await messaging.createPush(
+        ID.unique(), title, pushBody, [], userIds, [], data || {},
+      )
+    } catch (err) { log('Push failed: ' + err.message) }
   }
 
   // Atomic "paid notification" claim. This path runs concurrently (checkout
@@ -185,6 +202,11 @@ export default async ({ req, res, log }) => {
             `💳 Pagamento: ${pay}\n` +
             `🕒 ${when}\n\n` +
             `📦 Itens:\n${itemsText}`
+          )
+          await sendAdminPush(
+            `🎉 Nova venda — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+            `Pedido ${order.orderNumber} — ${(order.customerName || 'Cliente').split(' ')[0]}`,
+            { route: '/admin/pedidos', orderId: order.$id },
           )
         }
 

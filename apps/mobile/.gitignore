@@ -11,6 +11,10 @@ android/app/release/
 *.jks
 keystore.properties
 
+# Config do Firebase (fonte em secrets/google-services.json; copiar pra
+# android/app/ pra buildar). Mantido fora do Git.
+android/app/google-services.json
+
 # Assets copiados pelo cap sync (vêm do apps/web/dist)
 android/app/src/main/assets/public/
 

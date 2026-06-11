@@ -1,4 +1,4 @@
-import { Client, Databases, ID, Query, Permission, Role } from 'node-appwrite'
+import { Client, Databases, ID, Query, Permission, Role, Messaging } from 'node-appwrite'
 import crypto from 'crypto'
 
 export default async ({ req, res, log, error }) => {
@@ -175,6 +175,27 @@ export default async ({ req, res, log, error }) => {
       }
     } catch (err) {
       log('Telegram notification failed: ' + err.message)
+    }
+
+    // Push nativo pro app do admin (FCM via Appwrite Messaging), espelhando o
+    // Telegram. Mesmo claim atômico (wonNotifyClaim) → sem duplicar. Best-effort.
+    if (wonNotifyClaim) {
+      try {
+        const admins = await db.listDocuments(DB, 'profiles', [
+          Query.equal('role', 'ADMIN'), Query.limit(100),
+        ])
+        const userIds = admins.documents.map(d => d.userId).filter(Boolean)
+        if (userIds.length) {
+          await new Messaging(client).createPush(
+            ID.unique(),
+            `🎉 Nova venda — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+            `Pedido ${order.orderNumber} — ${(order.customerName || 'Cliente').split(' ')[0]}`,
+            [], userIds, [], { route: '/admin/pedidos', orderId: order.$id },
+          )
+        }
+      } catch (err) {
+        log('Push notification failed: ' + err.message)
+      }
     }
 
   } else if (['rejected', 'cancelled'].includes(payment.status)) {
