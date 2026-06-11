@@ -23,7 +23,7 @@
             </intent-filter>
 
             <!-- App Link VERIFICADO: o Android intercepta o retorno do OAuth
-                 (https://sitepedagogico.com.br/app-oauth*) e abre o app DIRETO,
+                 (https://www.sitepedagogico.com/app-oauth*) e abre o app DIRETO,
                  sem depender do Chrome redirecionar. Verificado via
                  /.well-known/assetlinks.json no dominio. -->
             <intent-filter android:autoVerify="true">
@@ -31,7 +31,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https"
-                      android:host="sitepedagogico.com.br"
+                      android:host="www.sitepedagogico.com"
                       android:pathPrefix="/app-oauth" />
             </intent-filter>
 

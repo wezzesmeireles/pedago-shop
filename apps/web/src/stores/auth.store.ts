@@ -148,7 +148,7 @@ export const useAuthStore = defineStore('auth', () => {
     const { Browser } = await import('@capacitor/browser');
     const { App } = await import('@capacitor/app');
     const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
-    const bridge = 'https://sitepedagogico.com.br/app-oauth.html';
+    const bridge = 'https://www.sitepedagogico.com/app-oauth.html';
     const url =
       `${appwriteEndpoint}/account/tokens/oauth2/google?project=${encodeURIComponent(projectId)}` +
       `&success=${encodeURIComponent(bridge)}&failure=${encodeURIComponent(bridge + '?error=1')}`;
@@ -162,7 +162,7 @@ export const useAuthStore = defineStore('auth', () => {
         const isCallback =
           !!cbUrl &&
           (cbUrl.startsWith('com.sitepedagogico.app://oauth') ||
-            cbUrl.includes('sitepedagogico.com.br/app-oauth'));
+            cbUrl.includes('sitepedagogico.com/app-oauth'));
         if (!isCallback) return;
         settled = true;
         try {

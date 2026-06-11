@@ -7,7 +7,7 @@
 //
 // Mobile (Capacitor): o origin é https://localhost (inexistente como API), então
 // NÃO trocamos o host — usamos o endpoint absoluto, que continua passando pelo
-// proxy anti-firewall em sitepedagogico.com.br.
+// proxy anti-firewall em www.sitepedagogico.com.
 export function resolveEndpoint(opts: {
   configured: string;
   origin: string | undefined;
@@ -24,7 +24,7 @@ export function resolveEndpoint(opts: {
 // `https://localhost` (inexistente), então usamos o domínio real do site.
 export const webOrigin =
   import.meta.env.VITE_TARGET === 'mobile'
-    ? 'https://sitepedagogico.com.br'
+    ? 'https://www.sitepedagogico.com'
     : typeof window !== 'undefined'
       ? window.location.origin
-      : 'https://sitepedagogico.com.br';
+      : 'https://www.sitepedagogico.com';

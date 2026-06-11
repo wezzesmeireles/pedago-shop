@@ -2,7 +2,7 @@
 
 ## Pré-requisitos (uma vez)
 - Conta **Google Play Console** (US$25, pagamento único).
-- **Política de privacidade** publicada — usar `https://sitepedagogico.com.br/politica-privacidade`.
+- **Política de privacidade** publicada — usar `https://www.sitepedagogico.com/politica-privacidade`.
 - Ícone definitivo (ver `resources/README.md`).
 
 ## Keystore (assinatura)

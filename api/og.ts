@@ -1,7 +1,7 @@
 // anon key é pública — já está no bundle JS do frontend
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? 'https://hdldxgbvkjcoesmfoglm.supabase.co';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? 'sb_publishable_W64H0XMozN-8ll1QaaNPyw_JC7SkAhF';
-const SITE_URL = 'https://sitepedagogico.com.br';
+const SITE_URL = 'https://www.sitepedagogico.com';
 
 const BOT_UA = /facebookexternalhit|whatsapp|twitterbot|linkedinbot|googlebot|bingbot|slackbot|telegrambot|vkshare|ia_archiver|applebot/i;
 
