@@ -2,8 +2,20 @@
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? 'https://hdldxgbvkjcoesmfoglm.supabase.co';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? 'sb_publishable_W64H0XMozN-8ll1QaaNPyw_JC7SkAhF';
 const SITE_URL = 'https://www.sitepedagogico.com';
+const PROJECT_ID = process.env.VITE_APPWRITE_PROJECT_ID ?? '6a1bc2b1000d09c3f5f1';
 
 const BOT_UA = /facebookexternalhit|whatsapp|twitterbot|linkedinbot|googlebot|bingbot|slackbot|telegrambot|vkshare|ia_archiver|applebot/i;
+
+// WhatsApp/Facebook NÃO renderizam WebP no preview. As capas são WebP, então
+// servimos a og:image como JPEG pelo endpoint de preview do Appwrite (público,
+// bucket product-covers = read any). Extrai o fileId tanto de URLs antigas do
+// Supabase (.../product-covers/{id}.webp) quanto do Appwrite (.../files/{id}/view).
+function toOgImage(coverUrl: string): string {
+  if (!coverUrl) return `${SITE_URL}/og-default.jpg`;
+  const m = coverUrl.match(/product-covers\/(?:files\/)?([^/?.]+)/);
+  if (!m) return coverUrl;
+  return `${SITE_URL}/v1/storage/buckets/product-covers/files/${m[1]}/preview?output=jpg&width=1200&quality=85&project=${PROJECT_ID}`;
+}
 
 async function supaGet(path: string) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -74,7 +86,7 @@ export default async function handler(req: any, res: any) {
   const title = product ? `${product.name} | ${storeName}` : defaultTitle;
   const rawDesc = product?.description?.trim();
   const desc = String(rawDesc || (product ? `Baixe "${product.name}" em PDF. Entrega digital — receba imediatamente após o pagamento.` : defaultDesc)).slice(0, 160);
-  const image: string = product?.cover_image_url ?? defaultImage;
+  const image: string = toOgImage(product?.cover_image_url ?? defaultImage);
   const url = slug ? `${SITE_URL}/produto/${slug}` : SITE_URL;
 
   res.setHeader('Content-Type', 'text/html;charset=utf-8');
