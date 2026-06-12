@@ -37,6 +37,7 @@ function buildOgHtml(o: { title: string; desc: string; image: string; url: strin
 <meta property="og:description" content="${esc(o.desc)}">
 <meta property="og:image" content="${esc(o.image)}">
 <meta property="og:url" content="${esc(o.url)}">
+<link rel="canonical" href="${esc(o.url)}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="${esc(o.storeName)}">
 <meta name="twitter:card" content="summary_large_image">

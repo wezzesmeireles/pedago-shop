@@ -255,9 +255,8 @@ useHead(computed(() => {
       { name: 'twitter:description', content: description },
       { name: 'twitter:image', content: image },
     ],
-    link: [
-      { rel: 'canonical', href: url },
-    ],
+    // canonical é definido globalmente no App.vue (sempre .com, por rota) —
+    // evita tag duplicada.
   };
 }));
 

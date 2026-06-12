@@ -11,11 +11,25 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
+import { useHead } from '@vueuse/head';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import PhoneRequiredModal from '@/components/ui/PhoneRequiredModal.vue';
 
 const siteConfig = useSiteConfigStore();
+const route = useRoute();
+
+// Canonical SEMPRE no domínio de produção (.com), por rota — evita o Google
+// indexar/mostrar o domínio antigo (.com.br) ou variações (apex/localhost).
+useHead({
+  link: [
+    {
+      rel: 'canonical',
+      href: computed(() => `https://www.sitepedagogico.com${route.path}`),
+    },
+  ],
+});
 
 onMounted(() => {
   siteConfig.fetch();

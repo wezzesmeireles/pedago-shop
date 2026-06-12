@@ -66,10 +66,12 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     root.style.setProperty('--color-primary', cfg.primaryColor);
     root.style.setProperty('--color-secondary', cfg.secondaryColor);
     root.style.setProperty('--color-accent', cfg.accentColor);
-    const faviconHref = cfg.faviconUrl || cfg.logoUrl;
-    if (faviconHref) {
+    // Só troca o favicon se o admin definir um favicon PRÓPRIO. Sem isso,
+    // mantém o favicon estático (o escudo da marca em /favicon.ico) — a logo
+    // wordmark fica ilegível como favicon e antes sobrescrevia o ícone bom.
+    if (cfg.faviconUrl) {
       const favicon = document.getElementById('favicon') as HTMLLinkElement;
-      if (favicon) favicon.href = faviconHref;
+      if (favicon) favicon.href = cfg.faviconUrl;
     }
     if (cfg.storeName) document.title = cfg.storeName;
   }

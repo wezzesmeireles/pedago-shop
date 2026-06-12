@@ -5,6 +5,7 @@
   "outputDirectory": "apps/web/dist",
   "routes": [
     { "src": "/v1/(.*)", "dest": "https://appwrite.wsgestao.digital/v1/$1" },
+    { "src": "/sitemap.xml", "dest": "/api/sitemap" },
     { "src": "/(.*)", "has": [{ "type": "host", "value": "www.sitepedagogico.com.br" }], "status": 308, "headers": { "Location": "https://sitepedagogico.com.br/$1" } },
     { "src": "/produto/(?<slug>[^/]+)", "dest": "/api/og?slug=$slug" },
     { "src": "/", "dest": "/api/og" },
