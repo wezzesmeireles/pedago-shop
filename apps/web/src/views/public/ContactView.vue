@@ -17,6 +17,7 @@
           :href="`https://wa.me/${config.socialLinks.whatsapp}?text=Olá! Tenho uma dúvida sobre o ${config.storeName}.`"
           target="_blank"
           rel="noopener"
+          data-track="whatsapp"
           class="flex items-center gap-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-2xl p-5 transition-all group"
         >
           <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
@@ -39,6 +40,7 @@
           :href="config.socialLinks.instagram"
           target="_blank"
           rel="noopener"
+          data-track="instagram"
           class="flex items-center gap-4 bg-pink-50 hover:bg-pink-100 border border-pink-200 rounded-2xl p-5 transition-all group"
         >
           <div class="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
@@ -129,7 +131,7 @@
               <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Mensagem *</label>
               <textarea v-model="form.message" required rows="5" placeholder="Descreva sua dúvida ou mensagem..." class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"></textarea>
             </div>
-            <button type="submit" class="w-full bg-primary-600 hover:bg-primary-700 active:scale-[0.99] text-white font-bold py-3 rounded-xl transition-all duration-200 shadow text-sm">
+            <button type="submit" data-track="cta" class="w-full bg-primary-600 hover:bg-primary-700 active:scale-[0.99] text-white font-bold py-3 rounded-xl transition-all duration-200 shadow text-sm">
               Enviar Mensagem
             </button>
           </form>
