@@ -4,6 +4,12 @@
     <!-- ── Hero Banner Carousel ────────────────────────── -->
     <section class="relative overflow-hidden">
       <div class="relative">
+        <!-- Skeleton enquanto o config carrega do servidor -->
+        <div v-if="!siteConfigStore.loaded"
+          class="w-full min-h-[200px] sm:min-h-[320px] md:min-h-[420px] bg-gray-200 animate-pulse">
+        </div>
+
+        <template v-else>
         <div
           v-for="(slide, idx) in bannerSlides"
           v-show="bannerIndex === idx"
@@ -16,6 +22,9 @@
               :src="slide.imageUrl"
               :alt="slide.title || 'Banner'"
               class="w-full h-auto sm:h-auto block"
+              :loading="idx === 0 ? 'eager' : 'lazy'"
+              :fetchpriority="idx === 0 ? 'high' : 'auto'"
+              decoding="async"
             />
             <div
               v-else
@@ -55,6 +64,7 @@
             :aria-label="`Banner ${idx + 1}`"
           ></button>
         </div>
+        </template>
       </div>
     </section>
 
@@ -242,6 +252,7 @@
             <img v-if="groupProduct.coverImageUrl"
               :src="groupProduct.coverImageUrl" :alt="groupProduct.name"
               class="max-h-72 object-contain rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-700"
+              loading="lazy" decoding="async"
             />
             <div v-else class="w-48 h-48 rounded-full bg-gradient-to-br from-violet-400 to-pink-400
                                 flex items-center justify-center text-white text-6xl float">📚</div>

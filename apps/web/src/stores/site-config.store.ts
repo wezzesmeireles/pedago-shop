@@ -4,26 +4,45 @@ import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import type { SiteConfigData } from '@sitepedagogico/shared';
 import { DEFAULT_SITE_CONFIG } from '@sitepedagogico/shared';
 
-async function fetchConfig(): Promise<SiteConfigData | null> {
+const CACHE_KEY = 'sp_site_cfg_v1';
+
+function readCache(): SiteConfigData | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(data: SiteConfigData) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function mergeConfig(data: Partial<SiteConfigData>): SiteConfigData {
+  const merged = { ...DEFAULT_SITE_CONFIG, ...data };
+  if (!merged.banners || merged.banners.length === 0) {
+    merged.banners = DEFAULT_SITE_CONFIG.banners;
+  }
+  return merged;
+}
+
+async function fetchFromAppwrite(): Promise<SiteConfigData | null> {
   const doc = await databases.getDocument(DB_ID, COLLECTIONS.SITE_CONFIG, 'global');
-  return typeof doc.value === 'string' ? JSON.parse(doc.value) : doc.value;
+  const raw = typeof doc.value === 'string' ? JSON.parse(doc.value) : doc.value;
+  return raw;
 }
 
 async function saveConfig(config: object) {
   const value = JSON.stringify(config);
   const now = new Date().toISOString();
   try {
-    await databases.updateDocument(DB_ID, COLLECTIONS.SITE_CONFIG, 'global', {
-      value,
-      updatedAt: now,
-    });
+    await databases.updateDocument(DB_ID, COLLECTIONS.SITE_CONFIG, 'global', { value, updatedAt: now });
   } catch (err: any) {
     if (err.code === 404) {
-      await databases.createDocument(DB_ID, COLLECTIONS.SITE_CONFIG, 'global', {
-        key: 'global',
-        value,
-        updatedAt: now,
-      });
+      await databases.createDocument(DB_ID, COLLECTIONS.SITE_CONFIG, 'global', { key: 'global', value, updatedAt: now });
     } else {
       throw err;
     }
@@ -35,19 +54,25 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
   const loaded = ref(false);
 
   async function fetch() {
-    try {
-      const data = await fetchConfig();
-      if (data) {
-        const merged = { ...DEFAULT_SITE_CONFIG, ...data };
-        // If DB has no banners or empty banners, keep defaults
-        if (!merged.banners || merged.banners.length === 0) {
-          merged.banners = DEFAULT_SITE_CONFIG.banners;
-        }
-        config.value = merged;
-      }
+    // 1. Cache → renderização instantânea em revisitas
+    const cached = readCache();
+    if (cached) {
+      config.value = mergeConfig(cached);
       applyTheme(config.value);
+      loaded.value = true;
+    }
+
+    // 2. Appwrite → atualiza em background (first visit bloqueia até ter dados)
+    try {
+      const data = await fetchFromAppwrite();
+      if (data) {
+        const merged = mergeConfig(data);
+        config.value = merged;
+        applyTheme(merged);
+        writeCache(merged);
+      }
     } catch {
-      applyTheme(DEFAULT_SITE_CONFIG);
+      if (!cached) applyTheme(DEFAULT_SITE_CONFIG);
     } finally {
       loaded.value = true;
     }
@@ -58,6 +83,7 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     await saveConfig(merged);
     config.value = merged;
     applyTheme(merged);
+    writeCache(merged);
     return merged;
   }
 
@@ -66,9 +92,6 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     root.style.setProperty('--color-primary', cfg.primaryColor);
     root.style.setProperty('--color-secondary', cfg.secondaryColor);
     root.style.setProperty('--color-accent', cfg.accentColor);
-    // Só troca o favicon se o admin definir um favicon PRÓPRIO. Sem isso,
-    // mantém o favicon estático (o escudo da marca em /favicon.ico) — a logo
-    // wordmark fica ilegível como favicon e antes sobrescrevia o ícone bom.
     if (cfg.faviconUrl) {
       const favicon = document.getElementById('favicon') as HTMLLinkElement;
       if (favicon) favicon.href = cfg.faviconUrl;

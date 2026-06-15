@@ -3,10 +3,19 @@
   "installCommand": "pnpm install --no-frozen-lockfile",
   "buildCommand": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build",
   "outputDirectory": "apps/web/dist",
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
   "routes": [
     { "src": "/v1/(.*)", "dest": "https://appwrite.wsgestao.digital/v1/$1" },
     { "src": "/sitemap.xml", "dest": "/api/sitemap" },
-    { "src": "/(.*)", "has": [{ "type": "host", "value": "www.sitepedagogico.com.br" }], "status": 308, "headers": { "Location": "https://sitepedagogico.com.br/$1" } },
+    { "src": "/(.*)", "has": [{ "type": "host", "value": "www.sitepedagogico.com.br" }], "status": 301, "headers": { "Location": "https://www.sitepedagogico.com/$1" } },
+    { "src": "/(.*)", "has": [{ "type": "host", "value": "sitepedagogico.com.br" }],     "status": 301, "headers": { "Location": "https://www.sitepedagogico.com/$1" } },
     { "src": "/produto/(?<slug>[^/]+)", "dest": "/api/og?slug=$slug" },
     { "src": "/", "dest": "/api/og" },
     { "handle": "filesystem" },

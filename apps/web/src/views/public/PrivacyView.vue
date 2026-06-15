@@ -8,7 +8,7 @@
     </div>
 
     <!-- Content -->
-    <div class="prose prose-gray max-w-none space-y-8">
+    <div class="max-w-none space-y-8">
 
       <div v-for="section in sections" :key="section.title" class="bg-white rounded-2xl border border-gray-100 p-7 shadow-sm">
         <div class="flex items-center gap-3 mb-4">

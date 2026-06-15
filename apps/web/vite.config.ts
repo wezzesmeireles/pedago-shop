@@ -8,17 +8,14 @@ export default defineConfig(({ mode }) => {
   const isMobile = env.VITE_TARGET === 'mobile';
 
   return {
-    // Capacitor serve a UI de https://localhost — caminhos absolutos (/assets)
-    // quebram. No modo mobile geramos caminhos relativos.
     base: isMobile ? './' : '/',
     plugins: [
       vue(),
-      // Ship a transpiled + polyfilled fallback bundle (<script nomodule>) so the
-      // site still loads on older devices/browsers (old school PCs, old Android/
-      // iOS) — otherwise the modern-only ESM bundle gives them a blank page.
+      // Fallback bundle para browsers antigos (Chrome <64, Safari <12, etc.)
+      // modernPolyfills: false → não injeta polyfills desnecessários no bundle moderno (economiza ~34 kB gzip)
       legacy({
         targets: ['defaults', 'chrome >= 64', 'safari >= 12', 'firefox >= 67', 'not IE 11'],
-        modernPolyfills: true,
+        modernPolyfills: false,
         renderLegacyChunks: true,
       }),
     ],
@@ -30,6 +27,27 @@ export default defineConfig(({ mode }) => {
     },
     optimizeDeps: {
       include: ['@sitepedagogico/shared'],
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            // Appwrite SDK sozinho (~80 kB) — cache separado do resto
+            if (id.includes('node_modules/appwrite')) return 'vendor-appwrite';
+            // Vue core + router + pinia
+            if (
+              id.includes('node_modules/vue/') ||
+              id.includes('node_modules/@vue/') ||
+              id.includes('node_modules/vue-router') ||
+              id.includes('node_modules/pinia')
+            ) return 'vendor-vue';
+            // @vueuse (head, core, etc.)
+            if (id.includes('node_modules/@vueuse')) return 'vendor-vueuse';
+            // Restante de node_modules
+            if (id.includes('node_modules')) return 'vendor-misc';
+          },
+        },
+      },
     },
     server: {
       port: 5173,
