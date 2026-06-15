@@ -99,7 +99,9 @@ router.beforeEach(async (to) => {
     await withTimeout(authInitPromise, 6000);
   }
 
-  if (to.meta.requiresAuth && !auth.isLoggedIn) {
+  // Guest checkout (sessão anônima + pedago_guest) conta como autenticado para o /checkout
+  const isGuestCheckout = !!localStorage.getItem('pedago_guest');
+  if (to.meta.requiresAuth && !auth.isLoggedIn && !isGuestCheckout) {
     return { name: 'login', query: { redirect: to.fullPath } };
   }
 

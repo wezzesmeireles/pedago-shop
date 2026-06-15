@@ -1,11 +1,16 @@
 <template>
-  <div class="fixed inset-0 z-50 flex justify-end" @click.self="$emit('close')">
+  <div class="fixed inset-0 z-50 flex items-end md:items-stretch md:justify-end" @click.self="$emit('close')">
 
     <!-- Backdrop -->
     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" @click="$emit('close')" />
 
-    <!-- Drawer -->
-    <div class="relative bg-[#f8f7fc] w-full max-w-sm h-full flex flex-col shadow-2xl animate-slide-in-right">
+    <!-- Drawer: bottom sheet no mobile, painel lateral no desktop -->
+    <div class="relative bg-[#f8f7fc] w-full md:max-w-sm h-[90svh] md:h-full flex flex-col shadow-2xl rounded-t-3xl md:rounded-none animate-slide-in-bottom md:animate-slide-in-right">
+
+      <!-- Handle bar mobile -->
+      <div class="flex justify-center pt-3 pb-1 md:hidden flex-shrink-0">
+        <div class="w-10 h-1 rounded-full bg-gray-300" />
+      </div>
 
       <!-- ── Header ── -->
       <div class="relative overflow-hidden flex-shrink-0">
@@ -221,11 +226,13 @@ function formatPrice(price: number) {
 
 <style scoped>
 /* ── Entrada do drawer ── */
-.animate-fade-in        { animation: fadeIn 0.2s ease forwards; }
-.animate-slide-in-right { animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in         { animation: fadeIn 0.2s ease forwards; }
+.animate-slide-in-right  { animation: slideInRight 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-in-bottom { animation: slideInBottom 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-@keyframes fadeIn       { from { opacity: 0 } to { opacity: 1 } }
-@keyframes slideInRight { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes fadeIn        { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideInRight  { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes slideInBottom { from { transform: translateY(100%) } to { transform: translateY(0) } }
 
 /* ── Animação de item ── */
 .cart-item-enter-active { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }

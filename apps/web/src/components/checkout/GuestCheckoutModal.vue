@@ -335,9 +335,11 @@ async function submitGuest() {
   const rawPhone = guestPhoneDisplay.value.replace(/\D/g, '');
   loading.value = true;
   try {
-    await account.createAnonymousSession();
-    // Must save BEFORE fetchMe — fetchMe uses pedago_guest to decide
-    // whether to keep or delete the anonymous session.
+    // Reutiliza sessão existente se houver — createAnonymousSession lança se já há sessão ativa
+    try { await account.getSession('current'); }
+    catch { await account.createAnonymousSession(); }
+
+    // Deve salvar ANTES do fetchMe — fetchMe usa pedago_guest para decidir se mantém a sessão
     localStorage.setItem('pedago_guest', JSON.stringify({
       name: guestName.value.trim(),
       phone: rawPhone,
