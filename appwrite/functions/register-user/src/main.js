@@ -1,4 +1,4 @@
-import { Client, Users, Databases, ID } from 'node-appwrite'
+import { Client, Users, Databases, ID, Query, Permission, Role } from 'node-appwrite'
 
 export default async ({ req, res, log, error }) => {
   const client = new Client()
@@ -49,6 +49,48 @@ export default async ({ req, res, log, error }) => {
     try { await users.deleteUser(user.$id) } catch {}
     error(err.message)
     return res.json({ error: 'Failed to create profile' }, 500)
+  }
+
+  // Vincular pedidos feitos como guest com o mesmo telefone (best-effort)
+  if (phone) {
+    try {
+      const guestOrders = await db.listDocuments(DB, 'orders', [
+        Query.equal('guestPhone', phone),
+        Query.limit(100),
+      ])
+
+      for (const order of guestOrders.documents) {
+        await db.updateDocument(DB, 'orders', order.$id,
+          { userId: user.$id, guestPhone: null },
+          [Permission.read(Role.user(user.$id))]
+        )
+
+        const orderItems = await db.listDocuments(DB, 'order_items', [
+          Query.equal('orderId', order.$id),
+          Query.limit(50),
+        ])
+        for (const item of orderItems.documents) {
+          await db.updateDocument(DB, 'order_items', item.$id, {},
+            [Permission.read(Role.user(user.$id))]
+          )
+          const tokens = await db.listDocuments(DB, 'download_tokens', [
+            Query.equal('orderItemId', item.$id),
+            Query.limit(50),
+          ])
+          for (const token of tokens.documents) {
+            await db.updateDocument(DB, 'download_tokens', token.$id, {},
+              [Permission.read(Role.user(user.$id))]
+            )
+          }
+        }
+      }
+
+      if (guestOrders.total > 0) {
+        log(`Linked ${guestOrders.total} guest order(s) to new user ${user.$id}`)
+      }
+    } catch (err) {
+      log('Guest order linking failed (non-blocking): ' + err.message)
+    }
   }
 
   return res.json({ id: user.$id, email: user.email }, 201)

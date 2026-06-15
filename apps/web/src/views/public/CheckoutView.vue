@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-lg mx-auto px-4 py-10">
+  <div class="max-w-lg mx-auto px-4 py-6 sm:py-10">
 
     <!-- Carrinho vazio -->
     <div v-if="cart.items.length === 0 && step === 'confirm'" class="text-center py-20">
@@ -19,9 +19,12 @@
       <div v-if="step === 'confirm'" class="animate-slide-in-up">
 
         <!-- Header da página -->
-        <div class="mb-7">
+        <div class="mb-6">
           <h1 class="text-2xl font-black text-gray-900 mb-1">Finalizar Pedido</h1>
-          <p class="text-sm text-gray-400">Revise os itens e escolha como pagar</p>
+          <p class="text-sm text-gray-400">
+            <template v-if="guestData">Compra rápida · {{ guestData.name }}</template>
+            <template v-else>Revise os itens e escolha como pagar</template>
+          </p>
         </div>
 
         <!-- Itens do carrinho -->
@@ -248,20 +251,23 @@
         <!-- Copia e cola -->
         <div v-if="pixQrCode" class="bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-4">
           <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">PIX Copia e Cola</p>
-          <div class="flex gap-2">
+          <!-- Stack em mobile p/ não apertar o botão em 360px -->
+          <div class="flex flex-col gap-2">
             <input
               :value="pixQrCode"
               readonly
-              class="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-mono text-gray-600 truncate min-w-0"
+              class="w-full bg-white border border-gray-200 rounded-xl px-3 py-3 font-mono text-gray-600 truncate"
               style="font-size: 16px;"
+              aria-label="Código PIX copia e cola"
             />
             <button
               @click="copyText(pixQrCode)"
-              :class="['flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap',
+              :class="['w-full py-3.5 rounded-xl text-base font-bold transition-all',
                 copied ? 'bg-green-500 text-white' : 'text-white']"
               :style="!copied ? 'background: linear-gradient(135deg,#7c3aed,#db2777)' : ''"
+              style="min-height: 52px"
             >
-              {{ copied ? '✓ Copiado!' : 'Copiar' }}
+              {{ copied ? '✓ Código copiado!' : '📋 Copiar código PIX' }}
             </button>
           </div>
         </div>
@@ -326,6 +332,11 @@ const cart = useCartStore();
 const siteConfig = useSiteConfigStore();
 const auth = useAuthStore();
 
+const guestData = (() => {
+  try { return JSON.parse(localStorage.getItem('pedago_guest') ?? 'null') as { name: string; phone: string } | null; }
+  catch { return null; }
+})();
+
 type Step = 'confirm' | 'pix' | 'card';
 
 const benefits = [
@@ -382,10 +393,11 @@ async function createOrder() {
     const authUser = auth.user;
     const funcData = await invokeFunction('create-order', {
       userId: authUser?.id,
-      customerName: authUser?.name ?? '',
+      customerName: guestData?.name ?? authUser?.name ?? '',
       customerEmail: authUser?.email ?? '',
       items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       paymentMethod,
+      ...(guestData?.phone ? { guestPhone: guestData.phone } : {}),
     });
 
     if (funcData?.error || funcData?.message) {

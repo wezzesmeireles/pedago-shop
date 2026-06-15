@@ -17,7 +17,7 @@ export default async ({ req, res, log, error }) => {
     return res.json({ error: 'Invalid JSON' }, 400)
   }
 
-  const { userId, customerName, customerEmail, items, paymentMethod } = body
+  const { userId, customerName, customerEmail, items, paymentMethod, guestPhone } = body
   if (!userId || !items?.length) return res.json({ error: 'userId and items required' }, 400)
 
   // Fetch products with error handling
@@ -142,6 +142,7 @@ export default async ({ req, res, log, error }) => {
     userId,
     customerName: customerName ?? '',
     customerEmail: customerEmail ?? '',
+    guestPhone: guestPhone ?? null,
     status,
     totalAmount,
     paymentMethod: method ?? null,

@@ -56,6 +56,26 @@ export const useAuthStore = defineStore('auth', () => {
 
       let profile = result.documents[0] as Record<string, any> | undefined;
 
+      // Sessão anônima (compra rápida): sem email, sem profile.
+      // Só manter ativa se o checkout guest está em andamento (pedago_guest existe).
+      // Caso contrário, a sessão é resíduo de uma compra anterior — limpar.
+      if (!profile && !authUser.email) {
+        if (localStorage.getItem('pedago_guest')) {
+          user.value = {
+            id: authUser.$id,
+            name: '',
+            email: '',
+            role: 'CUSTOMER',
+            avatarUrl: undefined,
+            phone: undefined,
+          };
+        } else {
+          await account.deleteSession('current').catch(() => {});
+          user.value = null;
+        }
+        return;
+      }
+
       // Self-heal: some users have an auth account but no profile — notably
       // Google sign-ups, where OAuth only creates the auth user. Without a
       // profile they don't show up in the admin (which lists from `profiles`)

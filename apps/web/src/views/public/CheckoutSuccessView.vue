@@ -81,8 +81,17 @@
         </div>
       </div>
 
-      <!-- Info box -->
-      <div class="bg-blue-50 rounded-xl p-3 flex gap-2 text-xs text-blue-700 mb-6">
+      <!-- Info box: guest → CTA para criar conta; logado → info padrão -->
+      <div v-if="isGuest" class="bg-violet-50 border border-violet-100 rounded-xl p-3 flex gap-2 text-xs text-violet-700 mb-6">
+        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+        <span>
+          Crie uma conta com o mesmo celular e seus downloads ficam salvos para sempre.
+          <RouterLink to="/cadastro" class="font-bold underline ml-1">Criar conta grátis →</RouterLink>
+        </span>
+      </div>
+      <div v-else class="bg-blue-50 rounded-xl p-3 flex gap-2 text-xs text-blue-700 mb-6">
         <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
         </svg>
@@ -105,18 +114,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS, account, functions, fetchProductFile, saveBlob } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
+import { useAuthStore } from '@/stores/auth.store';
 import { detectInAppBrowser } from '@/lib/inAppBrowser';
 import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 const route = useRoute();
 const router = useRouter();
 const cart = useCartStore();
+const auth = useAuthStore();
+
+// Sessão guest: usuário comprou sem criar conta (via compra rápida)
+const isGuest = computed(() => !auth.user?.email && auth.isLoggedIn);
 const order = ref<any>(null);
 const loading = ref(true);
 const awaitingPayment = ref(false);
@@ -268,5 +282,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearInterval(pollInterval);
+  // Limpa a sessão guest ao sair da success page —
+  // fetchMe vai deletar a sessão anônima na próxima visita
+  localStorage.removeItem('pedago_guest');
 });
 </script>

@@ -74,7 +74,8 @@ const AUTH_ROUTE_NAMES = ['login', 'register', 'google-callback', 'phone-require
 const show = computed(() =>
   auth.isLoggedIn &&
   !auth.user?.phone &&
-  !AUTH_ROUTE_NAMES.includes(route.name as string)
+  !AUTH_ROUTE_NAMES.includes(route.name as string) &&
+  !localStorage.getItem('pedago_guest')
 );
 
 const phone = ref('');

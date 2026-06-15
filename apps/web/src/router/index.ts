@@ -112,7 +112,8 @@ router.beforeEach(async (to) => {
   // to proceed — including before reaching their downloads. The fix for the
   // "stuck on this screen" bug is in PhoneRequiredView (it now creates the
   // profile if missing), not in loosening this gate.
-  if (auth.isLoggedIn && !auth.user?.phone && to.meta.requiresAuth && !AUTH_ROUTE_NAMES.includes(to.name as string)) {
+  const isGuest = !!localStorage.getItem('pedago_guest');
+  if (!isGuest && auth.isLoggedIn && !auth.user?.phone && to.meta.requiresAuth && !AUTH_ROUTE_NAMES.includes(to.name as string)) {
     return { name: 'phone-required', query: { redirect: to.fullPath } };
   }
 });
