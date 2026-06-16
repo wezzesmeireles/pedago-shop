@@ -121,7 +121,7 @@ import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
-import { detectInAppBrowser } from '@/lib/inAppBrowser';
+import { detectInAppBrowser, isAndroid, tryOpenInExternalBrowserAndroid } from '@/lib/inAppBrowser';
 import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 const route = useRoute();
@@ -185,8 +185,11 @@ async function triggerDownload(token: string, fallbackFilename: string) {
 }
 
 async function downloadFile(_item: any, token: any) {
-  // Instagram/FB webview can't save files — show how to open in a real browser.
-  if (inApp.inApp) { showOpenInBrowser.value = true; return; }
+  if (inApp.inApp) {
+    showOpenInBrowser.value = true;
+    if (isAndroid()) tryOpenInExternalBrowserAndroid(window.location.href);
+    return;
+  }
   await triggerDownload(token.token, 'download.pdf');
   token.download_count++;
 }

@@ -109,7 +109,7 @@
 import { ref, onMounted } from 'vue';
 import { databases, DB_ID, COLLECTIONS, account, functions, fetchProductFile, saveBlob } from '@/lib/appwrite';
 import { Query } from 'appwrite';
-import { detectInAppBrowser } from '@/lib/inAppBrowser';
+import { detectInAppBrowser, isAndroid, tryOpenInExternalBrowserAndroid } from '@/lib/inAppBrowser';
 import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 interface DownloadEntry {
@@ -185,9 +185,14 @@ async function triggerDownload(token: string, fallbackFilename: string) {
 }
 
 async function downloadFile(d: DownloadEntry) {
-  if (d.expired) return; // downloads are unlimited; only expiry blocks
-  // Instagram/FB webview can't save files — show how to open in a real browser.
-  if (inApp.inApp) { showOpenInBrowser.value = true; return; }
+  if (d.expired) return;
+  if (inApp.inApp) {
+    showOpenInBrowser.value = true;
+    // Android: immediately fire the intent to open in the system browser so
+    // the user doesn't need to tap a second button in the modal.
+    if (isAndroid()) tryOpenInExternalBrowserAndroid(window.location.href);
+    return;
+  }
   await triggerDownload(d.token, 'download.pdf');
   d.downloadCount++;
 }

@@ -37,10 +37,12 @@ export function isIOS(): boolean {
   return /iPad|iPhone|iPod/i.test(navigator.userAgent)
 }
 
-// Android-only escape hatch: bounce the current page to system Chrome via an
-// intent URL. iOS has no programmatic way out of an in-app webview — there the
-// user must use the app's own "open in browser" menu.
-export function tryOpenInChromeAndroid(url: string): void {
+// Android-only escape hatch: bounce the current page to the system default
+// browser via an Android intent. Omitting `package=` shows the "Open with"
+// chooser instead of requiring Chrome specifically — works on Samsung Internet,
+// Xiaomi, etc. iOS has no programmatic escape from an in-app webview.
+export function tryOpenInExternalBrowserAndroid(url: string): void {
   const noScheme = url.replace(/^https?:\/\//, '')
-  window.location.href = `intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;end`
+  // S.browser_fallback_url ensures a web fallback if no browser handles it
+  window.location.href = `intent://${noScheme}#Intent;scheme=https;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(url)};end`
 }
