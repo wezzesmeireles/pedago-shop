@@ -10,6 +10,19 @@ export default async ({ req, res, log, error }) => {
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
+  function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
+  async function geolocate(ip) {
+    if (!ip || ip === '::1' || /^(127\.|10\.|192\.168\.)/.test(ip)) return ''
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 800)
+      const r = await fetch(`http://ip-api.com/json/${ip}?fields=status,city,regionName,countryCode`, { signal: ctrl.signal })
+      clearTimeout(timer)
+      const geo = await r.json()
+      return geo.status === 'success' ? [geo.city, geo.regionName, geo.countryCode].filter(Boolean).join(', ') : ''
+    } catch { return '' }
+  }
+
   // Parse body safely
   let payload
   try {
@@ -164,12 +177,36 @@ export default async ({ req, res, log, error }) => {
         const chatIds = recipients.length > 0
           ? recipients.map(r => r.chatId)
           : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
-        const msg = `✅ Pagamento aprovado!\nPedido: ${order.orderNumber}\nCliente: ${order.customerEmail}\nValor: R$ ${order.totalAmount?.toFixed(2)}`
+        let buyerIp = '', buyerLocation = ''
+        try {
+          const meta = order.metadata ? JSON.parse(order.metadata) : {}
+          buyerIp = meta.buyerIp || ''
+          if (buyerIp) buyerLocation = await geolocate(buyerIp)
+        } catch {}
+        const payLabel = order.paymentMethod === 'PIX' ? '💠 PIX'
+          : order.paymentMethod === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
+          : esc(order.paymentMethod || '—')
+        const itemsText = itemsResult.documents
+          .map(it => `  • ${esc(it.productName)}${((it.quantity || 1) > 1) ? ` (x${it.quantity})` : ''}`)
+          .join('\n') || '—'
+        let when = ''
+        try { when = new Date(now).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { when = now }
+        const msg =
+          `✅ <b>Pagamento Aprovado!</b>\n\n` +
+          `🧾 <b>${esc(order.orderNumber)}</b>\n` +
+          `👤 <b>${esc(order.customerName || 'Cliente')}</b>\n` +
+          `📧 ${esc(order.customerEmail || '—')}\n` +
+          (order.guestPhone ? `📱 ${esc(order.guestPhone)}\n` : '') +
+          `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
+          `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b>   ${payLabel}` +
+          (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
+          (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
+          `\n🕐 ${when}`
         for (const chatId of chatIds) {
           await fetch(`https://api.telegram.org/bot${siteConfig.telegramBotToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, text: msg }),
+            body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
           })
         }
       }

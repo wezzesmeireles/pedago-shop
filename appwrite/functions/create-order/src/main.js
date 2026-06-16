@@ -10,6 +10,20 @@ export default async ({ req, res, log, error }) => {
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
+  function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
+  function dtBR(iso) { try { return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { return iso } }
+  async function geolocate(ip) {
+    if (!ip || ip === '::1' || /^(127\.|10\.|192\.168\.)/.test(ip)) return ''
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 800)
+      const r = await fetch(`http://ip-api.com/json/${ip}?fields=status,city,regionName,countryCode`, { signal: ctrl.signal })
+      clearTimeout(timer)
+      const geo = await r.json()
+      return geo.status === 'success' ? [geo.city, geo.regionName, geo.countryCode].filter(Boolean).join(', ') : ''
+    } catch { return '' }
+  }
+
   let body
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
@@ -19,6 +33,9 @@ export default async ({ req, res, log, error }) => {
 
   const { userId, customerName, customerEmail, items, paymentMethod, guestPhone } = body
   if (!userId || !items?.length) return res.json({ error: 'userId and items required' }, 400)
+
+  const buyerIp = (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.headers['x-real-ip'] || ''
+  const geoTask = geolocate(buyerIp)
 
   // Fetch products with error handling
   let products
@@ -150,11 +167,14 @@ export default async ({ req, res, log, error }) => {
     mpPreferenceId,
     mpStatus,
     expiresAt: mpResult?.date_of_expiration ?? null,
-    metadata: mpResult ? JSON.stringify({
-      qrCode: mpResult.point_of_interaction?.transaction_data?.qr_code,
-      qrCodeBase64: mpResult.point_of_interaction?.transaction_data?.qr_code_base64,
-      checkoutUrl: mpResult.sandbox_init_point ?? mpResult.init_point,
-    }) : null,
+    metadata: JSON.stringify({
+      ...(mpResult ? {
+        qrCode: mpResult.point_of_interaction?.transaction_data?.qr_code,
+        qrCodeBase64: mpResult.point_of_interaction?.transaction_data?.qr_code_base64,
+        checkoutUrl: mpResult.sandbox_init_point ?? mpResult.init_point,
+      } : {}),
+      buyerIp,
+    }),
     createdAt: now,
     updatedAt: now,
   }, ownerRead)
@@ -197,12 +217,31 @@ export default async ({ req, res, log, error }) => {
         ? recipients.map(r => r.chatId)
         : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
 
-      const msg = `🛒 Novo pedido ${orderNumber}\n${customerEmail}\nR$ ${totalAmount.toFixed(2)}\nPagamento: ${method}`
+      const buyerLocation = await geoTask
+      const payLabel = method === 'PIX' ? '💠 PIX'
+        : method === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
+        : method === 'FREE' ? '🎁 Gratuito'
+        : esc(method || '—')
+      const statusLabel = status === 'PAID' ? '✅ Pago' : '⏳ Aguardando pagamento'
+      const itemsText = orderItems
+        .map(oi => `  • ${esc(oi.product.name)}${(oi.quantity > 1) ? ` (x${oi.quantity})` : ''}`)
+        .join('\n') || '—'
+      const msg =
+        `🛒 <b>Novo Pedido</b> — <b>${esc(orderNumber)}</b>\n\n` +
+        `👤 <b>${esc(customerName || 'Cliente')}</b>\n` +
+        `📧 ${esc(customerEmail || '—')}\n` +
+        (guestPhone ? `📱 ${esc(guestPhone)}\n` : '') +
+        `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
+        `💰 <b>Total: R$ ${totalAmount.toFixed(2)}</b>   ${payLabel}\n` +
+        `📊 ${statusLabel}` +
+        (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
+        (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
+        `\n🕐 ${dtBR(now)}`
       for (const chatId of chatIds) {
         await fetch(`https://api.telegram.org/bot${siteConfig.telegramBotToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text: msg }),
+          body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
         })
       }
     }

@@ -10,6 +10,19 @@ export default async ({ req, res, log }) => {
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
+  function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
+  async function geolocate(ip) {
+    if (!ip || ip === '::1' || /^(127\.|10\.|192\.168\.)/.test(ip)) return ''
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 800)
+      const r = await fetch(`http://ip-api.com/json/${ip}?fields=status,city,regionName,countryCode`, { signal: ctrl.signal })
+      clearTimeout(timer)
+      const geo = await r.json()
+      return geo.status === 'success' ? [geo.city, geo.regionName, geo.countryCode].filter(Boolean).join(', ') : ''
+    } catch { return '' }
+  }
+
   let body = {}
   try {
     body = req.body ? (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) : {}
@@ -38,7 +51,7 @@ export default async ({ req, res, log }) => {
         await fetch(`https://api.telegram.org/bot${siteConfig.telegramBotToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text }),
+          body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
         })
       }
     } catch (err) { log('Telegram failed: ' + err.message) }
@@ -185,23 +198,31 @@ export default async ({ req, res, log }) => {
         }
         log(`Order ${order.orderNumber} marked PAID`)
         if (!alreadyPaid && await claimPaidNotification(order.$id)) {
+          let buyerIp = '', buyerLocation = ''
+          try {
+            const meta = order.metadata ? JSON.parse(order.metadata) : {}
+            buyerIp = meta.buyerIp || ''
+            if (buyerIp) buyerLocation = await geolocate(buyerIp)
+          } catch {}
+          const payLabel = order.paymentMethod === 'PIX' ? '💠 PIX'
+            : order.paymentMethod === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
+            : esc(order.paymentMethod || '—')
           const itemsText = itemsResult.documents
-            .map(it => `• ${it.productName}${(it.quantity || 1) > 1 ? ` (x${it.quantity})` : ''}`)
+            .map(it => `  • ${esc(it.productName)}${((it.quantity || 1) > 1) ? ` (x${it.quantity})` : ''}`)
             .join('\n') || '—'
-          const pay = order.paymentMethod === 'PIX' ? '💠 PIX'
-            : order.paymentMethod === 'CREDIT_CARD' ? '💳 Cartão'
-            : (order.paymentMethod || '—')
           let when = ''
           try { when = new Date(now).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { when = now }
           await notifyTelegram(
-            `🎉 Pagamento aprovado!\n\n` +
-            `🧾 Pedido: ${order.orderNumber}\n` +
-            `👤 ${order.customerName || 'Cliente'}\n` +
-            `✉️ ${order.customerEmail || '—'}\n` +
-            `💰 Valor: R$ ${Number(order.totalAmount || 0).toFixed(2)}\n` +
-            `💳 Pagamento: ${pay}\n` +
-            `🕒 ${when}\n\n` +
-            `📦 Itens:\n${itemsText}`
+            `✅ <b>Pagamento Aprovado!</b>\n\n` +
+            `🧾 <b>${esc(order.orderNumber)}</b>\n` +
+            `👤 <b>${esc(order.customerName || 'Cliente')}</b>\n` +
+            `📧 ${esc(order.customerEmail || '—')}\n` +
+            (order.guestPhone ? `📱 ${esc(order.guestPhone)}\n` : '') +
+            `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
+            `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b>   ${payLabel}` +
+            (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
+            (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
+            `\n🕐 ${when}`
           )
           await sendAdminPush(
             `🎉 Nova venda — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
