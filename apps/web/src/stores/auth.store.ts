@@ -116,6 +116,20 @@ export const useAuthStore = defineStore('auth', () => {
         phone: profile?.phone ?? undefined,
       };
 
+      // Vincula automaticamente pedidos de "Compra Rápida" feitos com o mesmo
+      // telefone enquanto o usuário não estava logado. Fire-and-forget — não
+      // bloqueia o carregamento da página.
+      if (user.value.phone && user.value.email) {
+        functions.createExecution(
+          'reconcile-orders',
+          JSON.stringify({ linkPhone: user.value.phone, linkUserId: user.value.id }),
+          false,
+          '/',
+          'POST' as any,
+          { 'Content-Type': 'application/json' },
+        ).catch(() => {});
+      }
+
       // No app, registra o token FCM do aparelho como push target ao logar.
       // TODOS os usuários registram: admin recebe push de venda; todos podem
       // receber broadcast (publicidade) do admin. Import dinâmico guardado →

@@ -44,6 +44,56 @@ export default async ({ req, res, log }) => {
     body = req.body ? (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) : {}
   } catch {}
   const specificOrderId = body?.orderId
+  const linkPhone = body?.linkPhone
+  const linkUserId = body?.linkUserId
+
+  // ── Vinculação de pedidos guest por telefone ─────────────────────────────
+  // Chamado pelo frontend após login/registro com conta que tem telefone.
+  // Migra pedidos anônimos com guestPhone == linkPhone para o userId real,
+  // atualizando as permissões de leitura no banco (requer API key, server-side).
+  if (linkPhone && linkUserId) {
+    let linked = 0
+    try {
+      const guestOrders = await db.listDocuments(DB, 'orders', [
+        Query.equal('guestPhone', linkPhone),
+        Query.notEqual('userId', linkUserId), // já vinculados → sem re-trabalho
+        Query.limit(100),
+      ])
+
+      for (const order of guestOrders.documents) {
+        try {
+          await db.updateDocument(DB, 'orders', order.$id,
+            { userId: linkUserId, updatedAt: new Date().toISOString() },
+            [Permission.read(Role.user(linkUserId))]
+          )
+
+          const items = await db.listDocuments(DB, 'order_items', [
+            Query.equal('orderId', order.$id), Query.limit(50),
+          ])
+          for (const item of items.documents) {
+            await db.updateDocument(DB, 'order_items', item.$id, {},
+              [Permission.read(Role.user(linkUserId))]
+            )
+            const tokens = await db.listDocuments(DB, 'download_tokens', [
+              Query.equal('orderItemId', item.$id), Query.limit(50),
+            ])
+            for (const token of tokens.documents) {
+              await db.updateDocument(DB, 'download_tokens', token.$id, {},
+                [Permission.read(Role.user(linkUserId))]
+              )
+            }
+          }
+          linked++
+          log(`Linked order ${order.orderNumber} → user ${linkUserId}`)
+        } catch (err) {
+          log(`Link failed for order ${order.$id}: ${err.message}`)
+        }
+      }
+    } catch (err) {
+      log('linkPhone query failed: ' + err.message)
+    }
+    return res.json({ linked })
+  }
 
   // Read config from site_config (MP token + Telegram)
   let mpToken = process.env.MERCADO_PAGO_ACCESS_TOKEN
