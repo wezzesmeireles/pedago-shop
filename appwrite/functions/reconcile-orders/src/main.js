@@ -256,5 +256,16 @@ export default async ({ req, res, log }) => {
     }
   }
 
-  return res.json({ reconciled: pendingOrders.length })
+  // When called with a specific orderId (from checkout polling), return the
+  // current order status so the frontend can navigate without a client-side
+  // DB read — anonymous sessions can hit permission edge cases on reads.
+  let orderStatus = null
+  if (specificOrderId) {
+    try {
+      const doc = await db.getDocument(DB, 'orders', specificOrderId)
+      orderStatus = doc.status
+    } catch {}
+  }
+
+  return res.json({ reconciled: pendingOrders.length, ...(specificOrderId ? { orderStatus } : {}) })
 }

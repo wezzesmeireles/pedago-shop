@@ -452,14 +452,22 @@ async function checkCardPayment() {
   checkingCard.value = true;
   cardCheckMsg.value = null;
   try {
-    await invokeFunction('reconcile-orders', { orderId: orderId.value }).catch(() => {});
-    const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId.value);
-    if (order?.status === 'PAID') {
+    const result = await invokeFunction('reconcile-orders', { orderId: orderId.value }).catch(() => null) as { reconciled: number; orderStatus?: string | null } | null;
+    if (result?.orderStatus === 'PAID') {
       cart.clear();
       router.push(`/checkout/success/${orderId.value}`);
-    } else {
-      cardCheckMsg.value = { ok: false, text: 'Pagamento ainda não confirmado. Tente novamente em alguns segundos.' };
+      return;
     }
+    // Fallback to client-side read (for registered users or when function fails)
+    try {
+      const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId.value);
+      if (order?.status === 'PAID') {
+        cart.clear();
+        router.push(`/checkout/success/${orderId.value}`);
+        return;
+      }
+    } catch {}
+    cardCheckMsg.value = { ok: false, text: 'Pagamento ainda não confirmado. Tente novamente em alguns segundos.' };
   } catch {
     cardCheckMsg.value = { ok: false, text: 'Erro ao verificar. Tente novamente.' };
   } finally {
@@ -480,19 +488,42 @@ function startPolling() {
   pollingTimer = setInterval(async () => {
     if (!orderId.value) return;
     try {
-      await invokeFunction('reconcile-orders', { orderId: orderId.value }).catch(() => {});
-      const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId.value);
-      if (order?.status === 'PAID') {
+      // Primary: use server-side status returned by reconcile (always works for
+      // anonymous/guest sessions — no client-side permission needed).
+      const result = await invokeFunction('reconcile-orders', { orderId: orderId.value }).catch(() => null) as { reconciled: number; orderStatus?: string | null } | null;
+      const serverStatus = result?.orderStatus;
+
+      if (serverStatus === 'PAID') {
         clearInterval(pollingTimer!);
         clearInterval(countdownTimer!);
         cart.clear();
         router.push(`/checkout/success/${orderId.value}`);
-      } else if (['CANCELLED', 'EXPIRED'].includes(order?.status ?? '')) {
+        return;
+      }
+      if (serverStatus === 'CANCELLED' || serverStatus === 'EXPIRED') {
         clearInterval(pollingTimer!);
         clearInterval(countdownTimer!);
         errorMessage.value = 'Pagamento cancelado ou expirado.';
         step.value = 'confirm';
+        return;
       }
+
+      // Fallback: direct DB read (registered users always succeed; skip for null result)
+      if (result) return; // function worked but status != PAID/CANCELLED, keep polling
+      try {
+        const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId.value);
+        if (order?.status === 'PAID') {
+          clearInterval(pollingTimer!);
+          clearInterval(countdownTimer!);
+          cart.clear();
+          router.push(`/checkout/success/${orderId.value}`);
+        } else if (['CANCELLED', 'EXPIRED'].includes(order?.status ?? '')) {
+          clearInterval(pollingTimer!);
+          clearInterval(countdownTimer!);
+          errorMessage.value = 'Pagamento cancelado ou expirado.';
+          step.value = 'confirm';
+        }
+      } catch {}
     } catch {}
   }, 5000);
 }

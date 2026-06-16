@@ -195,14 +195,22 @@ async function loadOrder() {
   const orderDoc = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, route.params.orderId as string);
   if (!orderDoc) return null;
 
-  // Security: verify order belongs to current user
-  try {
-    const me = await account.get();
-    if (orderDoc.userId !== me.$id) {
-      router.replace('/minha-conta/pedidos');
-      return null;
-    }
-  } catch { /* if not logged in, requiresAuth guard already handled */ }
+  // Security: verify order belongs to current user.
+  // Skip for guest sessions — anonymous users land here via a URL that was
+  // generated for them by the checkout flow, and the route guard already
+  // validated the session. A false-positive redirect here would break their
+  // download experience, since account.get() may return a different ID after
+  // the anonymous session lifecycle has mutated.
+  const isGuestSession = !!localStorage.getItem('pedago_guest');
+  if (!isGuestSession) {
+    try {
+      const me = await account.get();
+      if (orderDoc.userId !== me.$id) {
+        router.replace('/minha-conta/pedidos');
+        return null;
+      }
+    } catch { /* if not logged in, requiresAuth guard already handled */ }
+  }
 
   // Fetch order items
   const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
@@ -248,12 +256,23 @@ function startWaiting(orderId: string) {
   pollInterval = setInterval(async () => {
     attempts++;
     try {
-      await invokeFunction('reconcile-orders', { orderId }).catch(() => {});
-      const orderDoc = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId);
-      if (orderDoc?.status === 'PAID') {
+      const result = await invokeFunction('reconcile-orders', { orderId }).catch(() => null) as { reconciled: number; orderStatus?: string | null } | null;
+      if (result?.orderStatus === 'PAID') {
         clearInterval(pollInterval);
         await loadOrder();
         awaitingPayment.value = false;
+        return;
+      }
+      // Fallback: client-side read (registered users / when function fails)
+      if (!result) {
+        try {
+          const orderDoc = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, orderId);
+          if (orderDoc?.status === 'PAID') {
+            clearInterval(pollInterval);
+            await loadOrder();
+            awaitingPayment.value = false;
+          }
+        } catch {}
       }
     } catch {}
     // Poll for ~5 min (PIX buyers often take a few minutes in their bank app).
