@@ -220,84 +220,157 @@
       <div v-if="loadingDetail" class="py-16 flex items-center justify-center">
         <div class="animate-spin w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full"></div>
       </div>
-      <div v-else-if="selectedOrder" class="space-y-5">
-        <div class="grid grid-cols-2 gap-3">
-          <div class="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 rounded-xl p-3.5">
-            <p class="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">Pedido</p>
-            <p class="text-sm font-mono font-black text-slate-900">{{ selectedOrder.orderNumber }}</p>
+      <div v-else-if="selectedOrder" class="space-y-4">
+
+        <!-- ── Cabeçalho: número + status + data ── -->
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-mono font-black text-slate-800 bg-slate-100 px-2.5 py-1.5 rounded-xl">{{ selectedOrder.orderNumber }}</span>
+            <StatusBadge :status="selectedOrder.status" />
+            <span v-if="selectedOrder.guestPhone" class="text-[11px] bg-violet-100 text-violet-700 font-black px-2 py-1 rounded-full">🔰 Compra Rápida</span>
           </div>
-          <div class="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl p-3.5">
-            <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Total</p>
-            <p class="text-sm font-black text-emerald-700">{{ formatPrice(selectedOrder.totalAmount) }}</p>
-          </div>
-          <div class="bg-slate-50 border border-slate-100 rounded-xl p-3.5">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Cliente</p>
-            <p class="text-sm font-semibold text-slate-900">{{ selectedOrder.customerName }}</p>
-            <p class="text-xs text-slate-400 mt-0.5">{{ selectedOrder.customerEmail }}</p>
-          </div>
-          <div class="bg-slate-50 border border-slate-100 rounded-xl p-3.5">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Data</p>
-            <p class="text-sm text-slate-700 font-medium">{{ formatDate(selectedOrder.createdAt) }}</p>
-          </div>
+          <span class="text-xs text-slate-400 font-medium">{{ formatDate(selectedOrder.createdAt) }}</span>
         </div>
 
-        <div>
-          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Itens do Pedido</p>
-          <div class="space-y-2">
-            <div v-for="item in selectedOrder.items" :key="item.id" class="flex items-center gap-3 p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
-              <div class="w-11 h-11 rounded-xl overflow-hidden bg-white flex-shrink-0 border border-slate-200 shadow-sm">
-                <img v-if="item.product?.coverImageUrl" :src="item.product.coverImageUrl" loading="lazy" decoding="async" class="w-full h-full object-cover" />
-                <div v-else class="w-full h-full flex items-center justify-center text-slate-300">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                </div>
+        <!-- ── Cliente + Pagamento ── -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+          <!-- Cliente -->
+          <div class="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</p>
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center text-violet-700 text-sm font-black flex-shrink-0">
+                {{ (selectedOrder.customerName ?? '?')[0]?.toUpperCase() }}
               </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-900 truncate">{{ item.productName }}</p>
-                <p class="text-xs text-slate-400">Qtd: {{ item.quantity }} · {{ formatPrice(item.unitPrice) }}</p>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-slate-900 truncate">{{ selectedOrder.customerName || '—' }}</p>
+                <p class="text-xs text-slate-400 truncate">{{ selectedOrder.customerEmail || '—' }}</p>
               </div>
-              <div v-if="item.downloadTokens?.length" class="text-right flex-shrink-0">
-                <p v-for="t in item.downloadTokens" :key="t.id" class="text-xs">
-                  <span :class="t.downloadCount >= t.maxDownloads ? 'text-red-500 font-bold' : 'text-emerald-600 font-bold'">{{ t.downloadCount }}</span>
-                  <span class="text-slate-400">/{{ t.maxDownloads }} downloads</span>
-                </p>
+            </div>
+            <div v-if="selectedOrder.guestPhone" class="flex items-center gap-1.5 bg-violet-50 border border-violet-100 rounded-lg px-2.5 py-2">
+              <svg class="w-3.5 h-3.5 text-violet-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+              <span class="text-xs font-mono font-bold text-violet-700">{{ selectedOrder.guestPhone }}</span>
+            </div>
+            <div v-if="selectedOrder.meta?.buyerIp" class="space-y-1">
+              <div class="flex items-center gap-1.5">
+                <svg class="w-3 h-3 text-slate-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="1.5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                <span class="text-[11px] font-mono text-slate-400">{{ selectedOrder.meta.buyerIp }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagamento -->
+          <div class="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pagamento</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span v-if="selectedOrder.paymentMethod === 'PIX'" class="text-[11px] bg-emerald-100 text-emerald-700 font-black px-2.5 py-1 rounded-full">💠 PIX</span>
+              <span v-else-if="selectedOrder.paymentMethod === 'CREDIT_CARD'" class="text-[11px] bg-blue-100 text-blue-700 font-black px-2.5 py-1 rounded-full">💳 Cartão</span>
+              <span v-else-if="selectedOrder.paymentMethod === 'FREE'" class="text-[11px] bg-teal-100 text-teal-700 font-black px-2.5 py-1 rounded-full">🎁 Gratuito</span>
+              <span class="text-base font-black text-violet-600">{{ formatPrice(selectedOrder.totalAmount) }}</span>
+            </div>
+            <div class="space-y-1.5 text-xs">
+              <div v-if="selectedOrder.paidAt" class="flex items-center gap-2">
+                <span class="text-slate-400 w-20 flex-shrink-0">Pago em</span>
+                <span class="font-semibold text-emerald-700">{{ formatDate(selectedOrder.paidAt) }}</span>
+              </div>
+              <div v-if="selectedOrder.expiresAt && selectedOrder.status === 'AWAITING_PAYMENT'" class="flex items-center gap-2">
+                <span class="text-slate-400 w-20 flex-shrink-0">Expira</span>
+                <span class="font-semibold text-amber-600">{{ formatDate(selectedOrder.expiresAt) }}</span>
+              </div>
+              <div v-if="selectedOrder.mpPaymentId" class="flex items-center gap-2">
+                <span class="text-slate-400 w-20 flex-shrink-0">ID MP</span>
+                <span class="font-mono text-slate-700 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md text-[11px] truncate max-w-[120px]">{{ selectedOrder.mpPaymentId }}</span>
+                <button @click="copyText(selectedOrder.mpPaymentId)" class="text-violet-500 hover:text-violet-700 font-bold text-[10px] flex-shrink-0 transition-colors">{{ copiedId === selectedOrder.mpPaymentId ? '✓' : 'Copiar' }}</button>
+              </div>
+              <div v-if="selectedOrder.mpStatus" class="flex items-center gap-2">
+                <span class="text-slate-400 w-20 flex-shrink-0">Status MP</span>
+                <span class="font-mono text-slate-600">{{ selectedOrder.mpStatus }}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Reissue downloads (recreate tokens + owner permissions) -->
-        <div v-if="selectedOrder.status === 'PAID'" class="bg-violet-50 border border-violet-100 rounded-xl p-4">
-          <p class="text-xs font-bold text-violet-700 mb-2">Cliente não consegue baixar?</p>
-          <button @click="reissueOrder(selectedOrder.id)" :disabled="reissuing"
-            class="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all disabled:opacity-50">
-            {{ reissuing ? 'Reemitindo...' : 'Reemitir download' }}
-          </button>
-          <p v-if="reissueMsg" class="text-xs text-emerald-700 mt-2 font-medium">{{ reissueMsg }}</p>
-        </div>
-
-        <!-- Reconcile individual order -->
-        <div v-if="selectedOrder.status === 'AWAITING_PAYMENT'" class="bg-amber-50 border border-amber-100 rounded-xl p-4">
-          <p class="text-xs font-bold text-amber-700 mb-2">Pagamento não reconhecido automaticamente?</p>
-          <button @click="reconcileOrder(selectedOrder.id)" :disabled="reconciling"
-            class="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all disabled:opacity-50">
-            <svg :class="['w-3.5 h-3.5', reconciling && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            {{ reconciling ? 'Verificando...' : 'Verificar Pagamento Agora' }}
-          </button>
-        </div>
-
+        <!-- ── Itens do Pedido ── -->
         <div>
-          <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Alterar Status Manualmente</p>
-          <div class="flex flex-wrap gap-2">
-            <button v-for="s in statusOptions" :key="s.value"
-              @click="updateStatus(selectedOrder.id, s.value)"
-              :disabled="selectedOrder.status === s.value || updatingStatus"
-              :class="['px-4 py-2 rounded-xl text-xs font-bold transition-all', selectedOrder.status === s.value ? s.activeClass : 'bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50']">
-              {{ s.label }}
+          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Itens do Pedido</p>
+          <div class="space-y-2">
+            <div v-for="item in selectedOrder.items" :key="item.id" class="bg-slate-50 border border-slate-100 rounded-xl p-3.5">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl overflow-hidden bg-white flex-shrink-0 border border-slate-200 shadow-sm">
+                  <img v-if="item.product?.coverImageUrl" :src="item.product.coverImageUrl" loading="lazy" decoding="async" class="w-full h-full object-cover" />
+                  <div v-else class="w-full h-full flex items-center justify-center text-slate-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-slate-900 truncate">{{ item.productName }}</p>
+                  <p class="text-xs text-slate-400">Qtd: {{ item.quantity }} · {{ formatPrice(item.unitPrice) }}</p>
+                </div>
+                <div class="text-right flex-shrink-0 space-y-1">
+                  <div v-if="item.downloadTokens?.length">
+                    <p v-for="t in item.downloadTokens" :key="t.id" class="text-xs whitespace-nowrap">
+                      <span :class="t.downloadCount > 0 ? 'text-violet-600 font-bold' : 'text-slate-400'">{{ t.downloadCount }}</span>
+                      <span class="text-slate-300"> / {{ t.maxDownloads === 999999 ? '∞' : t.maxDownloads }}</span>
+                      <span class="text-slate-400"> dl</span>
+                    </p>
+                  </div>
+                  <span v-else-if="item.downloadTokens !== undefined" class="text-[10px] text-amber-500 font-bold">Sem token</span>
+                </div>
+              </div>
+              <!-- Delivery link se existir -->
+              <div v-if="item.downloadTokens?.some((t: any) => t.deliveryLink)" class="mt-2 pt-2 border-t border-slate-100">
+                <a v-for="t in item.downloadTokens.filter((t: any) => t.deliveryLink)" :key="t.id"
+                  :href="t.deliveryLink" target="_blank" rel="noopener"
+                  class="inline-flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 font-medium truncate max-w-full">
+                  <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                  {{ t.deliveryLink }}
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Ações ── -->
+        <div class="space-y-3 pt-1">
+          <!-- Reemitir download -->
+          <div v-if="selectedOrder.status === 'PAID'" class="bg-violet-50 border border-violet-100 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap">
+            <p class="text-xs text-violet-700 font-semibold">Cliente não consegue baixar?</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button @click="reissueOrder(selectedOrder.id)" :disabled="reissuing"
+                class="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all disabled:opacity-50">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                {{ reissuing ? 'Reemitindo...' : 'Reemitir download' }}
+              </button>
+              <p v-if="reissueMsg" class="text-xs text-emerald-700 font-medium">{{ reissueMsg }}</p>
+            </div>
+          </div>
+
+          <!-- Verificar pagamento -->
+          <div v-if="selectedOrder.status === 'AWAITING_PAYMENT'" class="bg-amber-50 border border-amber-100 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap">
+            <p class="text-xs text-amber-700 font-semibold">Pagamento não reconhecido automaticamente?</p>
+            <button @click="reconcileOrder(selectedOrder.id)" :disabled="reconciling"
+              class="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all disabled:opacity-50">
+              <svg :class="['w-3.5 h-3.5', reconciling && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+              {{ reconciling ? 'Verificando...' : 'Verificar Pagamento' }}
             </button>
           </div>
-          <p class="text-xs text-slate-400 mt-2">⚠️ "Marcar Pago" libera downloads e notifica via Telegram.</p>
+
+          <!-- Alterar status -->
+          <div class="bg-slate-50 border border-slate-100 rounded-xl p-3.5">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Alterar Status</p>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="s in statusOptions" :key="s.value"
+                @click="updateStatus(selectedOrder.id, s.value)"
+                :disabled="selectedOrder.status === s.value || updatingStatus"
+                :class="['px-3.5 py-2 rounded-xl text-xs font-bold transition-all disabled:cursor-not-allowed',
+                  selectedOrder.status === s.value ? s.activeClass : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-40']">
+                {{ s.label }}
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2">⚠️ "Marcar Pago" libera downloads e notifica via Telegram.</p>
+          </div>
         </div>
       </div>
     </AppModal>
@@ -326,6 +399,7 @@ const reconciling = ref(false);
 const reconcileMsg = ref<{ ok: boolean; text: string } | null>(null);
 const reissuing = ref(false);
 const reissueMsg = ref('');
+const copiedId = ref('');
 const loadingOrders = ref(false);
 const totalCount = ref(0);
 const dateFilterModalOrders = ref<any[]>([]);
@@ -483,10 +557,20 @@ async function loadOrders(page = 1) {
   }
 }
 
+async function copyText(text: string) {
+  await navigator.clipboard.writeText(text).catch(() => {});
+  copiedId.value = text;
+  setTimeout(() => { if (copiedId.value === text) copiedId.value = ''; }, 2000);
+}
+
 async function openDetails(id: string) {
   detailsOpen.value = true; loadingDetail.value = true; selectedOrder.value = null; reissueMsg.value = '';
   try {
     const order = await databases.getDocument(DB_ID, COLLECTIONS.ORDERS, id);
+    // Parse metadata JSON (IP, QR code, etc.)
+    let meta: Record<string, any> = {};
+    try { meta = JSON.parse((order as any).metadata ?? '{}'); } catch {}
+
     // Load order items with download tokens
     const itemsResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [
       Query.equal('orderId', id),
@@ -515,6 +599,7 @@ async function openDetails(id: string) {
           id: t.$id,
           downloadCount: t.downloadCount,
           maxDownloads: t.maxDownloads,
+          deliveryLink: t.deliveryLink ?? null,
         })),
       };
     }));
@@ -522,9 +607,19 @@ async function openDetails(id: string) {
       ...order,
       id: order.$id,
       orderNumber: order.orderNumber,
+      status: order.status,
       totalAmount: order.totalAmount,
       customerName: order.customerName,
       customerEmail: order.customerEmail,
+      guestPhone: (order as any).guestPhone ?? null,
+      paymentMethod: (order as any).paymentMethod ?? null,
+      mpPaymentId: (order as any).mpPaymentId ?? null,
+      mpPreferenceId: (order as any).mpPreferenceId ?? null,
+      mpStatus: (order as any).mpStatus ?? null,
+      paidAt: (order as any).paidAt ?? null,
+      expiresAt: (order as any).expiresAt ?? null,
+      userId: (order as any).userId ?? null,
+      meta,
       createdAt: order.$createdAt,
       items: itemsWithTokens,
     };
