@@ -103,7 +103,7 @@
 
       <!-- Cards -->
       <template v-else>
-        <div v-for="user in users" :key="user.id" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+        <div v-for="user in users" :key="user.id" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:border-violet-200 hover:shadow-md transition-all" @click="openProfile(user)">
           <!-- Top: avatar + info -->
           <div class="flex items-start gap-3 mb-3">
             <div class="flex-shrink-0">
@@ -143,7 +143,7 @@
           </div>
 
           <!-- Actions -->
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2" @click.stop>
             <button v-if="user.phone" @click="openWhatsApp(user)"
               class="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-white bg-green-500 hover:bg-green-600 rounded-xl transition-colors">
               <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -225,7 +225,7 @@
               </td>
             </tr>
             <!-- Rows -->
-            <tr v-else v-for="user in users" :key="user.id + 'd'" class="group hover:bg-violet-50/30 transition-colors">
+            <tr v-else v-for="user in users" :key="user.id + 'd'" class="group hover:bg-violet-50/30 transition-colors cursor-pointer" @click="openProfile(user)">
               <td class="px-5 py-3.5">
                 <div class="flex items-center gap-3">
                   <div class="flex-shrink-0">
@@ -274,6 +274,10 @@
               </td>
               <td class="px-4 py-3.5" @click.stop>
                 <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button @click="openProfile(user)"
+                    class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-violet-600 bg-violet-100 hover:bg-violet-200 rounded-xl transition-colors">
+                    Perfil
+                  </button>
                   <button @click="openAddPhone(user)"
                     :class="['flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl transition-colors', user.phone ? 'text-violet-600 bg-violet-100 hover:bg-violet-200' : 'text-green-700 bg-green-50 hover:bg-green-100']">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -360,6 +364,81 @@
       </div>
     </AppModal>
 
+    <!-- ── Profile Modal ── -->
+    <AppModal v-model="profileOpen" :title="`Perfil — ${profileUser?.name ?? ''}`">
+      <div v-if="profileUser" class="space-y-4">
+        <!-- Header -->
+        <div class="flex items-center gap-4 p-4 bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl border border-violet-100">
+          <div class="flex-shrink-0">
+            <img v-if="profileUser.avatarUrl" :src="profileUser.avatarUrl" referrerpolicy="no-referrer" class="w-16 h-16 rounded-2xl object-cover shadow-md" />
+            <div v-else class="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-md">
+              {{ profileUser.name?.[0]?.toUpperCase() ?? '?' }}
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="text-lg font-black text-slate-900 truncate">{{ profileUser.name }}</h3>
+            <p class="text-sm text-slate-500 truncate">{{ profileUser.email }}</p>
+            <div class="flex items-center gap-2 mt-2 flex-wrap">
+              <span :class="['inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold', profileUser.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-500']">
+                <span :class="['w-1.5 h-1.5 rounded-full', profileUser.isActive ? 'bg-emerald-500' : 'bg-red-400']"></span>
+                {{ profileUser.isActive ? 'Ativo' : 'Inativo' }}
+              </span>
+              <span :class="['inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold', profileUser.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500']">
+                {{ profileUser.role === 'ADMIN' ? '👑 Admin' : 'Cliente' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Info grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100 space-y-1">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cadastro</p>
+            <p class="text-sm font-semibold text-slate-700">{{ formatDate(profileUser.createdAt) }}</p>
+          </div>
+          <div class="bg-violet-50 rounded-xl p-3.5 border border-violet-100 space-y-1">
+            <p class="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Compras</p>
+            <p class="text-2xl font-black text-violet-600 leading-none">{{ profileUser.ordersCount ?? 0 }}</p>
+          </div>
+        </div>
+
+        <!-- Phone -->
+        <div class="flex items-center gap-3 p-3.5 rounded-xl border" :class="profileUser.phone ? 'bg-green-50 border-green-100' : 'bg-slate-50 border-slate-100'">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" :class="profileUser.phone ? 'bg-green-500' : 'bg-slate-200'">
+            <svg class="w-4 h-4" :class="profileUser.phone ? 'text-white fill-white' : 'text-slate-400 fill-slate-400'" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-[10px] font-bold uppercase tracking-widest mb-0.5" :class="profileUser.phone ? 'text-green-500' : 'text-slate-400'">WhatsApp</p>
+            <p v-if="profileUser.phone" class="text-sm font-mono font-semibold text-green-700">{{ profileUser.phone }}</p>
+            <p v-else class="text-xs text-slate-400 italic">Não configurado</p>
+          </div>
+          <button @click="openAddPhone(profileUser); profileOpen = false"
+            class="text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors"
+            :class="profileUser.phone ? 'text-violet-600 bg-violet-100 hover:bg-violet-200' : 'text-green-700 bg-green-100 hover:bg-green-200'">
+            {{ profileUser.phone ? 'Editar' : 'Adicionar' }}
+          </button>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-wrap gap-2 pt-1">
+          <button @click="openOrders(profileUser); profileOpen = false"
+            class="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-violet-700 bg-violet-100 hover:bg-violet-200 rounded-xl transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Ver pedidos
+          </button>
+          <button v-if="profileUser.phone" @click="openWhatsApp(profileUser); profileOpen = false"
+            class="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white bg-green-500 hover:bg-green-600 rounded-xl transition-colors">
+            <svg class="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            WhatsApp
+          </button>
+          <button @click="toggleActive(profileUser)"
+            :class="['px-4 py-2.5 text-sm font-bold rounded-xl transition-colors', profileUser.isActive ? 'text-red-600 bg-red-50 hover:bg-red-100' : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100']">
+            {{ profileUser.isActive ? 'Desativar' : 'Ativar' }}
+          </button>
+        </div>
+      </div>
+    </AppModal>
+
     <!-- ── User Orders Modal ── -->
     <AppModal v-model="ordersOpen" :title="`Pedidos — ${selectedUser?.name ?? ''}`">
       <div v-if="selectedUser" class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 mb-4">
@@ -425,6 +504,14 @@ const totalPages = ref(1);
 const totalCount = ref(0);
 const loadingUsers = ref(false);
 
+const profileOpen = ref(false);
+const profileUser = ref<any>(null);
+
+function openProfile(user: any) {
+  profileUser.value = user;
+  profileOpen.value = true;
+}
+
 const ordersOpen = ref(false);
 const loadingOrders = ref(false);
 const selectedUser = ref<any>(null);
@@ -464,6 +551,10 @@ const pageRange = computed(() => {
 function whatsappNumber(phone: string) {
   const digits = phone.replace(/\D/g, '');
   return digits.startsWith('55') ? digits : `55${digits}`;
+}
+
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDateShort(d: string) {
@@ -628,7 +719,7 @@ async function initFromRoute() {
   loadStats();
   if (qUserId) {
     const user = (users.value as any[]).find((u: any) => u.id === qUserId);
-    if (user) openOrders(user);
+    if (user) openProfile(user);
   }
 }
 
