@@ -85,6 +85,17 @@
       </div>
     </div>
 
+    <!-- ── Alerta pedidos pendentes ──────────────────────────── -->
+    <RouterLink v-if="!loading && stats.orders.pending > 0" to="/admin/pedidos"
+      class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 sm:px-5 py-3.5 hover:bg-amber-100 transition-colors">
+      <span class="text-xl flex-shrink-0">⏳</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-bold text-amber-800">{{ stats.orders.pending }} pedido{{ stats.orders.pending !== 1 ? 's' : '' }} aguardando pagamento</p>
+        <p class="text-xs text-amber-600 mt-0.5">Clique para ver e gerenciar os pedidos pendentes</p>
+      </div>
+      <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </RouterLink>
+
     <!-- ── Gráfico + Ações Rápidas ────────────────────────────── -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
       <!-- Receita/Pedidos — área interativa -->
@@ -143,8 +154,8 @@
             class="absolute z-10 pointer-events-none -translate-x-1/2 -translate-y-full bg-slate-900 text-white rounded-lg px-2.5 py-1.5 shadow-xl whitespace-nowrap"
             :style="{ left: (chartPoints[hoverIndex].x / CHART_W * 100) + '%', top: (chartPoints[hoverIndex].y / CHART_H * 100) + '%', marginTop: '-10px' }">
             <p class="text-[11px] font-bold capitalize leading-tight">{{ chartData[hoverIndex].monthYear }}</p>
-            <p class="text-xs font-semibold">{{ formatPrice(chartData[hoverIndex].revenue) }}</p>
-            <p class="text-[10px] text-slate-300">{{ chartData[hoverIndex].orders }} pedido{{ chartData[hoverIndex].orders !== 1 ? 's' : '' }}</p>
+            <p class="text-xs font-semibold">{{ chartMetric === 'revenue' ? formatPrice(chartData[hoverIndex].revenue) : chartData[hoverIndex].orders + ' pedido' + (chartData[hoverIndex].orders !== 1 ? 's' : '') }}</p>
+            <p class="text-[10px] text-slate-300">{{ chartMetric === 'revenue' ? chartData[hoverIndex].orders + ' pedido' + (chartData[hoverIndex].orders !== 1 ? 's' : '') : formatPrice(chartData[hoverIndex].revenue) }}</p>
           </div>
         </div>
         <div v-else class="h-44 flex items-center justify-center text-slate-300 text-sm">Sem dados ainda</div>
@@ -315,22 +326,26 @@
     </div>
 
     <!-- ── WhatsApp ───────────────────────────────────────────── -->
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
+    <div :class="['rounded-2xl border shadow-sm p-4 sm:p-5 transition-colors', whatsappNumber ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100']">
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:#25D366">
-            <svg class="w-5 h-5 fill-white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md" style="background:#25D366">
+            <svg class="w-6 h-6 fill-white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
           </div>
           <div>
-            <h2 class="font-bold text-slate-900">WhatsApp</h2>
-            <p v-if="whatsappNumber" class="text-sm text-slate-500 font-mono">+{{ whatsappNumber }}</p>
-            <p v-else class="text-sm text-slate-400 italic">Número não configurado</p>
+            <h2 class="font-bold text-slate-900">WhatsApp da Loja</h2>
+            <div v-if="whatsappNumber" class="flex items-center gap-2 mt-0.5">
+              <p class="text-sm text-emerald-700 font-mono font-semibold">+{{ whatsappNumber }}</p>
+              <a :href="`https://wa.me/${whatsappNumber}`" target="_blank" rel="noopener"
+                class="text-xs text-emerald-600 hover:text-emerald-800 underline underline-offset-2">Testar ↗</a>
+            </div>
+            <p v-else class="text-sm text-slate-400 italic mt-0.5">Número não configurado</p>
           </div>
         </div>
         <button v-if="!editingWhatsapp" @click="startEditWhatsapp"
-          class="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-xl transition-colors">
+          :class="['inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-colors', whatsappNumber ? 'text-emerald-700 bg-emerald-100 hover:bg-emerald-200' : 'text-slate-600 bg-slate-100 hover:bg-slate-200']">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-          Alterar número
+          {{ whatsappNumber ? 'Alterar' : 'Configurar' }}
         </button>
       </div>
 
@@ -342,7 +357,7 @@
             v-model="whatsappInput"
             type="tel"
             placeholder="5511999999999"
-            class="w-full border border-emerald-300 rounded-xl pl-7 pr-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+            class="w-full border border-emerald-300 rounded-xl pl-7 pr-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-white"
             @keydown.enter="saveWhatsapp"
             @keydown.esc="editingWhatsapp = false"
             autofocus
@@ -355,12 +370,12 @@
             {{ savingWhatsapp ? 'Salvando...' : 'Salvar' }}
           </button>
           <button @click="editingWhatsapp = false"
-            class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+            class="flex-1 sm:flex-none px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-white rounded-xl transition-colors">
             Cancelar
           </button>
         </div>
       </div>
-      <p v-if="whatsappSaved" class="mt-2 text-xs text-emerald-600 font-medium flex items-center gap-1">
+      <p v-if="whatsappSaved" class="mt-2 text-xs text-emerald-700 font-semibold flex items-center gap-1">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
         Número atualizado com sucesso!
       </p>
@@ -385,17 +400,28 @@
         </div>
         <div v-else class="divide-y divide-slate-50">
           <div v-for="order in recentOrders" :key="order.id"
-            class="flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 hover:bg-slate-50/60 transition-colors">
-            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center text-violet-700 text-sm font-bold flex-shrink-0">
-              {{ (order.user?.name ?? order.customerName ?? '?')[0]?.toUpperCase() }}
+            class="flex items-center gap-3 px-4 sm:px-6 py-3 hover:bg-slate-50/60 transition-colors">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center text-violet-700 text-sm font-bold flex-shrink-0 shrink-0">
+              {{ (order.customerName ?? '?')[0]?.toUpperCase() }}
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-semibold text-slate-800 truncate">{{ order.user?.name ?? order.customerName ?? 'Cliente' }}</p>
-              <p class="text-xs text-slate-400 font-mono">{{ order.orderNumber }}</p>
+              <div class="flex items-center gap-1.5">
+                <p class="text-sm font-semibold text-slate-800 truncate">{{ order.customerName ?? 'Cliente' }}</p>
+                <span v-if="order.guestPhone" class="text-xs">🔰</span>
+              </div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <p class="text-xs text-slate-400 font-mono">{{ order.orderNumber }}</p>
+                <span v-if="order.paymentMethod === 'PIX'" class="text-xs text-cyan-600 font-medium">· PIX</span>
+                <span v-else-if="order.paymentMethod === 'CREDIT_CARD'" class="text-xs text-blue-600 font-medium">· Cartão</span>
+                <span v-else-if="order.paymentMethod === 'FREE'" class="text-xs text-green-600 font-medium">· Grátis</span>
+              </div>
             </div>
             <div class="text-right flex-shrink-0 space-y-1">
               <p class="text-sm font-bold text-slate-900">{{ formatPrice(order.totalAmount) }}</p>
-              <StatusBadge :status="order.status" />
+              <div class="flex items-center justify-end gap-1.5">
+                <StatusBadge :status="order.status" />
+                <span class="text-xs text-slate-400">{{ formatTimeShort(order.createdAt) }}</span>
+              </div>
             </div>
           </div>
           <div v-if="!recentOrders.length" class="px-6 py-12 text-center">
@@ -631,6 +657,14 @@ function formatPrice(p: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p));
 }
 
+function formatTimeShort(d: string) {
+  const date = new Date(d);
+  const today = new Date();
+  const isToday = date.toDateString() === today.toDateString();
+  if (isToday) return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
 function formatPriceShort(p: number) {
   if (p >= 1000) return `R$${(p / 1000).toFixed(1)}k`;
   return `R$${p.toFixed(0)}`;
@@ -724,7 +758,7 @@ async function loadDashboard() {
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'CANCELLED'), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(8), Query.select(['$id', 'orderNumber', 'totalAmount', 'customerName', 'status', 'paidAt'])]),
+      databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.orderDesc('$createdAt'), Query.limit(10), Query.select(['$id', 'orderNumber', 'totalAmount', 'customerName', 'status', 'paidAt', 'paymentMethod', 'guestPhone', '$createdAt'])]),
       databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
     ]);
     // keep any revenue we already have (e.g. on KeepAlive revisit) so it doesn't flash to 0
@@ -739,6 +773,9 @@ async function loadDashboard() {
     recentOrders.value = recentRes.documents.map((o: any) => ({
       ...o, id: o.$id, orderNumber: o.orderNumber, totalAmount: o.totalAmount,
       customerName: o.customerName, status: o.status,
+      paymentMethod: o.paymentMethod ?? null,
+      guestPhone: o.guestPhone ?? null,
+      createdAt: o.$createdAt,
     }));
   } catch (e) {
     console.error('[DashboardView] counts', e);
