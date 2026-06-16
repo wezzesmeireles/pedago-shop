@@ -133,12 +133,18 @@
             <span class="text-xs text-slate-400 ml-auto">{{ formatDateShort(order.createdAt) }}</span>
           </div>
           <!-- Row 3: cliente -->
-          <div class="flex items-start gap-2">
+          <div class="flex items-start gap-2" @click.stop>
             <div class="w-7 h-7 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center text-violet-700 text-xs font-black flex-shrink-0 mt-0.5">
               {{ (order.customerName ?? '?')[0]?.toUpperCase() }}
             </div>
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-semibold text-slate-900 leading-snug truncate">{{ order.customerName || '—' }}</p>
+              <div class="flex items-center gap-1">
+                <button v-if="order.userId"
+                  @click="router.push({ name: 'admin-users', query: { search: order.customerEmail } })"
+                  class="text-sm font-semibold text-slate-900 leading-snug truncate text-left hover:text-violet-700 transition-colors">{{ order.customerName || '—' }}</button>
+                <p v-else class="text-sm font-semibold text-slate-900 leading-snug truncate">{{ order.customerName || '—' }}</p>
+                <svg v-if="order.userId" class="w-3 h-3 text-violet-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              </div>
               <p class="text-xs text-slate-400 truncate">{{ order.customerEmail || '—' }}</p>
               <div v-if="order.guestPhone" class="flex items-center gap-1 mt-0.5">
                 <span class="text-[10px] bg-violet-100 text-violet-700 font-bold px-1.5 py-0.5 rounded-full">🔰 {{ order.guestPhone }}</span>
@@ -209,8 +215,14 @@
               <td class="px-5 py-3.5">
                 <span class="text-xs font-mono font-black text-slate-700 bg-slate-100 px-2 py-1 rounded-lg whitespace-nowrap">{{ order.orderNumber }}</span>
               </td>
-              <td class="px-4 py-3.5">
-                <p class="text-sm font-semibold text-slate-900 truncate max-w-[180px]">{{ order.customerName }}</p>
+              <td class="px-4 py-3.5" @click.stop>
+                <div class="flex items-center gap-1 group/name">
+                  <button v-if="order.userId"
+                    @click="router.push({ name: 'admin-users', query: { search: order.customerEmail } })"
+                    class="text-sm font-semibold text-slate-900 truncate max-w-[160px] text-left hover:text-violet-700 transition-colors">{{ order.customerName }}</button>
+                  <p v-else class="text-sm font-semibold text-slate-900 truncate max-w-[180px]">{{ order.customerName }}</p>
+                  <svg v-if="order.userId" class="w-3 h-3 text-violet-400 opacity-0 group-hover/name:opacity-100 flex-shrink-0 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </div>
                 <p class="text-xs text-slate-400 mt-0.5 truncate max-w-[180px]">{{ order.customerEmail }}</p>
                 <span v-if="order.guestPhone" class="inline-flex items-center gap-1 text-[10px] bg-violet-100 text-violet-700 font-bold px-1.5 py-0.5 rounded-full mt-0.5">
                   🔰 {{ order.guestPhone }}
@@ -279,7 +291,15 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Cliente -->
           <div class="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</p>
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</p>
+              <button v-if="selectedOrder.userId"
+                @click="detailsOpen = false; router.push({ name: 'admin-users', query: { search: selectedOrder.customerEmail } })"
+                class="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-800 hover:bg-violet-100 px-2 py-0.5 rounded-lg transition-colors">
+                Ver perfil
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
             <div class="flex items-center gap-2.5">
               <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center text-violet-700 text-sm font-black flex-shrink-0">
                 {{ (selectedOrder.customerName ?? '?')[0]?.toUpperCase() }}
@@ -417,11 +437,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onActivated } from 'vue';
+import { useRouter } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { invokeFunction } from '@/services/api';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import AppModal from '@/components/ui/AppModal.vue';
+
+const router = useRouter();
 
 const orders = ref([]);
 const search = ref('');

@@ -404,12 +404,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { invokeFunction } from '@/services/api';
 import AppModal from '@/components/ui/AppModal.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+
+const route = useRoute();
 
 const { config } = useSiteConfigStore();
 
@@ -617,5 +620,9 @@ async function openOrders(user: any) {
   }
 }
 
-onMounted(() => { loadUsers(); loadStats(); });
+onMounted(() => {
+  if (route.query.search) search.value = String(route.query.search);
+  loadUsers();
+  loadStats();
+});
 </script>
