@@ -234,6 +234,8 @@ export default async ({ req, res, log, error }) => {
         `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
         `💰 <b>Total: R$ ${totalAmount.toFixed(2)}</b>   ${payLabel}\n` +
         `📊 ${statusLabel}` +
+        (method === 'PIX' && mpResult?.date_of_expiration ? `\n⏰ Expira: ${dtBR(mpResult.date_of_expiration)}` : '') +
+        (mpPaymentId ? `\n🔑 ID MP: <code>${esc(mpPaymentId)}</code>` : '') +
         (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
         (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
         `\n🕐 ${dtBR(now)}`

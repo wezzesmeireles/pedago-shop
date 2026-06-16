@@ -11,6 +11,7 @@ export default async ({ req, res, log, error }) => {
   const DB = process.env.APPWRITE_DATABASE_ID
 
   function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
+  function dtBR(iso) { try { return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { return iso } }
   async function geolocate(ip) {
     if (!ip || ip === '::1' || /^(127\.|10\.|192\.168\.)/.test(ip)) return ''
     try {
@@ -199,6 +200,8 @@ export default async ({ req, res, log, error }) => {
           (order.guestPhone ? `📱 ${esc(order.guestPhone)}\n` : '') +
           `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
           `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b>   ${payLabel}` +
+          (payment.date_approved ? `\n✅ Pago em: ${dtBR(payment.date_approved)}` : '') +
+          (order.mpPaymentId ? `\n🔑 ID MP: <code>${esc(order.mpPaymentId)}</code>` : '') +
           (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
           (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
           `\n🕐 ${when}`
