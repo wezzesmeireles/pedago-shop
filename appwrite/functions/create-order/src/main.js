@@ -12,6 +12,21 @@ export default async ({ req, res, log, error }) => {
 
   function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
   function dtBR(iso) { try { return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { return iso } }
+  async function sendTelegram(token, chatId, html) {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML' }),
+    })
+    if (!r.ok) {
+      const err = await r.text()
+      log(`Telegram HTML error ${r.status}: ${err}`)
+      const plain = html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: plain }),
+      })
+    }
+  }
   async function geolocate(ip) {
     if (!ip || ip === '::1' || /^(127\.|10\.|192\.168\.)/.test(ip)) return ''
     try {
@@ -230,7 +245,7 @@ export default async ({ req, res, log, error }) => {
         `🛒 <b>Novo Pedido</b> — <b>${esc(orderNumber)}</b>\n\n` +
         `👤 <b>${esc(customerName || 'Cliente')}</b>\n` +
         `📧 ${esc(customerEmail || '—')}\n` +
-        (guestPhone ? `📱 ${esc(guestPhone)}\n` : '') +
+        (guestPhone ? `📱 ${esc(guestPhone)}\n🔰 Compra Rápida\n` : '') +
         `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
         `💰 <b>Total: R$ ${totalAmount.toFixed(2)}</b>   ${payLabel}\n` +
         `📊 ${statusLabel}` +
@@ -240,11 +255,7 @@ export default async ({ req, res, log, error }) => {
         (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
         `\n🕐 ${dtBR(now)}`
       for (const chatId of chatIds) {
-        await fetch(`https://api.telegram.org/bot${siteConfig.telegramBotToken}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
-        })
+        await sendTelegram(siteConfig.telegramBotToken, chatId, msg)
       }
     }
   } catch (err) {
