@@ -715,11 +715,26 @@ async function initFromRoute() {
   const qSearch = route.query.search ? String(route.query.search) : '';
   const qUserId = route.query.userId ? String(route.query.userId) : '';
   if (qSearch) search.value = qSearch;
-  await loadUsers(1);
+
+  loadUsers(1);
   loadStats();
+
   if (qUserId) {
-    const user = (users.value as any[]).find((u: any) => u.id === qUserId);
-    if (user) openProfile(user);
+    try {
+      const doc = await databases.getDocument(DB_ID, COLLECTIONS.PROFILES, qUserId);
+      openProfile({
+        ...doc,
+        id: (doc as any).userId ?? doc.$id,
+        name: (doc as any).name ?? '',
+        email: (doc as any).email ?? '',
+        role: (doc as any).role ?? 'CUSTOMER',
+        avatarUrl: (doc as any).avatarUrl ?? null,
+        isActive: (doc as any).isActive ?? true,
+        phone: (doc as any).phone ?? null,
+        ordersCount: 0,
+        createdAt: (doc as any).createdAt ?? doc.$createdAt,
+      });
+    } catch {}
   }
 }
 
