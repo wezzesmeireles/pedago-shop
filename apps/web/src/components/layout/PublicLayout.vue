@@ -273,11 +273,7 @@
 
     <!-- Main content -->
     <main class="flex-1">
-      <RouterView v-slot="{ Component }">
-        <transition name="page" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </RouterView>
+      <RouterView />
     </main>
 
     <!-- Trust Badges -->
@@ -406,49 +402,6 @@
     <!-- Cart FAB — pílula flutuante (mobile, quando há itens) -->
     <CartFab />
 
-    <!-- Popup: WhatsApp obrigatório -->
-    <Transition name="modal-pop">
-      <div v-if="showPhoneModal"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-        @click.self="dismissPhone">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-7 relative">
-          <!-- Ícone -->
-          <div class="flex flex-col items-center text-center mb-5">
-            <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background:#25D366">
-              <svg class="w-8 h-8 fill-white" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-            </div>
-            <h2 class="text-xl font-black text-gray-900 mb-1">Adicione seu WhatsApp!</h2>
-            <p class="text-sm text-gray-500 leading-relaxed">
-              Precisamos do seu número para enviar seus materiais, notificações de pedido e novidades exclusivas.
-            </p>
-          </div>
-
-          <form @submit.prevent="savePhone" class="space-y-3">
-            <div>
-              <input
-                v-model="phoneInput"
-                type="tel"
-                required
-                placeholder="(11) 99999-9999"
-                :class="['w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-colors',
-                  phoneModalError ? 'border-red-400 bg-red-50' : 'border-gray-200']"
-              />
-              <p v-if="phoneModalError" class="text-xs text-red-500 mt-1">{{ phoneModalError }}</p>
-            </div>
-            <button type="submit" :disabled="savingPhone"
-              class="w-full bg-[#25D366] hover:bg-[#20c05c] text-white font-bold py-3 rounded-xl transition-all text-sm disabled:opacity-60 flex items-center justify-center gap-2">
-              <svg v-if="savingPhone" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              {{ savingPhone ? 'Salvando...' : 'Salvar e continuar' }}
-            </button>
-            <button type="button" @click="dismissPhone"
-              class="w-full text-xs text-gray-400 hover:text-gray-600 py-1.5 transition-colors">
-              Lembrar mais tarde
-            </button>
-          </form>
-        </div>
-      </div>
-    </Transition>
-
     <!-- WhatsApp floating button -->
     <a
       v-if="config.socialLinks?.whatsapp && auth.isLoggedIn"
@@ -526,14 +479,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, h } from 'vue';
+import { ref, onMounted, onUnmounted, h } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
-import { account, databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { Query, ID } from 'appwrite';
+import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { ID } from 'appwrite';
 import { defineAsyncComponent } from 'vue';
 const CartDrawer = defineAsyncComponent(() => import('@/components/catalog/CartDrawer.vue'));
 const CartFab = defineAsyncComponent(() => import('@/components/catalog/CartFab.vue'));
@@ -543,58 +496,6 @@ const siteConfigStore = useSiteConfigStore();
 const cart = useCartStore();
 const router = useRouter();
 const route = useRoute();
-
-// ── Popup WhatsApp ──────────────────────────────────────────
-const AUTH_PATHS = ['/auth/', '/admin'];
-const phoneDismissed = ref(false);
-const phoneInput = ref('');
-const phoneModalError = ref('');
-const savingPhone = ref(false);
-
-const showPhoneModal = computed(() =>
-  auth.isLoggedIn &&
-  !auth.user?.phone &&
-  !phoneDismissed.value &&
-  !AUTH_PATHS.some(p => route.path.startsWith(p)) &&
-  !localStorage.getItem('pedago_guest')
-);
-
-watch(() => auth.isLoggedIn, (loggedIn) => {
-  if (loggedIn && !auth.user?.phone && !localStorage.getItem('pedago_guest')) phoneDismissed.value = false;
-});
-
-function dismissPhone() {
-  phoneDismissed.value = true;
-}
-
-async function savePhone() {
-  phoneModalError.value = '';
-  const digits = phoneInput.value.replace(/\D/g, '');
-  if (!digits || digits.length < 10) {
-    phoneModalError.value = 'Informe um número com DDD válido.';
-    return;
-  }
-  savingPhone.value = true;
-  try {
-    const authUser = await account.get();
-    if (authUser) {
-      const result = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
-        Query.equal('userId', authUser.$id),
-        Query.limit(1),
-      ]);
-      const profileDoc = result.documents[0];
-      if (profileDoc) {
-        await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileDoc.$id, {
-          phone: digits,
-          updatedAt: new Date().toISOString(),
-        });
-      }
-      await auth.fetchMe();
-    }
-  } finally {
-    savingPhone.value = false;
-  }
-}
 
 const { config, loaded: configLoaded } = storeToRefs(siteConfigStore);
 const userMenuOpen = ref(false);
