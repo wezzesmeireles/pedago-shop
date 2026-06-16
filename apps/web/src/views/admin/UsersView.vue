@@ -403,7 +403,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onActivated } from 'vue';
 import { useRoute } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
@@ -620,9 +620,23 @@ async function openOrders(user: any) {
   }
 }
 
-onMounted(() => {
-  if (route.query.search) search.value = String(route.query.search);
-  loadUsers();
+async function initFromRoute() {
+  const qSearch = route.query.search ? String(route.query.search) : '';
+  const qUserId = route.query.userId ? String(route.query.userId) : '';
+  if (qSearch) search.value = qSearch;
+  await loadUsers(1);
   loadStats();
+  if (qUserId) {
+    const user = (users.value as any[]).find((u: any) => u.id === qUserId);
+    if (user) openOrders(user);
+  }
+}
+
+onMounted(initFromRoute);
+
+let firstActivation = true;
+onActivated(async () => {
+  if (firstActivation) { firstActivation = false; return; }
+  await initFromRoute();
 });
 </script>

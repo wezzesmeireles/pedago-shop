@@ -140,7 +140,7 @@
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1">
                 <button v-if="order.userId"
-                  @click="router.push({ name: 'admin-users', query: { search: order.customerEmail } })"
+                  @click="router.push({ name: 'admin-users', query: { search: order.customerEmail, userId: order.userId } })"
                   class="text-sm font-semibold text-slate-900 leading-snug truncate text-left hover:text-violet-700 transition-colors">{{ order.customerName || '—' }}</button>
                 <p v-else class="text-sm font-semibold text-slate-900 leading-snug truncate">{{ order.customerName || '—' }}</p>
                 <svg v-if="order.userId" class="w-3 h-3 text-violet-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -218,7 +218,7 @@
               <td class="px-4 py-3.5" @click.stop>
                 <div class="flex items-center gap-1 group/name">
                   <button v-if="order.userId"
-                    @click="router.push({ name: 'admin-users', query: { search: order.customerEmail } })"
+                    @click="router.push({ name: 'admin-users', query: { search: order.customerEmail, userId: order.userId } })"
                     class="text-sm font-semibold text-slate-900 truncate max-w-[160px] text-left hover:text-violet-700 transition-colors">{{ order.customerName }}</button>
                   <p v-else class="text-sm font-semibold text-slate-900 truncate max-w-[180px]">{{ order.customerName }}</p>
                   <svg v-if="order.userId" class="w-3 h-3 text-violet-400 opacity-0 group-hover/name:opacity-100 flex-shrink-0 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -294,7 +294,7 @@
             <div class="flex items-center justify-between gap-2">
               <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cliente</p>
               <button v-if="selectedOrder.userId"
-                @click="detailsOpen = false; router.push({ name: 'admin-users', query: { search: selectedOrder.customerEmail } })"
+                @click="detailsOpen = false; router.push({ name: 'admin-users', query: { search: selectedOrder.customerEmail, userId: selectedOrder.userId } })"
                 class="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-800 hover:bg-violet-100 px-2 py-0.5 rounded-lg transition-colors">
                 Ver perfil
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
