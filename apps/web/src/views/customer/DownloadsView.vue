@@ -33,6 +33,13 @@
       </div>
     </div>
 
+    <!-- Syncing guest orders (race condition: reconcile still running) -->
+    <div v-else-if="syncing" class="text-center py-16">
+      <div class="animate-spin w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-4"></div>
+      <p class="text-sm font-medium text-gray-600 mb-1">Sincronizando compras anteriores...</p>
+      <p class="text-xs text-gray-400">Isso acontece uma única vez.</p>
+    </div>
+
     <!-- Empty state -->
     <div v-else-if="allDownloads.length === 0" class="text-center py-20">
       <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -126,6 +133,7 @@ interface DownloadEntry {
 }
 
 const loading = ref(true);
+const syncing = ref(false);
 const allDownloads = ref<DownloadEntry[]>([]);
 
 // In-app browsers (Instagram/Facebook/etc.) can't save files — detect and route
@@ -213,18 +221,40 @@ async function fetchByIds(collection: string, field: string, ids: string[], extr
   return out;
 }
 
+async function fetchOrders(userId: string) {
+  const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
+    Query.equal('userId', userId),
+    Query.equal('status', 'PAID'),
+    Query.orderDesc('$createdAt'),
+    Query.limit(500),
+  ]);
+  return result.documents;
+}
+
 onMounted(async () => {
   try {
     const currentUser = await account.get();
 
     // 1. PAID orders for the user
-    const ordersResult = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
-      Query.equal('userId', currentUser.$id),
-      Query.equal('status', 'PAID'),
-      Query.orderDesc('$createdAt'),
-      Query.limit(500),
-    ]);
-    const orders = ordersResult.documents;
+    let orders = await fetchOrders(currentUser.$id);
+
+    // No orders found — if user has a phone, they may have bought via Compra
+    // Rápida before creating an account. The background reconcile (fired by
+    // fetchMe on login) runs async and may not have finished yet. Wait for it
+    // synchronously so the user doesn't see an empty state immediately.
+    if (!orders.length && currentUser.phone) {
+      syncing.value = true;
+      try {
+        await functions.createExecution(
+          'reconcile-orders',
+          JSON.stringify({ linkPhone: currentUser.phone, linkUserId: currentUser.$id }),
+          false, '/', 'POST' as any, { 'Content-Type': 'application/json' },
+        );
+        orders = await fetchOrders(currentUser.$id);
+      } catch { /* reconcile failure is non-blocking */ }
+      syncing.value = false;
+    }
+
     if (!orders.length) { allDownloads.value = []; return; }
 
     // 2. All items for those orders (batched) + 3. all non-revoked tokens (batched)
