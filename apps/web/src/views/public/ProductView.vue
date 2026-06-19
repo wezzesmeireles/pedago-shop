@@ -64,7 +64,47 @@
           </span>
         </div>
 
-        <p v-if="product.description" class="text-gray-600 mb-8">{{ product.description }}</p>
+        <p v-if="product.description" class="text-gray-600 mb-6">{{ product.description }}</p>
+
+        <!-- ── Upsell: "Quem comprou isso também levou" ── -->
+        <div v-if="related.length" class="mb-6">
+          <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Quem comprou isso também levou</p>
+          <div class="flex gap-2.5 overflow-x-auto pb-1 -mx-0.5 px-0.5 scrollbar-hide">
+            <div
+              v-for="r in related"
+              :key="r.id"
+              class="flex-shrink-0 w-36 bg-gray-50 border border-gray-100 rounded-xl overflow-hidden
+                     hover:border-violet-200 hover:shadow-sm transition-all group/up"
+            >
+              <RouterLink :to="`/produto/${r.slug}`" class="block">
+                <div class="aspect-square overflow-hidden bg-gray-100">
+                  <img :src="r.coverImageUrl" :alt="r.name"
+                    class="w-full h-full object-cover group-hover/up:scale-105 transition-transform duration-300"
+                    loading="lazy" />
+                </div>
+                <div class="p-2">
+                  <p class="text-[11px] font-semibold text-gray-700 leading-tight line-clamp-2 mb-1.5">{{ r.name }}</p>
+                  <p class="text-xs font-black text-violet-700">{{ formatPrice(r.price) }}</p>
+                </div>
+              </RouterLink>
+              <button
+                @click.prevent="addRelatedToCart(r)"
+                :class="['w-full text-[11px] font-bold py-1.5 transition-all duration-200 flex items-center justify-center gap-1',
+                  addedIds.has(r.id)
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-violet-600 hover:bg-violet-700 text-white']"
+              >
+                <svg v-if="!addedIds.has(r.id)" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                <svg v-else class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                {{ addedIds.has(r.id) ? 'Adicionado' : 'Adicionar' }}
+              </button>
+            </div>
+          </div>
+        </div>
 
         <!-- CTA -->
         <div class="space-y-3">
@@ -217,6 +257,7 @@ const activeImage = ref('');
 const claiming = ref(false);
 const claimError = ref('');
 const related = ref<any[]>([]);
+const addedIds = ref<Set<string>>(new Set());
 
 const isFree = computed(() => product.value && Number(product.value.price) === 0);
 
@@ -281,6 +322,17 @@ function extractYoutubeId(url: string | null): string | null {
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(price));
+}
+
+function addRelatedToCart(r: any) {
+  cart.add({
+    productId: r.id,
+    name: r.name,
+    price: Number(r.price),
+    coverImageUrl: r.coverImageUrl,
+    slug: r.slug,
+  });
+  addedIds.value = new Set([...addedIds.value, r.id]);
 }
 
 function addToCart() {
@@ -387,3 +439,9 @@ onMounted(async () => {
   }
 });
 </script>
+
+
+<style scoped>
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+</style>
