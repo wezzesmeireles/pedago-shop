@@ -51,6 +51,13 @@
         </span>
       </div>
 
+      <!-- Page count badge -->
+      <div v-if="product.pageCount" class="absolute bottom-1.5 left-1.5">
+        <span class="bg-black/50 backdrop-blur-sm text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
+          {{ product.pageCount }} págs
+        </span>
+      </div>
+
       <!-- Quick view hint -->
       <div
         class="absolute inset-x-0 bottom-0 text-center pb-2
@@ -73,13 +80,18 @@
       </RouterLink>
 
       <div class="mt-auto space-y-2">
-        <!-- Price -->
-        <div class="flex items-center gap-1.5">
-          <span v-if="isFree" class="text-sm font-black text-emerald-600">Grátis</span>
-          <span v-else class="text-sm font-black text-violet-700">{{ formatPrice(product.price) }}</span>
-          <span v-if="product.comparePrice && !isFree" class="text-[11px] text-gray-400 line-through">
-            {{ formatPrice(product.comparePrice) }}
-          </span>
+        <!-- Price + social proof -->
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span v-if="isFree" class="text-sm font-black text-emerald-600">Grátis</span>
+            <span v-else class="text-sm font-black text-violet-700">{{ formatPrice(product.price) }}</span>
+            <span v-if="product.comparePrice && !isFree" class="text-[11px] text-gray-400 line-through">
+              {{ formatPrice(product.comparePrice) }}
+            </span>
+          </div>
+          <p v-if="product.salesCount && product.salesCount >= 5" class="text-[10px] text-amber-600 font-semibold mt-0.5 flex items-center gap-0.5">
+            🔥 {{ product.salesCount }} vendas
+          </p>
         </div>
 
         <!-- Add to cart -->
@@ -132,6 +144,7 @@ const props = defineProps<{
     coverImageUrl: string;
     isFeatured?: boolean;
     pageCount?: number;
+    salesCount?: number;
     category?: { name: string };
   };
 }>();

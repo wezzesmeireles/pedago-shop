@@ -31,6 +31,23 @@
               class="w-full min-h-[200px] sm:min-h-[320px] md:min-h-[420px] animate-gradient"
               :style="slideBg(slide, idx)"
             ></div>
+            <!-- Hero overlay: texto customizado ou proposta de valor padrão -->
+            <div class="absolute inset-0 flex flex-col items-start justify-end p-5 sm:p-8
+                        bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none">
+              <template v-if="slide.title">
+                <h2 class="text-white font-black text-xl sm:text-3xl leading-tight mb-1.5 drop-shadow-lg max-w-md">{{ slide.title }}</h2>
+                <p v-if="slide.subtitle" class="text-white/85 text-sm sm:text-base mb-3 drop-shadow-md max-w-sm">{{ slide.subtitle }}</p>
+              </template>
+              <template v-else>
+                <h2 class="text-white font-black text-lg sm:text-2xl leading-tight mb-1.5 drop-shadow-lg max-w-xs sm:max-w-sm">
+                  Atividades pedagógicas prontas para imprimir
+                </h2>
+                <p class="text-white/80 text-xs sm:text-sm mb-3 drop-shadow-md">Download imediato em PDF</p>
+              </template>
+              <span class="inline-block bg-white text-violet-700 font-bold text-sm px-4 py-1.5 rounded-full shadow-lg pointer-events-auto">
+                {{ slide.ctaText || 'Ver atividades →' }}
+              </span>
+            </div>
           </RouterLink>
         </div>
 
@@ -85,6 +102,23 @@
       </div>
     </section>
 
+    <!-- ── Social Proof Strip ─────────────────────────────── -->
+    <section class="bg-violet-50 border-b border-violet-100">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
+        <div class="flex items-center gap-1.5">
+          <div class="flex text-amber-400 text-sm leading-none">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+          </div>
+          <span class="text-xs font-bold text-gray-800">4.9</span>
+          <span class="text-xs text-gray-500">(+500 avaliações)</span>
+        </div>
+        <span class="hidden sm:block w-px h-3.5 bg-violet-200"></span>
+        <span class="text-xs font-semibold text-violet-700">+1.500 professoras atendidas</span>
+        <span class="hidden sm:block w-px h-3.5 bg-violet-200"></span>
+        <span class="text-xs text-gray-500 font-medium">+100 atividades prontas para imprimir</span>
+      </div>
+    </section>
+
     <!-- ── Atalhos de categoria ─────────────────────────── -->
     <section v-if="categories.length" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
       <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
@@ -103,47 +137,73 @@
       </div>
     </section>
 
-    <!-- ── Últimas Compras ────────────────────────────────── -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="relative flex h-2.5 w-2.5">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-        </span>
-        <p class="text-sm font-bold text-gray-700">Compras em tempo real</p>
-      </div>
+    <!-- ── Grupo Pedagógico — destaque premium ──────────── -->
+    <section v-if="groupProduct" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-8">
+      <div @click="buyGroupNow" class="block group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 rounded-3xl">
+        <div class="relative rounded-3xl overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-br from-violet-700 via-purple-700 to-pink-700 animate-gradient"></div>
+          <div class="absolute -top-20 -right-20 w-72 h-72 bg-pink-500/25 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -bottom-20 -left-20 w-72 h-72 bg-violet-400/20 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute inset-0 opacity-[0.06]"
+            style="background-image:radial-gradient(circle, white 1px, transparent 1px); background-size: 24px 24px;"></div>
 
-      <div class="relative h-48 sm:h-72 overflow-hidden">
-        <!-- skeleton while loading -->
-        <div v-if="!recentPurchases.length" class="flex flex-col gap-2 sm:gap-3">
-          <div v-for="i in 3" :key="i" class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-3 sm:p-4">
-            <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl shimmer flex-shrink-0"></div>
-            <div class="flex-1 space-y-1">
-              <div class="h-2.5 sm:h-3 shimmer rounded w-3/4"></div>
-              <div class="h-2 shimmer rounded w-1/2"></div>
+          <div class="relative flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-10">
+            <!-- Imagem -->
+            <div class="flex-shrink-0 relative">
+              <div class="w-44 h-44 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-white/20
+                           group-hover:scale-[1.04] group-hover:ring-white/40 transition-all duration-500">
+                <img v-if="groupProduct.coverImageUrl"
+                  :src="groupProduct.coverImageUrl" :alt="groupProduct.name"
+                  class="w-full h-full object-cover" loading="lazy" decoding="async" />
+                <div v-else class="w-full h-full bg-violet-500 flex items-center justify-center text-6xl">📚</div>
+              </div>
+              <div class="absolute -top-3 -right-3 bg-yellow-400 text-yellow-900 text-[11px] font-black
+                           px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap">
+                ⭐ Mais Vendido
+              </div>
             </div>
-            <div class="h-3 sm:h-4 shimmer rounded w-12 sm:w-16"></div>
+
+            <!-- Conteúdo -->
+            <div class="flex-1 text-center sm:text-left">
+              <h2 class="text-white font-black text-2xl sm:text-3xl lg:text-4xl leading-tight mb-2 drop-shadow-sm">
+                {{ groupProduct.name }}
+              </h2>
+              <p v-if="groupProduct.description"
+                class="text-violet-200 text-sm sm:text-base leading-relaxed mb-5 line-clamp-2 max-w-lg">
+                {{ groupProduct.description }}
+              </p>
+
+              <!-- Preço -->
+              <div class="flex items-end gap-3 mb-6 justify-center sm:justify-start">
+                <span class="text-4xl sm:text-5xl font-black text-white leading-none">
+                  {{ formatPrice(groupProduct.price) }}
+                </span>
+                <div v-if="groupProduct.comparePrice" class="flex flex-col pb-1">
+                  <span class="text-violet-300 text-sm line-through leading-tight">
+                    {{ formatPrice(groupProduct.comparePrice) }}
+                  </span>
+                  <span class="bg-emerald-400 text-emerald-900 text-xs font-black px-2 py-0.5 rounded-full leading-tight text-center">
+                    {{ discountPct(groupProduct) }}% OFF
+                  </span>
+                </div>
+              </div>
+
+              <!-- CTA -->
+              <span class="inline-flex items-center gap-2.5 bg-white text-violet-700 font-black text-sm sm:text-base
+                            px-7 py-3.5 rounded-xl shadow-xl group-hover:bg-violet-50 group-hover:shadow-2xl
+                            group-hover:-translate-y-0.5 transition-all duration-200">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                    d="M3 3h2l.4 2M7 13h10l4-9H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                Comprar Agora
+                <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                </svg>
+              </span>
+            </div>
           </div>
         </div>
-
-        <AnimatedList v-else :items="recentPurchases" :delay="1500" :max-visible="4">
-          <template #default="{ item }">
-            <div class="flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-3 sm:p-4
-                        shadow-sm hover:shadow-md hover:border-violet-100 transition-all duration-200">
-              <div class="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 text-xl sm:text-2xl"
-                   :style="{ background: item.color }">
-                {{ item.icon }}
-              </div>
-              <div class="min-w-0 flex-1">
-                <p class="text-xs sm:text-sm font-bold text-gray-800 truncate">{{ item.name }}</p>
-                <p class="text-[10px] sm:text-xs text-gray-400 truncate">{{ item.buyer }} · {{ item.time }}</p>
-              </div>
-              <span class="text-xs sm:text-sm font-black text-violet-700 flex-shrink-0">{{ item.price }}</span>
-            </div>
-          </template>
-        </AnimatedList>
-        <!-- fade bottom -->
-        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 sm:h-20 bg-gradient-to-t from-white to-transparent"></div>
       </div>
     </section>
 
@@ -164,7 +224,6 @@
         <ProductCard v-for="product in bestSellers" :key="product.id" :product="product" />
       </div>
     </section>
-
 
     <!-- ── Seções por Categoria ─────────────────────────── -->
     <template v-for="cat in categoriesWithProducts" :key="cat.id">
@@ -188,126 +247,6 @@
         </div>
       </section>
     </template>
-
-    <!-- ── Atividades ────────────────────────────────────── -->
-    <section ref="atividadesSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 reveal">
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-black text-gray-800 flex items-center gap-2.5">
-          <span class="w-1.5 h-7 rounded-full bg-gradient-to-b from-emerald-400 to-teal-500 inline-block"></span>
-          Atividades
-        </h2>
-        <div class="flex items-center gap-1.5">
-          <button @click="atividadesPage = Math.max(0, atividadesPage - 1)" :disabled="atividadesPage === 0"
-            class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center
-                   text-gray-500 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-600
-                   transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-90">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-          </button>
-          <span class="text-xs text-gray-400 min-w-[3rem] text-center">{{ atividadesPage + 1 }} / {{ maxAtividadesPage + 1 }}</span>
-          <button @click="atividadesPage = Math.min(maxAtividadesPage, atividadesPage + 1)" :disabled="atividadesPage >= maxAtividadesPage"
-            class="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center
-                   text-gray-500 hover:bg-violet-50 hover:border-violet-300 hover:text-violet-600
-                   transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-90">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <div v-if="loadingAtividades" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <div v-for="i in 6" :key="i" class="rounded-xl overflow-hidden">
-          <div class="aspect-square shimmer"></div>
-          <div class="p-2.5 space-y-1.5">
-            <div class="h-2.5 shimmer rounded w-4/5"></div>
-            <div class="h-6 shimmer rounded-lg mt-2"></div>
-          </div>
-        </div>
-      </div>
-
-      <transition name="fade-page" mode="out-in">
-        <div :key="atividadesPage" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <ProductCard
-            v-for="(product, i) in pagedAtividades" :key="product.id" :product="product"
-            :style="{ transitionDelay: `${i * 40}ms` }"
-          />
-        </div>
-      </transition>
-    </section>
-
-    <!-- ── Featured Group Product ────────────────────────── -->
-    <section v-if="groupProduct" ref="groupSection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-14 reveal">
-      <div class="rounded-3xl overflow-hidden shadow-2xl border border-purple-100 relative">
-        <!-- Animated gradient background -->
-        <div class="absolute inset-0 bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 animate-gradient"></div>
-        <!-- Sparkle decorations -->
-        <div class="absolute top-6 right-10 w-3 h-3 bg-yellow-400 rounded-full sparkle-1"></div>
-        <div class="absolute top-16 right-24 w-2 h-2 bg-pink-400 rounded-full sparkle-2"></div>
-        <div class="absolute bottom-10 left-10 w-2 h-2 bg-violet-400 rounded-full sparkle-3"></div>
-        <div class="absolute top-8 left-32 w-1.5 h-1.5 bg-emerald-400 rounded-full sparkle-4"></div>
-
-        <div class="relative flex flex-col md:flex-row items-stretch">
-          <!-- Image side -->
-          <div class="w-full md:w-1/2 relative overflow-hidden min-h-64
-                       bg-gradient-to-br from-violet-200 to-pink-200
-                       flex items-center justify-center p-8">
-            <img v-if="groupProduct.coverImageUrl"
-              :src="groupProduct.coverImageUrl" :alt="groupProduct.name"
-              class="max-h-72 object-contain rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-700"
-              loading="lazy" decoding="async"
-            />
-            <div v-else class="w-48 h-48 rounded-full bg-gradient-to-br from-violet-400 to-pink-400
-                                flex items-center justify-center text-white text-6xl float">📚</div>
-            <!-- Badge -->
-            <div class="absolute top-4 left-4 bg-yellow-400 text-yellow-900 text-xs font-black
-                        px-3 py-1.5 rounded-full shadow-lg animate-bounce-in flex items-center gap-1">
-              <span class="sparkle-1 inline-block w-2 h-2 bg-yellow-600 rounded-full"></span>
-              🌟 Mais Vendido
-            </div>
-          </div>
-
-          <!-- Info side -->
-          <div class="w-full md:w-1/2 p-8 flex flex-col justify-center relative">
-            <p class="text-xs font-bold text-violet-600 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <span class="w-4 h-0.5 bg-violet-400 rounded-full"></span>
-              Grupo Pedagógico
-            </p>
-            <h3 class="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-3">{{ groupProduct.name }}</h3>
-            <p v-if="groupProduct.description" class="text-gray-500 text-sm mb-6 leading-relaxed line-clamp-3">{{ groupProduct.description }}</p>
-
-            <div class="flex items-baseline gap-3 mb-6">
-              <span class="text-4xl font-black bg-gradient-to-r from-violet-700 to-pink-600 bg-clip-text text-transparent">
-                {{ formatPrice(groupProduct.price) }}
-              </span>
-              <span v-if="groupProduct.comparePrice" class="text-lg text-gray-400 line-through">{{ formatPrice(groupProduct.comparePrice) }}</span>
-              <span v-if="groupProduct.comparePrice"
-                class="text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2.5 py-1 rounded-full animate-bounce-in">
-                {{ discountPct(groupProduct) }}% OFF
-              </span>
-            </div>
-
-            <div class="flex items-center gap-3">
-              <div class="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden hover:border-violet-300 transition-colors">
-                <button @click="groupQty = Math.max(1, groupQty - 1)"
-                  class="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors font-bold text-xl active:scale-90">−</button>
-                <span class="w-10 text-center font-bold text-sm select-none">{{ groupQty }}</span>
-                <button @click="groupQty++"
-                  class="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors font-bold text-xl active:scale-90">+</button>
-              </div>
-              <ShimmerButton
-                @click="addGroupToCart"
-                class="flex-1 flex items-center justify-center gap-2 font-black text-sm rounded-xl px-6 py-3"
-                background="linear-gradient(135deg, #7C3AED, #EC4899)"
-                border-radius="12px"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-9H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
-                </svg>
-                Comprar Agora
-              </ShimmerButton>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- ── Testimonials Marquee ──────────────────────────── -->
     <section ref="testimonialsSection" class="py-16 reveal relative overflow-hidden">
@@ -461,14 +400,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useHead } from '@vueuse/head';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { invokeFunction } from '@/services/api';
-import { Query, ID } from 'appwrite';
+import { ID, Query } from 'appwrite';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
-import SparklesText from '@/components/ui/SparklesText.vue';
-import ShimmerButton from '@/components/ui/ShimmerButton.vue';
-import AnimatedList from '@/components/ui/AnimatedList.vue';
 
 const siteConfigStore = useSiteConfigStore();
 const cart = useCartStore();
@@ -500,6 +435,7 @@ useHead(computed(() => {
 const categories = ref<any[]>([]);
 const categoriesWithProducts = ref<any[]>([]);
 const bestSellers = ref<any[]>([]);
+const groupProduct = ref<any>(null);
 
 const impactStats = [
   { value: '+1.500', label: 'Educadores atendidos' },
@@ -555,23 +491,9 @@ function resetBannerTimer() {
   }
 }
 
-// ── Products ─────────────────────────────────────────────
-const atividades = ref<any[]>([]);
-const groupProduct = ref<any>(null);
-const loadingAtividades = ref(true);
-const atividadesPage = ref(0);
-const groupQty = ref(1);
+// ── Newsletter ────────────────────────────────────────────
 const newsletterEmail = ref('');
 const newsletterSent = ref(false);
-
-const ATIVIDADES_PER_PAGE = 6;
-
-const pagedAtividades = computed(() =>
-  atividades.value.slice(atividadesPage.value * ATIVIDADES_PER_PAGE, (atividadesPage.value + 1) * ATIVIDADES_PER_PAGE)
-);
-const maxAtividadesPage = computed(() =>
-  Math.max(0, Math.ceil(atividades.value.length / ATIVIDADES_PER_PAGE) - 1)
-);
 
 // ── Testimonials ─────────────────────────────────────────
 const testimonials = [
@@ -581,37 +503,6 @@ const testimonials = [
   { name: 'Carla M.', role: 'Prof. Ensino Fundamental', text: 'Atividades criativas e coloridas! As crianças amam e eu economizo muito tempo de preparação.' },
 ];
 
-// ── Recent purchases (Appwrite Function) ─────────────────
-const recentPurchases = ref<any[]>([]);
-
-function relativeTime(dateStr: string): string {
-  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return 'agora mesmo';
-  if (diff < 3600) return `${Math.floor(diff / 60)} min atrás`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`;
-  return `${Math.floor(diff / 86400)}d atrás`;
-}
-
-const PURCHASE_ICONS = ['📚', '✏️', '🎨', '🧩', '🌟', '🖍️', '📒', '🔤', '🧮', '🎒'];
-const PURCHASE_COLORS = ['#EDE9FE', '#FCE7F3', '#FEF3C7', '#D1FAE5', '#DBEAFE', '#FFE4E6', '#E0E7FF'];
-
-async function loadRecentPurchases() {
-  try {
-    const parsed = await invokeFunction<any>('recent-purchases');
-    const data: any[] = Array.isArray(parsed) ? parsed : (parsed?.purchases ?? []);
-    recentPurchases.value = data.map((p: any, i: number) => ({
-      name: p.customerName || 'Cliente',
-      buyer: 'acabou de comprar',
-      price: formatPrice(Number(p.totalAmount) || 0),
-      time: p.paidAt ? relativeTime(p.paidAt) : 'recentemente',
-      icon: PURCHASE_ICONS[i % PURCHASE_ICONS.length],
-      color: PURCHASE_COLORS[i % PURCHASE_COLORS.length],
-    }));
-  } catch (e) {
-    console.error('[recent-purchases]', e);
-  }
-}
-
 const testimonialsExtra = [
   { name: 'Juliana P.', role: 'Prof. Maternal', text: 'O download é super rápido e os arquivos vêm em alta resolução. Impressão perfeita!' },
   { name: 'Renata B.', role: 'Pedagoga', text: 'Encontrei tudo que precisava para o ano letivo. Variedade incrível de temas e idades.' },
@@ -619,25 +510,27 @@ const testimonialsExtra = [
   { name: 'Daniela C.', role: 'Supervisora Escolar', text: 'Recomendei para toda a equipe pedagógica. Custo-benefício excelente!' },
 ];
 
+function buyGroupNow() {
+  if (!groupProduct.value) return;
+  cart.add({
+    productId: groupProduct.value.id,
+    name: groupProduct.value.name,
+    price: Number(groupProduct.value.price),
+    coverImageUrl: groupProduct.value.coverImageUrl,
+    slug: groupProduct.value.slug,
+  });
+  cart.openCart();
+}
+
 function formatPrice(price: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
 }
+
 function discountPct(product: any) {
   if (!product.comparePrice) return 0;
   return Math.round((1 - product.price / product.comparePrice) * 100);
 }
-function addGroupToCart() {
-  if (!groupProduct.value) return;
-  for (let i = 0; i < groupQty.value; i++) {
-    cart.add({
-      productId: groupProduct.value.id,
-      name: groupProduct.value.name,
-      price: Number(groupProduct.value.price),
-      coverImageUrl: groupProduct.value.coverImageUrl,
-      slug: groupProduct.value.slug,
-    });
-  }
-}
+
 async function subscribeNewsletter() {
   const email = newsletterEmail.value.trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
@@ -654,8 +547,6 @@ async function subscribeNewsletter() {
 }
 
 // ── Section refs ──────────────────────────────────────────
-const atividadesSection = ref<HTMLElement | null>(null);
-const groupSection = ref<HTMLElement | null>(null);
 const testimonialsSection = ref<HTMLElement | null>(null);
 const newsletterSection = ref<HTMLElement | null>(null);
 
@@ -674,33 +565,29 @@ function setupReveal() {
     { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
   );
 
-  [atividadesSection, groupSection, testimonialsSection, newsletterSection]
+  [testimonialsSection, newsletterSection]
     .forEach((ref) => { if (ref.value) observer!.observe(ref.value); });
 }
 
 onMounted(async () => {
   resetBannerTimer();
   setupReveal();
-  loadRecentPurchases();
 
   await Promise.allSettled([
     (async () => {
       try {
-        // Fetch all active categories for the section layout
         const catResult = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
           Query.equal('isActive', true),
           Query.orderAsc('sortOrder'),
           Query.limit(100),
         ]);
         const catDocs = catResult.documents;
-        // All active categories — used for the navigation chips (always shown).
         categories.value = catDocs.map((c: any) => ({ ...c, id: c.$id }));
         const catMap = new Map<string, any>();
         for (const cat of catDocs) {
           catMap.set(cat.$id, { ...cat, id: cat.$id, products: [] });
         }
 
-        // Fetch products and place them into their category buckets
         const prodResult = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
           Query.equal('isActive', true),
           Query.isNull('deletedAt'),
@@ -718,8 +605,6 @@ onMounted(async () => {
           if (!catId || !catMap.has(catId)) continue;
           if (catMap.get(catId)!.products.length < 6) catMap.get(catId)!.products.push(mapped);
         }
-        // Toda categoria ativa com ≥1 produto (inclui a Grátis, que aparece na
-        // posição do seu sortOrder — reordenável pelo admin).
         categoriesWithProducts.value = Array.from(catMap.values())
           .filter((c) => c.products.length >= 1)
           .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
@@ -727,8 +612,22 @@ onMounted(async () => {
     })(),
     (async () => {
       try {
-        // "Mais Vendidos" — curadoria manual via o "Destaque" do produto (admin).
-        // Se nenhum estiver marcado, cai pro top de vendas (salesCount).
+        const result = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
+          Query.equal('isActive', true),
+          Query.isNull('deletedAt'),
+          Query.orderDesc('salesCount'),
+          Query.limit(50),
+        ]);
+        const found = result.documents.find((p: any) =>
+          p.name?.toLowerCase().includes('grupo')
+        );
+        if (found) {
+          groupProduct.value = { ...found, id: found.$id, coverImageUrl: found.coverImageUrl, comparePrice: found.comparePrice };
+        }
+      } catch (e) { console.error('group product error:', e); }
+    })(),
+    (async () => {
+      try {
         const mapP = (p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice });
         let best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
           Query.equal('isActive', true), Query.isNull('deletedAt'),
@@ -743,24 +642,6 @@ onMounted(async () => {
         bestSellers.value = best.documents.map(mapP);
       } catch (e) { console.error('best sellers error:', e); }
     })(),
-    (async () => {
-      try {
-        const prodResult = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-          Query.equal('isActive', true),
-          Query.isNull('deletedAt'),
-          Query.orderDesc('$createdAt'),
-          Query.limit(24),
-        ]);
-        const mapped = prodResult.documents.map((p: any) => ({
-          ...p,
-          id: p.$id,
-          coverImageUrl: p.coverImageUrl,
-          comparePrice: p.comparePrice,
-        }));
-        atividades.value = mapped;
-        groupProduct.value = mapped.find((p: any) => p.name?.toLowerCase().includes('grupo') || Number(p.price) > 20) ?? null;
-      } finally { loadingAtividades.value = false; }
-    })(),
   ]);
 });
 
@@ -771,11 +652,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.fade-page-enter-active { transition: opacity 0.25s ease, transform 0.25s ease; }
-.fade-page-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.fade-page-enter-from  { opacity: 0; transform: translateX(12px); }
-.fade-page-leave-to    { opacity: 0; transform: translateX(-12px); }
-
 .icon-swap-enter-active { transition: opacity 0.15s ease; }
 .icon-swap-leave-active { transition: opacity 0.1s ease; position: absolute; }
 .icon-swap-enter-from, .icon-swap-leave-to { opacity: 0; }
