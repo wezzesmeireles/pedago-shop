@@ -52,6 +52,12 @@ export default async ({ req, res, log }) => {
   // Migra pedidos anônimos com guestPhone == linkPhone para o userId real,
   // atualizando as permissões de leitura no banco (requer API key, server-side).
   if (linkPhone && linkUserId) {
+    // Verify the caller is the user they claim to be — prevent one user from
+    // hijacking another user's guest orders by crafting the linkUserId field.
+    const callerId = req.headers['x-appwrite-user-id']
+    if (callerId && callerId !== linkUserId) {
+      return res.json({ error: 'Unauthorized' }, 403)
+    }
     let linked = 0
     try {
       const guestOrders = await db.listDocuments(DB, 'orders', [

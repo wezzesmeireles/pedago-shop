@@ -50,6 +50,9 @@ export default async ({ req, res, log, error }) => {
   // Validate Mercado Pago signature
   const rawSignature = req.headers['x-signature']
   const requestId = req.headers['x-request-id']
+  if (!process.env.MERCADO_PAGO_WEBHOOK_SECRET) {
+    log('WARNING: MERCADO_PAGO_WEBHOOK_SECRET not set — webhook signatures are not verified. Set this variable in Appwrite Functions settings.')
+  }
   if (rawSignature && process.env.MERCADO_PAGO_WEBHOOK_SECRET) {
     try {
       const parts = Object.fromEntries(rawSignature.split(',').map(p => p.split('=')))

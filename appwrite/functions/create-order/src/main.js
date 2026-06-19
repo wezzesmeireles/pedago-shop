@@ -46,7 +46,11 @@ export default async ({ req, res, log, error }) => {
     return res.json({ error: 'Invalid JSON' }, 400)
   }
 
-  const { userId, customerName, customerEmail, items, paymentMethod, guestPhone } = body
+  // Use the user ID from the Appwrite-injected header — this is always the real
+  // caller's ID regardless of what the body says, preventing IDOR attacks where
+  // an attacker crafts a request with another user's ID in the body.
+  const userId = req.headers['x-appwrite-user-id'] || body.userId
+  const { customerName, customerEmail, items, paymentMethod, guestPhone } = body
   if (!userId || !items?.length) return res.json({ error: 'userId and items required' }, 400)
 
   const buyerIp = (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.headers['x-real-ip'] || ''
@@ -68,8 +72,11 @@ export default async ({ req, res, log, error }) => {
     orderItems = items.map((item, idx) => {
       const p = products[idx]
       if (!p.isActive || p.deletedAt) throw new Error(`Product ${p.name} unavailable`)
-      totalAmount += p.price * (item.quantity ?? 1)
-      return { product: p, quantity: item.quantity ?? 1 }
+      // Clamp quantity to a safe range — negative or zero quantity would produce
+      // a zero/negative total, allowing free checkout of paid products.
+      const quantity = Math.max(1, Math.min(10, parseInt(String(item.quantity ?? 1)) || 1))
+      totalAmount += p.price * quantity
+      return { product: p, quantity }
     })
   } catch (err) {
     return res.json({ error: err.message }, 400)
