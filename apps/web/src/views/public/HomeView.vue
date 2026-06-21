@@ -97,6 +97,24 @@
     </section>
 
     <!-- ── Atalhos de categoria ─────────────────────────── -->
+    <!-- ── Social Proof Strip ─────────────────────────────── -->
+    <section class="bg-violet-50 border-b border-violet-100">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
+        <div class="flex items-center gap-1.5">
+          <div class="flex text-amber-400 text-sm leading-none">
+            <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+          </div>
+          <span class="text-xs font-bold text-gray-800">4.9</span>
+          <span class="text-xs text-gray-500">(+500 avaliações)</span>
+        </div>
+        <span class="hidden sm:block w-px h-3.5 bg-violet-200"></span>
+        <span class="text-xs font-semibold text-violet-700">+1.500 professoras atendidas</span>
+        <span class="hidden sm:block w-px h-3.5 bg-violet-200"></span>
+        <span class="text-xs text-gray-500 font-medium">+100 atividades prontas para imprimir</span>
+      </div>
+    </section>
+
+    <!-- ── Atalhos de categoria ─────────────────────────── -->
     <section v-if="categories.length" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
       <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
         <RouterLink to="/catalogo"
