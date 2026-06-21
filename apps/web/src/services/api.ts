@@ -17,7 +17,7 @@ export async function invokeFunction<T = any>(functionId: string, payload?: obje
     try {
       errBody = JSON.parse(execution.responseBody);
     } catch {}
-    throw new Error(errBody.error ?? `Function ${functionId} failed with status ${execution.responseStatusCode}`);
+    throw new Error(errBody.error ?? errBody.message ?? 'Ocorreu um erro. Tente novamente.');
   }
   const body = execution.responseBody;
   if (!body || body.trim() === '') return null as T;

@@ -44,13 +44,19 @@ export const useAuthStore = defineStore('auth', () => {
           Query.equal('email', authUser.email),
           Query.limit(1),
         ]);
-        // Sincroniza o userId no profile para futuras consultas
+        // Sincroniza o userId no profile para futuras consultas.
+        // O profile pode ter permissão de escrita apenas para o ID antigo (Google
+        // reinstalado), então o update pode falhar com 403 — ignoramos para não
+        // deslogar o usuário; na próxima vez que o admin ou o servidor atualizar
+        // o perfil, o userId correto será persistido.
         if (result.documents.length) {
           const doc = result.documents[0];
-          await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, doc.$id, {
-            userId: authUser.$id,
-            updatedAt: new Date().toISOString(),
-          });
+          try {
+            await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, doc.$id, {
+              userId: authUser.$id,
+              updatedAt: new Date().toISOString(),
+            });
+          } catch { /* 403 quando o profile ainda tem permissões do ID antigo — não-bloqueante */ }
         }
       }
 
@@ -275,7 +281,10 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error('Erro ao criar conta. Tente novamente.');
       }
 
-      // Account created — sign in immediately
+      // Account created — sign in immediately.
+      // Clear any stale/anonymous session first (same fix as login) — otherwise
+      // Appwrite rejects the new session with "session already exists" (403).
+      try { await account.deleteSession('current'); } catch { /* no active session — fine */ }
       try {
         await account.createEmailPasswordSession(email, password);
       } catch {

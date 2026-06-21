@@ -73,7 +73,12 @@ export async function fetchProductFile(fileId: string): Promise<Blob> {
 
   const url = `${endpoint}/storage/buckets/${BUCKETS.PRODUCT_FILES}/files/${fileId}/download?project=${encodeURIComponent(projectId)}`
   const res = await fetch(url, { credentials: 'include', headers })
-  if (!res.ok) throw new Error(`Storage fetch failed: ${res.status}`)
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('Sessão expirada. Saia e entre novamente para baixar o arquivo.')
+    }
+    throw new Error(`Erro ao baixar arquivo (${res.status}). Tente novamente.`)
+  }
   return res.blob()
 }
 

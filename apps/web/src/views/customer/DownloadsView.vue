@@ -5,6 +5,16 @@
       <span v-if="!loading && allDownloads.length" class="text-sm text-gray-500">{{ allDownloads.length }} {{ allDownloads.length === 1 ? 'arquivo' : 'arquivos' }}</span>
     </div>
 
+    <!-- Download error banner -->
+    <transition name="fade">
+      <div v-if="downloadError" class="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4">
+        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/>
+        </svg>
+        <span class="text-sm text-red-700">{{ downloadError }}</span>
+      </div>
+    </transition>
+
     <!-- In-app browser warning (Instagram/Facebook can't save files) -->
     <button v-if="inApp.inApp" @click="showOpenInBrowser = true"
       class="w-full text-left mb-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100/70 transition-colors">
@@ -135,6 +145,7 @@ interface DownloadEntry {
 const loading = ref(true);
 const syncing = ref(false);
 const allDownloads = ref<DownloadEntry[]>([]);
+const downloadError = ref('');
 
 // In-app browsers (Instagram/Facebook/etc.) can't save files — detect and route
 // the user to a real browser instead of letting the download silently fail.
@@ -188,7 +199,8 @@ async function triggerDownload(token: string, fallbackFilename: string) {
     saveBlob(blob, data.filename ?? fallbackFilename)
   } catch (err: any) {
     console.error('Download error:', err)
-    alert(err.message ?? 'Erro ao baixar arquivo')
+    downloadError.value = err.message ?? 'Erro ao baixar arquivo. Tente novamente.'
+    setTimeout(() => { downloadError.value = '' }, 6000)
   }
 }
 
@@ -303,3 +315,10 @@ onMounted(async () => {
   }
 });
 </script>
+
+<style scoped>
+.fade-enter-active { animation: fade-in 0.25s ease; }
+.fade-leave-active { transition: opacity 0.2s ease; }
+.fade-leave-to { opacity: 0; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+</style>
