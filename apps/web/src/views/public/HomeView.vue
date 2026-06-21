@@ -37,16 +37,10 @@
               <template v-if="slide.title">
                 <h2 class="text-white font-black text-xl sm:text-3xl leading-tight mb-1.5 drop-shadow-lg max-w-md">{{ slide.title }}</h2>
                 <p v-if="slide.subtitle" class="text-white/85 text-sm sm:text-base mb-3 drop-shadow-md max-w-sm">{{ slide.subtitle }}</p>
+                <span class="inline-block bg-white text-violet-700 font-bold text-sm px-4 py-1.5 rounded-full shadow-lg pointer-events-auto">
+                  {{ slide.ctaText || 'Ver atividades →' }}
+                </span>
               </template>
-              <template v-else>
-                <h2 class="text-white font-black text-lg sm:text-2xl leading-tight mb-1.5 drop-shadow-lg max-w-xs sm:max-w-sm">
-                  Atividades pedagógicas prontas para imprimir
-                </h2>
-                <p class="text-white/80 text-xs sm:text-sm mb-3 drop-shadow-md">Download imediato em PDF</p>
-              </template>
-              <span class="inline-block bg-white text-violet-700 font-bold text-sm px-4 py-1.5 rounded-full shadow-lg pointer-events-auto">
-                {{ slide.ctaText || 'Ver atividades →' }}
-              </span>
             </div>
           </RouterLink>
         </div>
@@ -99,23 +93,6 @@
             </div>
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- ── Social Proof Strip ─────────────────────────────── -->
-    <section class="bg-violet-50 border-b border-violet-100">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
-        <div class="flex items-center gap-1.5">
-          <div class="flex text-amber-400 text-sm leading-none">
-            <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
-          </div>
-          <span class="text-xs font-bold text-gray-800">4.9</span>
-          <span class="text-xs text-gray-500">(+500 avaliações)</span>
-        </div>
-        <span class="hidden sm:block w-px h-3.5 bg-violet-200"></span>
-        <span class="text-xs font-semibold text-violet-700">+1.500 professoras atendidas</span>
-        <span class="hidden sm:block w-px h-3.5 bg-violet-200"></span>
-        <span class="text-xs text-gray-500 font-medium">+100 atividades prontas para imprimir</span>
       </div>
     </section>
 
