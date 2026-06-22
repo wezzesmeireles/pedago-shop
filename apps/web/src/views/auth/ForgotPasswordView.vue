@@ -59,8 +59,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { account } from '@/lib/appwrite';
-import { webOrigin } from '@/lib/endpoint';
 import AppButton from '@/components/ui/AppButton.vue';
 
 const email = ref('');
@@ -72,19 +70,15 @@ async function handleSubmit() {
   error.value = '';
   loading.value = true;
   try {
-    await account.createRecovery(
-      email.value.trim(),
-      `${webOrigin}/auth/reset-senha`,
-    );
+    const res = await fetch('/api/send-recovery', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.value.trim() }),
+    });
+    if (!res.ok) throw new Error('Erro na requisição');
     sent.value = true;
-  } catch (err: any) {
-    const raw = (err?.message || '').toLowerCase();
-    if (raw.includes('rate limit') || raw.includes('too many'))
-      error.value = 'Muitas tentativas. Aguarde alguns minutos.';
-    else if (raw.includes('user not found') || raw.includes('no user'))
-      error.value = 'Nenhuma conta encontrada com este email.';
-    else
-      error.value = 'Erro ao enviar o link. Tente novamente.';
+  } catch {
+    error.value = 'Erro ao enviar o link. Tente novamente.';
   } finally {
     loading.value = false;
   }

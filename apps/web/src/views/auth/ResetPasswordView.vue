@@ -104,11 +104,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { account } from '@/lib/appwrite';
+import { useRoute } from 'vue-router';
 import AppButton from '@/components/ui/AppButton.vue';
 
-const router = useRouter();
 const route = useRoute();
 const password = ref('');
 const confirm = ref('');
@@ -143,15 +141,6 @@ const strengthTextColor = computed(() => {
   return 'text-emerald-600';
 });
 
-onMounted(() => {
-  // Appwrite passes userId and secret as query params in the recovery link
-  const userId = route.query.userId as string | undefined;
-  const secret = route.query.secret as string | undefined;
-  if (!userId || !secret) {
-    tokenError.value = true;
-  }
-});
-
 async function handleReset() {
   errors.value = { password: '', confirm: '', general: '' };
 
@@ -164,23 +153,30 @@ async function handleReset() {
     return;
   }
 
-  const userId = route.query.userId as string;
-  const secret = route.query.secret as string;
-
   loading.value = true;
   try {
-    await account.updateRecovery(userId, secret, password.value);
+    const res = await fetch('/api/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: route.query.token, password: password.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro');
     done.value = true;
   } catch (err: any) {
-    const raw = (err?.message || '').toLowerCase();
-    if (raw.includes('same password') || raw.includes('different from'))
-      errors.value.general = 'A nova senha deve ser diferente da senha atual.';
-    else if (raw.includes('weak') || raw.includes('too short'))
-      errors.value.general = 'Senha muito fraca. Use pelo menos 8 caracteres com letras e números.';
+    const msg = (err?.message || '').toLowerCase();
+    if (msg.includes('expirado'))
+      errors.value.general = 'Este link expirou. Solicite um novo.';
     else
       errors.value.general = 'Erro ao redefinir a senha. Solicite um novo link.';
   } finally {
     loading.value = false;
   }
 }
+
+onMounted(() => {
+  if (!route.query.token) {
+    tokenError.value = true;
+  }
+});
 </script>

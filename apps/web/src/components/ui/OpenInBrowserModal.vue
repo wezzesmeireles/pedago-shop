@@ -8,8 +8,8 @@
           </svg>
         </div>
         <p class="text-sm text-slate-600 leading-relaxed">
-          Você está no navegador {{ name ? `do ${name}` : 'do app' }}, que <strong>não consegue salvar arquivos</strong>.
-          Abra esta página no Chrome ou Safari para baixar normalmente.
+          Você está no navegador {{ name ? `do ${name}` : 'do app' }}.
+          Prefere baixar no Chrome ou Safari? Siga os passos abaixo para abrir a página no seu navegador.
         </p>
       </div>
 

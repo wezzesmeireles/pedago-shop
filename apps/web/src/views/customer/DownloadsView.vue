@@ -15,14 +15,14 @@
       </div>
     </transition>
 
-    <!-- In-app browser warning (Instagram/Facebook can't save files) -->
+    <!-- In-app browser info -->
     <button v-if="inApp.inApp" @click="showOpenInBrowser = true"
       class="w-full text-left mb-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100/70 transition-colors">
       <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/>
       </svg>
       <span class="text-sm text-amber-800">
-        Você está no navegador {{ inApp.name ? `do ${inApp.name}` : 'do app' }}. Para baixar, <strong class="underline">abra no Chrome/Safari</strong> — toque aqui para ver como.
+        Você está no navegador {{ inApp.name ? `do ${inApp.name}` : 'do app' }}. O download funciona normalmente — <strong class="underline">toque aqui</strong> se preferir abrir no Chrome/Safari.
       </span>
     </button>
 
@@ -124,9 +124,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { databases, DB_ID, COLLECTIONS, account, functions, fetchProductFile, saveBlob } from '@/lib/appwrite';
+import { databases, DB_ID, COLLECTIONS, account, functions } from '@/lib/appwrite';
 import { Query } from 'appwrite';
-import { detectInAppBrowser, isAndroid, tryOpenInExternalBrowserAndroid } from '@/lib/inAppBrowser';
+import { detectInAppBrowser } from '@/lib/inAppBrowser';
 import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 interface DownloadEntry {
@@ -147,8 +147,6 @@ const syncing = ref(false);
 const allDownloads = ref<DownloadEntry[]>([]);
 const downloadError = ref('');
 
-// In-app browsers (Instagram/Facebook/etc.) can't save files — detect and route
-// the user to a real browser instead of letting the download silently fail.
 const inApp = detectInAppBrowser();
 const showOpenInBrowser = ref(false);
 
@@ -161,60 +159,9 @@ function formatExpiry(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-async function triggerDownload(token: string, fallbackFilename: string) {
-  try {
-    // Step 1: Call download function to validate token + get file info
-    const execution = await functions.createExecution(
-      'download',
-      '',
-      false,
-      `/?token=${encodeURIComponent(token)}`,
-      'GET' as any,
-      {},
-    )
-
-    if (execution.responseStatusCode >= 400) {
-      let errMsg = 'Download failed'
-      try { errMsg = JSON.parse(execution.responseBody)?.error ?? errMsg } catch {}
-      throw new Error(errMsg)
-    }
-
-    const data = JSON.parse(execution.responseBody)
-
-    // Step 2: Handle response — link delivery or redirect
-    if (data.redirectUrl || data.type === 'link') {
-      const linkUrl = data.redirectUrl ?? data.url
-      if (import.meta.env.VITE_TARGET === 'mobile') {
-        const { openUrl } = await import('@/mobile/download')
-        await openUrl(linkUrl)
-      } else {
-        window.open(linkUrl, '_blank')
-      }
-      return
-    }
-
-    // Step 3: Download the file from Storage, authenticated via JWT (see
-    // fetchProductFile — this is the part that used to fail for some clients).
-    const blob = await fetchProductFile(data.fileId)
-    saveBlob(blob, data.filename ?? fallbackFilename)
-  } catch (err: any) {
-    console.error('Download error:', err)
-    downloadError.value = err.message ?? 'Erro ao baixar arquivo. Tente novamente.'
-    setTimeout(() => { downloadError.value = '' }, 6000)
-  }
-}
-
-async function downloadFile(d: DownloadEntry) {
+function downloadFile(d: DownloadEntry) {
   if (d.expired) return;
-  if (inApp.inApp) {
-    showOpenInBrowser.value = true;
-    // Android: immediately fire the intent to open in the system browser so
-    // the user doesn't need to tap a second button in the modal.
-    if (isAndroid()) tryOpenInExternalBrowserAndroid(window.location.href);
-    return;
-  }
-  await triggerDownload(d.token, 'download.pdf');
-  d.downloadCount++;
+  window.location.href = `/api/download?token=${encodeURIComponent(d.token)}`;
 }
 
 // Fetch all documents where `field` is in `ids`, batching ids into chunks
