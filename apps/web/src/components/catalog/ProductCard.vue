@@ -89,9 +89,7 @@
               {{ formatPrice(product.comparePrice) }}
             </span>
           </div>
-          <p v-if="!hideSalesBadge && product.salesCount && product.salesCount >= 5" class="text-[10px] text-amber-600 font-semibold mt-0.5 flex items-center gap-0.5">
-            🔥 {{ product.salesCount }} vendas
-          </p>
+
         </div>
 
         <!-- Add to cart -->
@@ -147,7 +145,6 @@ const props = defineProps<{
     salesCount?: number;
     category?: { name: string };
   };
-  hideSalesBadge?: boolean;
 }>();
 
 const router = useRouter();
