@@ -143,6 +143,7 @@ export default async ({ req, res, log, error }) => {
       return res.json({ error: mpResult?.message || 'Erro ao gerar PIX no Mercado Pago.', mpError: mpResult }, 400)
     }
   } else if (paymentMethod === 'CREDIT_CARD') {
+    const frontendUrl = process.env.FRONTEND_URL || 'https://www.sitepedagogico.com'
     const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${mpToken}`, 'Content-Type': 'application/json' },
@@ -157,8 +158,8 @@ export default async ({ req, res, log, error }) => {
         external_reference: orderId,
         notification_url: webhookUrl,
         back_urls: {
-          success: `${process.env.FRONTEND_URL}/checkout/success/${orderId}`,
-          failure: `${process.env.FRONTEND_URL}/checkout`,
+          success: `${frontendUrl}/checkout/success/${orderId}`,
+          failure: `${frontendUrl}/checkout`,
         },
         auto_return: 'approved',
       }),

@@ -214,6 +214,7 @@ const mainNav: NavItem[] = [
   { to: '/admin/usuarios', label: 'Usuários', icon: icon.users },
   { to: '/admin/inscritos', label: 'Inscritos', icon: icon.mail },
   { to: '/admin/notificacoes', label: 'Notificações', icon: icon.bell },
+  { to: '/admin/enviar-produto', label: 'Enviar Produto', icon: icon.mail },
 ];
 
 const settingsNav: NavItem[] = [

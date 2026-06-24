@@ -71,6 +71,7 @@ const router = createRouter({
         { path: 'suporte', name: 'admin-support', component: () => import('@/views/admin/SupportView.vue') },
         { path: 'inscritos', name: 'admin-subscribers', component: () => import('@/views/admin/SubscribersView.vue') },
         { path: 'notificacoes', name: 'admin-notifications', component: () => import('@/views/admin/NotificationsView.vue') },
+        { path: 'enviar-produto', name: 'admin-send-product', component: () => import('@/views/admin/SendProductView.vue') },
         { path: 'customizar', name: 'admin-customize', component: () => import('@/views/admin/CustomizeView.vue') },
         { path: 'integracoes', name: 'admin-integrations', component: () => import('@/views/admin/IntegrationsView.vue') },
         { path: 'changelog', name: 'admin-changelog', component: () => import('@/views/admin/ChangelogView.vue') },

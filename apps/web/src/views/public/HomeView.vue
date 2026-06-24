@@ -169,7 +169,7 @@
               </p>
 
               <!-- Preço -->
-              <div class="flex items-end gap-3 mb-6 justify-center sm:justify-start">
+              <div class="flex items-end gap-3 mb-2 justify-center sm:justify-start">
                 <span class="text-4xl sm:text-5xl font-black text-white leading-none">
                   {{ formatPrice(groupProduct.price) }}
                 </span>
@@ -180,6 +180,24 @@
                   <span class="bg-emerald-400 text-emerald-900 text-xs font-black px-2 py-0.5 rounded-full leading-tight text-center">
                     {{ discountPct(groupProduct) }}% OFF
                   </span>
+                </div>
+              </div>
+              <p v-if="groupProduct.comparePrice" class="text-emerald-300 text-sm font-semibold -mt-1 mb-3 text-center sm:text-left">
+                Economize {{ formatPrice(Number(groupProduct.comparePrice) - Number(groupProduct.price)) }}
+              </p>
+
+              <!-- Urgency timer -->
+              <div v-if="groupTimeLeft > 0" class="flex items-center gap-2 mb-5 justify-center sm:justify-start">
+                <div class="flex items-center gap-1.5 text-yellow-300 font-semibold text-xs">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  Oferta expira em
+                </div>
+                <div class="flex items-center gap-1 font-mono font-black tabular-nums">
+                  <span class="bg-white/20 text-white text-xs px-2 py-1 rounded-lg min-w-[1.8rem] text-center">{{ gHoursStr }}</span>
+                  <span class="text-yellow-300 text-xs font-bold">:</span>
+                  <span class="bg-white/20 text-white text-xs px-2 py-1 rounded-lg min-w-[1.8rem] text-center">{{ gMinsStr }}</span>
+                  <span class="text-yellow-300 text-xs font-bold">:</span>
+                  <span class="bg-white/20 text-white text-xs px-2 py-1 rounded-lg min-w-[1.8rem] text-center">{{ gSecsStr }}</span>
                 </div>
               </div>
 
@@ -431,6 +449,18 @@ const categories = ref<any[]>([]);
 const categoriesWithProducts = ref<any[]>([]);
 const bestSellers = ref<any[]>([]);
 const groupProduct = ref<any>(null);
+const gNow = ref(Date.now());
+let gTimer: ReturnType<typeof setInterval> | null = null;
+
+const groupTimeLeft = computed(() => {
+  if (!groupProduct.value?.offerExpiresAt) return 0;
+  const end = new Date(groupProduct.value.offerExpiresAt).getTime();
+  return Math.max(0, Math.floor((end - gNow.value) / 1000));
+});
+
+const gHoursStr = computed(() => String(Math.floor(groupTimeLeft.value / 3600)).padStart(2, '0'));
+const gMinsStr = computed(() => String(Math.floor((groupTimeLeft.value % 3600) / 60)).padStart(2, '0'));
+const gSecsStr = computed(() => String(groupTimeLeft.value % 60).padStart(2, '0'));
 
 const impactStats = [
   { value: '+1.500', label: 'Educadores atendidos' },
@@ -565,6 +595,7 @@ function setupReveal() {
 }
 
 onMounted(async () => {
+  gTimer = setInterval(() => { gNow.value = Date.now(); }, 1000);
   resetBannerTimer();
   setupReveal();
 
@@ -617,7 +648,7 @@ onMounted(async () => {
           p.name?.toLowerCase().includes('grupo')
         );
         if (found) {
-          groupProduct.value = { ...found, id: found.$id, coverImageUrl: found.coverImageUrl, comparePrice: found.comparePrice };
+          groupProduct.value = { ...found, id: found.$id, coverImageUrl: found.coverImageUrl, comparePrice: found.comparePrice, offerExpiresAt: found.offerExpiresAt };
         }
       } catch (e) { console.error('group product error:', e); }
     })(),
@@ -643,6 +674,7 @@ onMounted(async () => {
 onUnmounted(() => {
   observer?.disconnect();
   if (bannerTimer) clearInterval(bannerTimer);
+  if (gTimer) clearInterval(gTimer);
 });
 </script>
 

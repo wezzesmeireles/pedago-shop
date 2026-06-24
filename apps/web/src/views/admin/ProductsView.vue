@@ -319,9 +319,24 @@
             <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Slug *</label>
             <input v-model="form.slug" required placeholder="atividades-alfabetizacao-v1" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
           </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Preço Atual (R$) *</label>
+              <input v-model="form.price" type="number" step="0.01" min="0" required placeholder="29.90" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                Preço Original (R$) <span class="ml-1 text-[10px] text-slate-400 font-normal normal-case">(riscado)</span>
+              </label>
+              <input v-model="form.comparePrice" type="number" step="0.01" min="0" placeholder="59.90" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+            </div>
+          </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Preço (R$) *</label>
-            <input v-model="form.price" type="number" step="0.01" min="0" required placeholder="29.90" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+              Oferta expira em <span class="ml-1 text-[10px] text-slate-400 font-normal normal-case">(opcional)</span>
+            </label>
+            <input v-model="form.offerExpiresAt" type="datetime-local"
+              class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
@@ -481,7 +496,7 @@ const coverPreview = ref('');
 const existingFileKey = ref('');
 
 const form = reactive({
-  name: '', slug: '', description: '', price: '', pageCount: '',
+  name: '', slug: '', description: '', price: '', comparePrice: '', offerExpiresAt: '', pageCount: '',
   categoryId: '', isActive: true, isFeatured: false,
   deliveryType: 'pdf' as 'pdf' | 'link', deliveryLink: '', youtubeUrl: '', instagramUrl: '',
 });
@@ -548,13 +563,14 @@ async function ensureUniqueSlug(base: string, excludeId?: string): Promise<strin
 
 function openCreate() {
   editingProduct.value = null;
-  Object.assign(form, { name: '', slug: '', description: '', price: '', pageCount: '', categoryId: '', isActive: true, isFeatured: false, deliveryType: 'pdf', deliveryLink: '', youtubeUrl: '', instagramUrl: '' });
+  Object.assign(form, { name: '', slug: '', description: '', price: '', comparePrice: '', offerExpiresAt: '', pageCount: '', categoryId: '', isActive: true, isFeatured: false, deliveryType: 'pdf', deliveryLink: '', youtubeUrl: '', instagramUrl: '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = ''; existingFileKey.value = ''; errorMsg.value = '';
   modalOpen.value = true;
 }
 function openEdit(product: any) {
   editingProduct.value = product;
-  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, pageCount: product.pageCount ?? '', categoryId: product.categoryId, isActive: product.isActive, isFeatured: product.isFeatured, deliveryType: product.deliveryType === 'LINK' ? 'link' : 'pdf', deliveryLink: product.deliveryLink || '', youtubeUrl: product.youtubeUrl || '', instagramUrl: product.instagramUrl || '' });
+  const expires = product.offerExpiresAt ? product.offerExpiresAt.substring(0, 16) : '';
+  Object.assign(form, { name: product.name, slug: product.slug, description: product.description || '', price: product.price, comparePrice: product.comparePrice ?? '', offerExpiresAt: expires, pageCount: product.pageCount ?? '', categoryId: product.categoryId, isActive: product.isActive, isFeatured: product.isFeatured, deliveryType: product.deliveryType === 'LINK' ? 'link' : 'pdf', deliveryLink: product.deliveryLink || '', youtubeUrl: product.youtubeUrl || '', instagramUrl: product.instagramUrl || '' });
   pdfFile.value = null; coverFile.value = null; coverPreview.value = product.coverImageUrl || ''; existingFileKey.value = product.fileKey || ''; errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -582,7 +598,9 @@ async function saveProduct() {
     const uniqueSlug = await ensureUniqueSlug(toSlug(form.slug || form.name), editingProduct.value?.$id);
     const payload: any = {
       name: form.name, slug: uniqueSlug, description: form.description,
-      price: parseFloat(form.price), categoryId: form.categoryId || null,
+      price: parseFloat(form.price), comparePrice: form.comparePrice ? parseFloat(form.comparePrice) : null,
+      offerExpiresAt: form.offerExpiresAt ? new Date(form.offerExpiresAt).toISOString() : null,
+      categoryId: form.categoryId || null,
       pageCount: form.pageCount !== '' && form.pageCount != null ? parseInt(String(form.pageCount), 10) : null,
       isActive: form.isActive, isFeatured: form.isFeatured,
       deliveryType: form.deliveryType === 'link' ? 'LINK' : 'FILE',

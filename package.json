@@ -6,6 +6,9 @@
     "build": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build"
   },
   "devDependencies": {
+    "dotenv": "^17.4.2",
+    "node-appwrite": "^26.2.0",
+    "tar": "^7.5.16",
     "typescript": "^5.4.5"
   }
 }

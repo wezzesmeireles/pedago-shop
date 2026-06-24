@@ -1,5 +1,4 @@
-const SITE = 'https://www.sitepedagogico.com';
-const APPWRITE = `${SITE}/v1`;
+const APPWRITE = 'https://appwrite.wsgestao.digital/v1';
 const PROJECT = process.env.VITE_APPWRITE_PROJECT_ID ?? '6a1bc2b1000d09c3f5f1';
 const DB = process.env.VITE_APPWRITE_DATABASE_ID ?? 'pedago-db';
 const API_KEY = process.env.APPWRITE_API_KEY;
@@ -14,8 +13,14 @@ export default async function handler(req: any, res: any) {
   try {
     const h = { 'X-Appwrite-Project': PROJECT, 'X-Appwrite-Key': API_KEY };
 
-    const tokRes = await fetch(`${APPWRITE}/databases/${DB}/collections/recovery_tokens/documents/${token}`, { headers: { ...h, 'Content-Type': 'application/json' } });
-    if (!tokRes.ok) return res.status(400).json({ error: 'Token inválido ou expirado' });
+    const tokUrl = `${APPWRITE}/databases/${DB}/collections/recovery_tokens/documents/${token}`;
+    console.log('[reset-password] fetching', tokUrl);
+    const tokRes = await fetch(tokUrl, { headers: { ...h, 'Content-Type': 'application/json' } });
+    if (!tokRes.ok) {
+      const errText = await tokRes.text().catch(() => '(no body)');
+      console.error('[reset-password] fetch token failed', tokRes.status, errText);
+      return res.status(400).json({ error: 'Token inválido ou expirado' });
+    }
 
     const tokenDoc = await tokRes.json();
     if (new Date(tokenDoc.expiresAt) < new Date()) return res.status(410).json({ error: 'Token expirado' });
@@ -33,7 +38,7 @@ export default async function handler(req: any, res: any) {
 
     fetch(`${APPWRITE}/databases/${DB}/collections/recovery_tokens/documents/${token}`, {
       method: 'DELETE', headers: h,
-    }).catch(() => {});
+    }).catch(() => {}); // fire-and-forget: deletion is best-effort
 
     res.json({ ok: true });
   } catch (err: any) {

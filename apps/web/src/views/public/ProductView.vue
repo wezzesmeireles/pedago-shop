@@ -33,12 +33,37 @@
 
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">{{ product.name }}</h1>
 
-        <div class="flex items-baseline gap-3 mb-4">
-          <span v-if="isFree" class="text-3xl sm:text-4xl font-bold text-emerald-600">Grátis</span>
+        <!-- Price with discount -->
+        <div class="mb-2">
+          <div v-if="isFree" class="flex items-baseline gap-3 mb-1">
+            <span class="text-3xl sm:text-4xl font-bold text-emerald-600">Grátis</span>
+          </div>
           <template v-else>
-            <span class="text-3xl sm:text-4xl font-bold text-primary-600">{{ formatPrice(product.price) }}</span>
-            <span v-if="product.comparePrice" class="text-lg sm:text-xl text-gray-400 line-through">{{ formatPrice(product.comparePrice) }}</span>
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <span class="text-3xl sm:text-4xl font-bold" :class="hasOffer ? 'text-red-600' : 'text-primary-600'">{{ formatPrice(product.price) }}</span>
+              <span v-if="product.comparePrice" class="text-lg sm:text-xl text-gray-400 line-through">{{ formatPrice(product.comparePrice) }}</span>
+            </div>
+            <div v-if="hasOffer" class="flex items-center gap-2 mt-1.5">
+              <span class="bg-red-500 text-white text-xs font-black px-2 py-0.5 rounded-full">-{{ discountPct }}%</span>
+              <span class="text-sm text-red-600 font-semibold">Economize {{ formatPrice(discountAmount) }}</span>
+            </div>
           </template>
+        </div>
+
+        <!-- Urgency timer -->
+        <div v-if="hasOffer && timeLeft > 0" class="mb-4 flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3">
+          <div class="flex items-center gap-1.5 text-orange-600 font-semibold text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Oferta expira em
+          </div>
+          <div class="flex items-center gap-1 font-mono font-black tabular-nums">
+            <span class="bg-orange-600 text-white text-sm px-2 py-1 rounded-lg min-w-[2.2rem] text-center">{{ hoursStr }}</span>
+            <span class="text-orange-400 text-sm font-bold">:</span>
+            <span class="bg-orange-600 text-white text-sm px-2 py-1 rounded-lg min-w-[2.2rem] text-center">{{ minsStr }}</span>
+            <span class="text-orange-400 text-sm font-bold">:</span>
+            <span class="bg-orange-600 text-white text-sm px-2 py-1 rounded-lg min-w-[2.2rem] text-center">{{ secsStr }}</span>
+          </div>
+          <span v-if="timeLeft < 3600" class="text-xs text-red-500 font-semibold animate-pulse">Últimas horas!</span>
         </div>
 
         <!-- Details -->
@@ -212,9 +237,12 @@
       style="padding-bottom: calc(0.625rem + env(safe-area-inset-bottom));">
       <div class="flex-shrink-0">
         <p class="text-[10px] text-gray-400 leading-none">{{ isFree ? 'Atividade' : 'Total' }}</p>
-        <p class="text-lg font-black leading-tight" :class="isFree ? 'text-emerald-600' : 'text-primary-600'">
-          {{ isFree ? 'Grátis' : formatPrice(product.price) }}
-        </p>
+        <div class="flex items-baseline gap-1.5">
+          <p class="text-lg font-black leading-tight" :class="isFree ? 'text-emerald-600' : hasOffer ? 'text-red-600' : 'text-primary-600'">
+            {{ isFree ? 'Grátis' : formatPrice(product.price) }}
+          </p>
+          <p v-if="hasOffer" class="text-xs text-gray-400 line-through">{{ formatPrice(product.comparePrice) }}</p>
+        </div>
       </div>
       <button v-if="isFree" @click="claimFree" :disabled="claiming"
         class="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white font-bold text-sm py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2">
@@ -234,7 +262,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useHead } from '@vueuse/head';
 import { useRoute, useRouter } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
@@ -258,8 +286,34 @@ const claiming = ref(false);
 const claimError = ref('');
 const related = ref<any[]>([]);
 const addedIds = ref<Set<string>>(new Set());
+const now = ref(Date.now());
+
+let timerInterval: ReturnType<typeof setInterval> | null = null;
 
 const isFree = computed(() => product.value && Number(product.value.price) === 0);
+
+const hasOffer = computed(() => product.value && product.value.comparePrice && Number(product.value.comparePrice) > Number(product.value.price));
+
+const discountPct = computed(() => {
+  if (!hasOffer.value) return 0;
+  return Math.round((1 - Number(product.value.price) / Number(product.value.comparePrice)) * 100);
+});
+
+const discountAmount = computed(() => {
+  if (!hasOffer.value) return 0;
+  return Number(product.value.comparePrice) - Number(product.value.price);
+});
+
+const timeLeft = computed(() => {
+  if (!product.value?.offerExpiresAt) return 0;
+  const end = new Date(product.value.offerExpiresAt).getTime();
+  const diff = Math.max(0, Math.floor((end - now.value) / 1000));
+  return diff;
+});
+
+const hoursStr = computed(() => String(Math.floor(timeLeft.value / 3600)).padStart(2, '0'));
+const minsStr = computed(() => String(Math.floor((timeLeft.value % 3600) / 60)).padStart(2, '0'));
+const secsStr = computed(() => String(timeLeft.value % 60).padStart(2, '0'));
 
 const included = computed(() => [
   { text: 'Arquivo digital em PDF, pronto para imprimir' },
@@ -384,7 +438,16 @@ async function claimFree() {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
+  timerInterval = setInterval(() => { now.value = Date.now(); }, 1000);
+  loadProduct();
+});
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval);
+});
+
+async function loadProduct() {
   try {
     const result = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
       Query.equal('slug', route.params.slug as string),
@@ -399,6 +462,7 @@ onMounted(async () => {
         id: data.$id,
         coverImageUrl: data.coverImageUrl,
         comparePrice: data.comparePrice,
+        offerExpiresAt: data.offerExpiresAt,
         richContent: data.richContent,
         pageCount: data.pageCount,
         fileSize: data.fileSize,
@@ -437,8 +501,7 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
-</script>
+}</script>
 
 
 <style scoped>
