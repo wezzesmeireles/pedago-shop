@@ -17,6 +17,11 @@ export default async function handler(req: any, res: any) {
   const { productId, email, message } = req.body;
   if (!email) return res.status(400).json({ error: 'Email é obrigatório' });
 
+  if (!API_KEY) {
+    console.error('[send-product] APPWRITE_API_KEY não configurada');
+    return res.status(500).json({ error: 'Configuração interna incompleta. Contate o suporte.' });
+  }
+
   try {
     // Lookup user (optional — permite enviar para emails não cadastrados)
     const qs = 'queries[]=' + encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'email', values: [email.toLowerCase().trim()] })) + '&queries[]=' + encodeURIComponent(JSON.stringify({ method: 'limit', values: [1] }));
@@ -30,9 +35,15 @@ export default async function handler(req: any, res: any) {
       return res.json({ ok: true, name: user.name || '', email: user.email });
     }
 
+    if (!productId) return res.status(400).json({ error: 'Produto não selecionado' });
+
     // Lookup product
     const prodRes = await fetch(`${APPWRITE}/databases/${DB}/collections/products/documents/${productId}`, { headers: authHeaders() });
-    if (!prodRes.ok) return res.status(404).json({ error: 'Produto não encontrado' });
+    if (!prodRes.ok) {
+      const errBody = await prodRes.text();
+      console.error('[send-product] product lookup failed', prodRes.status, errBody, { productId, DB });
+      return res.status(404).json({ error: `Produto não encontrado (${prodRes.status})` });
+    }
     const product = await prodRes.json();
 
     const productName = product.name;
