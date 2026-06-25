@@ -18,16 +18,15 @@ export default async function handler(req: any, res: any) {
   if (!email) return res.status(400).json({ error: 'Email é obrigatório' });
 
   try {
-    // Lookup user
+    // Lookup user (optional — permite enviar para emails não cadastrados)
     const qs = 'queries[]=' + encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'email', values: [email.toLowerCase().trim()] })) + '&queries[]=' + encodeURIComponent(JSON.stringify({ method: 'limit', values: [1] }));
     const userRes = await fetch(`${APPWRITE}/users?${qs}`, { headers: authHeaders() });
-    if (!userRes.ok) return res.status(404).json({ error: 'Usuário não encontrado' });
-    const userData = await userRes.json();
-    const user = userData.users?.[0];
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    const userData = userRes.ok ? await userRes.json() : { users: [] };
+    const user = userData.users?.[0] ?? null;
 
-    // Handle lookup-only mode (frontend uses __lookup__ to confirm user exists)
+    // Lookup-only mode
     if (productId === '__lookup__') {
+      if (!user) return res.json({ ok: true, notRegistered: true, name: '', email });
       return res.json({ ok: true, name: user.name || '', email: user.email });
     }
 
@@ -76,7 +75,7 @@ export default async function handler(req: any, res: any) {
     } catch {}
 
     const downloadLink = `${SITE}/api/download?token=${token}`;
-    const userName = user.name || user.email;
+    const userName = user?.name || user?.email || email;
     const customMsg = message || '';
 
     // Fetch product file for attachment (file-type only)

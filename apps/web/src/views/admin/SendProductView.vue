@@ -15,7 +15,7 @@
       <div>
         <div class="flex items-center gap-2 mb-2">
           <span class="flex items-center justify-center w-6 h-6 rounded-full bg-violet-100 text-violet-700 text-xs font-bold">1</span>
-          <label class="text-sm font-semibold text-slate-700">Email do Cliente</label>
+          <label class="text-sm font-semibold text-slate-700">Email do Destinatário</label>
         </div>
         <div class="flex gap-2">
           <input v-model="email" type="email" placeholder="cliente@email.com"
@@ -25,6 +25,7 @@
             {{ lookingUp ? 'Buscando...' : 'Buscar' }}
           </button>
         </div>
+        <!-- Usuário cadastrado encontrado -->
         <div v-if="foundUser" class="mt-2 flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
           <div class="w-9 h-9 rounded-full bg-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-sm flex-shrink-0">
             {{ (foundUser.name || foundUser.email || '?')[0].toUpperCase() }}
@@ -35,7 +36,12 @@
           </div>
           <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
         </div>
-        <p v-if="lookupError" class="mt-1.5 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{{ lookupError }}</p>
+        <!-- Email não cadastrado — pode enviar mesmo assim -->
+        <div v-else-if="notRegistered" class="mt-2 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+          <p class="text-sm text-amber-800 flex-1">Email não encontrado na base — o produto será enviado mesmo assim.</p>
+        </div>
+        <p v-if="lookupError && !notRegistered" class="mt-1.5 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">{{ lookupError }}</p>
       </div>
 
       <!-- Step 2: Product -->
@@ -119,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { databases } from '@/lib/appwrite';
 import { DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { Query } from 'appwrite';
@@ -130,6 +136,8 @@ const productId = ref('');
 const lookingUp = ref(false);
 const lookupError = ref('');
 const foundUser = ref<any>(null);
+const notRegistered = ref(false);
+const emailChecked = ref(false);
 const products = ref<any[]>([]);
 const loadingProducts = ref(true);
 const sending = ref(false);
@@ -138,7 +146,16 @@ let sendLock = false;
 
 const selectedProduct = computed(() => products.value.find(p => p.$id === productId.value) || null);
 
-const canSend = computed(() => email.value && productId.value && foundUser.value && !sending.value);
+const canSend = computed(() => email.value && productId.value && emailChecked.value && !sending.value);
+
+// Ao mudar o email, reseta o estado de verificação
+watch(email, () => {
+  foundUser.value = null;
+  notRegistered.value = false;
+  emailChecked.value = false;
+  lookupError.value = '';
+  result.value = null;
+});
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
@@ -163,6 +180,8 @@ async function lookupUser() {
   lookingUp.value = true;
   lookupError.value = '';
   foundUser.value = null;
+  notRegistered.value = false;
+  emailChecked.value = false;
   try {
     const res = await fetch('/api/send-product', {
       method: 'POST',
@@ -170,13 +189,20 @@ async function lookupUser() {
       body: JSON.stringify({ email: email.value, productId: '__lookup__' }),
     });
     const data = await res.json();
+    if (data.notRegistered) {
+      // Email válido mas não cadastrado — pode enviar mesmo assim
+      notRegistered.value = true;
+      emailChecked.value = true;
+      return;
+    }
     if (!res.ok) {
-      lookupError.value = data.error || 'Usuário não encontrado';
+      lookupError.value = data.error || 'Erro ao verificar email';
       return;
     }
     foundUser.value = { email: email.value, name: data.name || '' };
+    emailChecked.value = true;
   } catch {
-    lookupError.value = 'Erro ao buscar usuário';
+    lookupError.value = 'Erro ao verificar email';
   } finally {
     lookingUp.value = false;
   }
