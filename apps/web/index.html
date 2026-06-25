@@ -51,7 +51,11 @@
           show((e && e.message ? e.message : 'Erro de script') + (e && e.filename ? '  @ ' + e.filename + ':' + (e.lineno || '?') : ''));
         });
         window.addEventListener('unhandledrejection', function (e) {
-          var r = e && e.reason; show('Promise rejeitada: ' + (r && (r.message || r) || 'desconhecido'));
+          var r = e && e.reason;
+          var m = r ? (typeof r === 'string' ? r : (r.message ? String(r.message) : String(r))) : '';
+          if (m.indexOf('plugin') !== -1 || m.indexOf('Plugin') !== -1) { e.preventDefault(); return; }
+          if (!document.getElementById('boot-msg')) { e.preventDefault(); return; }
+          show('Promise rejeitada: ' + m);
         });
         // App didn't mount within 12s and no error fired → show timeout notice.
         setTimeout(function () {

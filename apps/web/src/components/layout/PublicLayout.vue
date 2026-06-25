@@ -18,6 +18,7 @@
       :class="scrolled
         ? 'bg-white/90 backdrop-blur-xl shadow-md shadow-gray-200/60 border-b border-gray-100/80'
         : 'bg-white border-b border-gray-100'"
+      style="padding-top: env(safe-area-inset-top)"
     >
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 

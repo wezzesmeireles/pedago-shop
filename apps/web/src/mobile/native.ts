@@ -33,7 +33,12 @@ export async function initNative(router: Router): Promise<void> {
 // Abre uma URL externa (checkout do cartão MP) no navegador in-app, mantendo o
 // app vivo por trás — o retorno é confirmado por polling do reconcile-orders.
 export async function openExternal(url: string): Promise<void> {
-  await Browser.open({ url })
+  try {
+    await Browser.open({ url })
+  } catch {
+    // Capacitor Browser não existe no Tauri — abre no browser do sistema
+    window.open(url, '_blank')
+  }
 }
 
 // True quando rodando dentro da casca nativa (build mobile).

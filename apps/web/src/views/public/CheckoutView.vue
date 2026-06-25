@@ -399,7 +399,6 @@ async function createOrder() {
       paymentMethod,
       ...(guestData?.phone ? { guestPhone: guestData.phone } : {}),
     });
-
     if (funcData?.error || funcData?.message) {
       throw new Error(funcData.error ?? funcData.message);
     }
@@ -420,13 +419,12 @@ async function createOrder() {
       const url = funcData.payment?.initPoint ?? funcData.payment?.sandboxInitPoint ?? '';
       if (!url) throw new Error('Erro ao obter link de pagamento. Tente novamente.');
       if (import.meta.env.VITE_TARGET === 'mobile') {
-        // App: abre o checkout no navegador in-app e confirma por polling.
-        // orderId.value já está setado (em memória) — nada de sessionStorage.
+        // App: mostra o step card primeiro; openExternal pode falhar no Tauri
+        // (Capacitor Browser ausente) — o link manual "Abrir Mercado Pago" cobre isso.
         cardInitPoint.value = url;
-        const { openExternal } = await import('@/mobile/native');
-        await openExternal(url);
         step.value = 'card';
         startPolling();
+        import('@/mobile/native').then(({ openExternal }) => openExternal(url)).catch(() => {});
         return;
       }
       sessionStorage.setItem('pending_order_id', funcData.order.$id ?? funcData.order.id);

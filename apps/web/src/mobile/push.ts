@@ -1,44 +1,50 @@
 import type { Router } from 'vue-router'
-import { PushNotifications } from '@capacitor/push-notifications'
 import { account } from '@/lib/appwrite'
 
-// Provider FCM criado no Appwrite Messaging.
 const FCM_PROVIDER_ID = 'fcm-admin'
 
 let listenersReady = false
 let currentUserId: string | null = null
 
-// Registra os listeners de token uma única vez. Quando o FCM entrega o token do
-// aparelho, gravamos como push target do usuário admin atual (id determinístico
-// por usuário → um target por aparelho/usuário, sempre com o token mais recente).
+let PushNotifications: any = null;
+try {
+  // Tentativa segura de carregar o plugin nativo de push
+  import('@capacitor/push-notifications').then(m => {
+    PushNotifications = m.PushNotifications
+    // Re-registra listeners agora que o plugin está disponível
+    if (listenersReady) {
+      listenersReady = false
+      ensureListeners()
+    }
+  }).catch(() => {})
+} catch {}
+
 function ensureListeners() {
   if (listenersReady) return
+  if (!PushNotifications) { listenersReady = true; return }
   listenersReady = true
 
-  PushNotifications.addListener('registration', async (token) => {
+  PushNotifications.addListener('registration', async (token: any) => {
     if (!currentUserId) return
     const targetId = ('fcm-' + currentUserId).slice(0, 36)
     try {
       await account.createPushTarget(targetId, token.value, FCM_PROVIDER_ID)
     } catch (e: any) {
-      // 409 = target já existe → atualiza com o token novo.
       if (e?.code === 409) {
         try { await account.updatePushTarget(targetId, token.value) } catch { /* ignore */ }
       } else {
         console.error('push createPushTarget falhou:', e?.message ?? e)
       }
     }
-  })
+  }).catch(() => {})
 
-  PushNotifications.addListener('registrationError', (err) => {
+  PushNotifications.addListener('registrationError', (err: any) => {
     console.error('push registrationError:', err)
-  })
+  }).catch(() => {})
 }
 
-// Chamar quando QUALQUER usuário loga no app. Pede permissão (Android 13+
-// runtime), registra no FCM e grava o target. Admin recebe push de venda;
-// todos podem receber broadcast do admin. Sem permissão → segue sem push.
 export async function registerPush(userId: string): Promise<void> {
+  if (!PushNotifications) return
   try {
     currentUserId = userId
     ensureListeners()
@@ -53,12 +59,10 @@ export async function registerPush(userId: string): Promise<void> {
   }
 }
 
-// Liga o toque na notificação à navegação. Chamar uma vez no init nativo.
 export function setupPushTap(router: Router): void {
-  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    // Cada push manda seu próprio route em data: venda → '/admin/pedidos';
-    // broadcast → o link do admin ou '/'. Default home se vier vazio.
+  if (!PushNotifications) return
+  PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
     const route = (action.notification?.data?.route as string) || '/'
     try { router.push(route) } catch { /* ignore */ }
-  })
+  }).catch(() => {})
 }

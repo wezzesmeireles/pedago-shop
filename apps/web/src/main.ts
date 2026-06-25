@@ -5,19 +5,27 @@ import App from './App.vue';
 import router from './router';
 import './assets/main.css';
 
-const app = createApp(App);
-const pinia = createPinia();
-const head = createHead();
+async function main() {
+  // No mobile, substitui fetch pelo plugin nativo (sem CORS) antes de qualquer uso do router
+  if (import.meta.env.VITE_TARGET === 'mobile') {
+    const fetchMod = await import('./mobile/fetch')
+    await fetchMod.patchFetch()
+  }
 
-app.use(pinia);
-app.use(router);
-app.use(head);
+  const app = createApp(App);
+  const pinia = createPinia();
+  const head = createHead();
 
-app.mount('#app');
+  app.use(pinia);
+  app.use(router);
+  app.use(head);
 
-// Inicialização nativa: só no build mobile. A condição é estática (substituída
-// em build), então o Rollup elimina este bloco — e as deps Capacitor — do
-// bundle web.
-if (import.meta.env.VITE_TARGET === 'mobile') {
-  import('./mobile/native').then(({ initNative }) => initNative(router));
+  app.mount('#app');
+
+  // Inicialização nativa (push notifications, botão voltar, etc.)
+  if (import.meta.env.VITE_TARGET === 'mobile') {
+    import('./mobile/native').then(({ initNative }) => initNative(router)).catch(() => {});
+  }
 }
+
+main()
