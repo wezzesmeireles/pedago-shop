@@ -181,32 +181,29 @@ export const useAuthStore = defineStore('auth', () => {
     return account.createOAuth2Token(OAuthProvider.Google, successUrl, failUrl);
   }
 
-  // Fluxo OAuth nativo: Custom Tab -> Google -> Appwrite -> app-oauth.html
-  // (host permitido) -> deep link com.sitepedagogico.app://oauth?userId&secret
-  // -> cria a sessão. Resolve quando a sessão é criada; rejeita em erro/cancel.
+  // Fluxo OAuth nativo (Tauri): tauriBridge.openBrowser → Chrome → Google →
+  // Appwrite → app-oauth.html → deep link com.sitepedagogico.app://oauth →
+  // onNewIntent (Kotlin) → CustomEvent 'appUrlOpen' → cria sessão.
   async function loginWithGoogleNative(): Promise<void> {
-    const { Browser } = await import('@capacitor/browser');
-    const { App } = await import('@capacitor/app');
     const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string;
-    const bridge = 'https://www.sitepedagogico.com/app-oauth.html';
-    const url =
+    const oauthBridgePage = 'https://www.sitepedagogico.com/app-oauth.html';
+    const oauthUrl =
       `${appwriteEndpoint}/account/tokens/oauth2/google?project=${encodeURIComponent(projectId)}` +
-      `&success=${encodeURIComponent(bridge)}&failure=${encodeURIComponent(bridge + '?error=1')}`;
+      `&success=${encodeURIComponent(oauthBridgePage)}&failure=${encodeURIComponent(oauthBridgePage + '?error=1')}`;
 
     return new Promise<void>((resolve, reject) => {
       let settled = false;
-      let handle: { remove: () => void } | undefined;
-      App.addListener('appUrlOpen', async ({ url: cbUrl }) => {
-        // Aceita o App Link verificado (https .../app-oauth) E o esquema custom
-        // de fallback (com.sitepedagogico.app://oauth).
+      const TIMEOUT_MS = 5 * 60 * 1000;
+
+      const onOAuthReturn = async (event: Event) => {
+        const cbUrl: string = (event as CustomEvent).detail?.url ?? '';
         const isCallback =
-          !!cbUrl &&
-          (cbUrl.startsWith('com.sitepedagogico.app://oauth') ||
-            cbUrl.includes('sitepedagogico.com/app-oauth'));
+          cbUrl.startsWith('com.sitepedagogico.app://oauth') ||
+          cbUrl.includes('sitepedagogico.com/app-oauth');
         if (!isCallback) return;
         settled = true;
+        window.removeEventListener('appUrlOpen', onOAuthReturn);
         try {
-          await Browser.close().catch(() => {});
           const query = cbUrl.includes('?') ? cbUrl.slice(cbUrl.indexOf('?') + 1) : '';
           const params = new URLSearchParams(query);
           if (params.get('error')) throw new Error('Login com Google cancelado.');
@@ -218,24 +215,25 @@ export const useAuthStore = defineStore('auth', () => {
           resolve();
         } catch (e) {
           reject(e);
-        } finally {
-          handle?.remove();
         }
-      }).then((h) => {
-        handle = h;
-        // Se o usuário fechar o Chrome sem concluir, libera o listener. Esperamos
-        // um instante porque o deep link de sucesso também FECHA o Custom Tab —
-        // sem o atraso, o 'browserFinished' cancelaria antes do 'appUrlOpen'.
-        Browser.addListener('browserFinished', () => {
-          setTimeout(() => {
-            if (!settled) {
-              handle?.remove();
-              reject(new Error('cancelled'));
-            }
-          }, 700);
-        });
-      });
-      Browser.open({ url });
+      };
+
+      window.addEventListener('appUrlOpen', onOAuthReturn);
+
+      // Abre no browser do sistema via interface Kotlin (Google bloqueia WebView)
+      const nativeBridge = (window as any).tauriBridge;
+      if (nativeBridge?.openBrowser) {
+        nativeBridge.openBrowser(oauthUrl);
+      } else {
+        window.open(oauthUrl, '_blank');
+      }
+
+      setTimeout(() => {
+        if (!settled) {
+          window.removeEventListener('appUrlOpen', onOAuthReturn);
+          reject(new Error('cancelled'));
+        }
+      }, TIMEOUT_MS);
     });
   }
 

@@ -164,14 +164,10 @@ export default async ({ req, res, log }) => {
   }
 
   const now = new Date().toISOString()
-  // Confirm RECENT pending orders (last 3 days). The MP webhook rarely fires, so
-  // this cron is the real confirmation path and must look at FRESH orders — not
-  // only ones older than 24h, which left a PIX paid right after the buyer leaves
-  // the success page sitting unconfirmed for a whole day. Expired/rejected PIX
-  // flip to CANCELLED below, so the pending pool self-cleans and stays small.
-  const recentCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+  // Janela de 90 dias — cobre pedidos antigos que o webhook não confirmou.
+  // PIX expirados/rejeitados viram CANCELLED abaixo, mantendo o pool pequeno.
+  const recentCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
 
-  // Paginate all pending orders instead of hard cap at 100
   let pendingOrders = []
   if (specificOrderId) {
     const r = await db.listDocuments(DB, 'orders', [
@@ -180,19 +176,30 @@ export default async ({ req, res, log }) => {
     ])
     pendingOrders = r.documents
   } else {
-    let offset = 0
-    while (true) {
-      const r = await db.listDocuments(DB, 'orders', [
-        Query.equal('status', 'AWAITING_PAYMENT'),
-        Query.isNotNull('mpPaymentId'),
-        Query.greaterThan('createdAt', recentCutoff),
-        Query.orderAsc('createdAt'),
-        Query.limit(100),
-        Query.offset(offset),
-      ])
-      pendingOrders.push(...r.documents)
-      if (r.documents.length < 100) break
-      offset += 100
+    // Duas passagens para cobrir PIX (mpPaymentId definido) e cartão onde o
+    // webhook não disparou (mpPreferenceId definido, mpPaymentId ainda null).
+    const seen = new Set()
+    const passes = [
+      { extra: [Query.isNotNull('mpPaymentId')] },
+      { extra: [Query.isNotNull('mpPreferenceId'), Query.isNull('mpPaymentId')] },
+    ]
+    for (const pass of passes) {
+      let offset = 0
+      while (true) {
+        const r = await db.listDocuments(DB, 'orders', [
+          Query.equal('status', 'AWAITING_PAYMENT'),
+          ...pass.extra,
+          Query.greaterThan('createdAt', recentCutoff),
+          Query.orderAsc('createdAt'),
+          Query.limit(100),
+          Query.offset(offset),
+        ])
+        for (const o of r.documents) {
+          if (!seen.has(o.$id)) { seen.add(o.$id); pendingOrders.push(o) }
+        }
+        if (r.documents.length < 100) break
+        offset += 100
+      }
     }
   }
 

@@ -16,15 +16,19 @@
   <p>Concluindo o login no aplicativo…</p>
   <p style="margin-top:24px"><a class="btn" id="open" href="#">Abrir o aplicativo</a></p>
   <script>
-    // Normalmente o App Link verificado já abriu o app direto (esta página nem
-    // carrega). Se o Android não interceptou (verificação pendente), tentamos o
-    // esquema custom; e o botão (toque do usuário = gesto) garante a abertura,
-    // pois o Chrome bloqueia redirecionamento automático para esquemas de app.
     (function () {
       var q = window.location.search || '';
+
+      // Quando carregado dentro do WebView do Tauri (tauriBridge presente),
+      // navega direto para a rota do SPA que já sabe criar a sessão OAuth.
+      if (window.tauriBridge) {
+        window.location.replace('/auth/google-callback' + q);
+        return;
+      }
+
+      // Fluxo externo (Chrome Custom Tab via novo código) — deep link nativo.
       var target = 'com.sitepedagogico.app://oauth' + q;
       document.getElementById('open').href = target;
-      // tentativa automática (funciona em parte dos casos)
       try { window.location.replace(target); } catch (e) {}
     })();
   </script>

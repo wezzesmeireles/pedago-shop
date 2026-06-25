@@ -17,6 +17,12 @@ const client = new Client()
   .setEndpoint(endpoint)
   .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID)
 
+if (import.meta.env.VITE_TARGET === 'mobile') {
+  console.log('[appwrite] endpoint:', endpoint);
+  console.log('[appwrite] project:', import.meta.env.VITE_APPWRITE_PROJECT_ID);
+  console.log('[appwrite] database:', import.meta.env.VITE_APPWRITE_DATABASE_ID);
+}
+
 export const account = new Account(client)
 export const databases = new Databases(client)
 export const storage = new Storage(client)

@@ -159,9 +159,15 @@ function formatExpiry(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function downloadFile(d: DownloadEntry) {
+async function downloadFile(d: DownloadEntry) {
   if (d.expired) return;
-  window.location.href = `/api/download?token=${encodeURIComponent(d.token)}`;
+  downloadError.value = '';
+  // Abre em nova aba — evita navegar para fora do app se o download falhar
+  const w = window.open(`/api/download?token=${encodeURIComponent(d.token)}`, '_blank');
+  if (!w) {
+    // Popup bloqueado — fallback para navegação direta
+    window.location.href = `/api/download?token=${encodeURIComponent(d.token)}`;
+  }
 }
 
 // Fetch all documents where `field` is in `ids`, batching ids into chunks

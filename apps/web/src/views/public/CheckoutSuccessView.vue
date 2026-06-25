@@ -141,7 +141,9 @@ const showOpenInBrowser = ref(false);
 let pollInterval: ReturnType<typeof setInterval>;
 
 function downloadFile(_item: any, token: any) {
-  window.location.href = `/api/download?token=${encodeURIComponent(token.token)}`;
+  const url = `/api/download?token=${encodeURIComponent(token.token)}`;
+  const w = window.open(url, '_blank');
+  if (!w) window.location.href = url;
 }
 
 async function loadOrder() {

@@ -19,6 +19,8 @@
     "@capacitor/splash-screen": "^6.0.4",
     "@capacitor/status-bar": "^6.0.3",
     "@sitepedagogico/shared": "workspace:*",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-http": "^2.5.9",
     "@vueuse/core": "^10.11.0",
     "@vueuse/head": "^2.0.0",
     "appwrite": "^18.2.0",
