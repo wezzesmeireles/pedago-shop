@@ -122,6 +122,30 @@ export const useAuthStore = defineStore('auth', () => {
         phone: profile?.phone ?? undefined,
       };
 
+      // Busca foto do Google e salva no perfil quando ainda não há avatar.
+      // Fire-and-forget — não bloqueia o carregamento da página.
+      if (!profile?.avatarUrl) {
+        (async () => {
+          try {
+            const list = await account.listIdentities();
+            const g = (list as any).identities?.find((i: any) => i.provider === 'google');
+            if (!g?.providerAccessToken) return;
+            const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { Authorization: `Bearer ${g.providerAccessToken}` },
+            });
+            if (!r.ok) return;
+            const { picture } = await r.json();
+            if (!picture) return;
+            const profileId = profile?.$id ?? authUser.$id;
+            await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileId, {
+              avatarUrl: picture,
+              updatedAt: new Date().toISOString(),
+            });
+            if (user.value) user.value.avatarUrl = picture;
+          } catch { /* non-blocking */ }
+        })();
+      }
+
       // Vincula automaticamente pedidos de "Compra Rápida" feitos com o mesmo
       // telefone enquanto o usuário não estava logado. Fire-and-forget — não
       // bloqueia o carregamento da página.
