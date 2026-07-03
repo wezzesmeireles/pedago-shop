@@ -94,8 +94,7 @@
               <div class="relative flex-shrink-0">
                 <div class="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center"
                   :style="{ background: accentBg(idx) }">
-                  <img v-if="cat.imageUrl" :src="cat.imageUrl" :alt="cat.name" class="w-full h-full object-cover" />
-                  <svg v-else class="w-6 h-6" :style="{ color: accentFg(idx) }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-6 h-6" :style="{ color: accentFg(idx) }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
                   </svg>
                 </div>
@@ -166,8 +165,7 @@
       <div class="space-y-4">
         <div v-if="categoryToDelete" class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
           <div class="w-10 h-10 rounded-xl overflow-hidden bg-violet-50 flex items-center justify-center flex-shrink-0">
-            <img v-if="categoryToDelete.imageUrl" :src="categoryToDelete.imageUrl" class="w-full h-full object-cover" />
-            <svg v-else class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+            <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
           </div>
           <div>
             <p class="text-sm font-bold text-slate-900">{{ categoryToDelete.name }}</p>
@@ -208,16 +206,6 @@
           <textarea v-model="form.description" rows="2" placeholder="Descrição curta da categoria..."
             class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"></textarea>
         </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">URL da Imagem <span class="font-normal text-slate-400 normal-case tracking-normal">(opcional)</span></label>
-          <div class="flex gap-2">
-            <input v-model="form.imageUrl" type="url" placeholder="https://..."
-              class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
-            <div v-if="form.imageUrl" class="w-10 h-10 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
-              <img :src="form.imageUrl" class="w-full h-full object-cover" @error="($event.target as HTMLImageElement).style.display='none'" />
-            </div>
-          </div>
-        </div>
 
         <div v-if="errorMsg" class="flex items-center gap-2 text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl border border-red-100">
           <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -251,7 +239,7 @@ const modalOpen = ref(false);
 const saving = ref(false);
 const editing = ref<any>(null);
 const errorMsg = ref('');
-const form = reactive({ name: '', slug: '', description: '', imageUrl: '' });
+const form = reactive({ name: '', slug: '', description: '' });
 
 const deleteModalOpen = ref(false);
 const categoryToDelete = ref<any>(null);
@@ -281,13 +269,13 @@ function autoSlug() {
 
 function openCreate() {
   editing.value = null;
-  Object.assign(form, { name: '', slug: '', description: '', imageUrl: '' });
+  Object.assign(form, { name: '', slug: '', description: '' });
   errorMsg.value = '';
   modalOpen.value = true;
 }
 function openEdit(cat: any) {
   editing.value = cat;
-  Object.assign(form, { name: cat.name, slug: cat.slug, description: cat.description || '', imageUrl: cat.imageUrl || '' });
+  Object.assign(form, { name: cat.name, slug: cat.slug, description: cat.description || '' });
   errorMsg.value = '';
   modalOpen.value = true;
 }
@@ -302,7 +290,6 @@ async function save() {
     const payload: any = {
       name: form.name, slug: form.slug,
       description: form.description || null,
-      imageUrl: form.imageUrl || null,
     };
     if (editing.value) {
       await databases.updateDocument(DB_ID, COLLECTIONS.CATEGORIES, editing.value.$id, payload);
@@ -350,7 +337,7 @@ async function loadCategories() {
       const prodCount = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
         Query.equal('categoryId', c.$id), Query.isNull('deletedAt'), Query.limit(1),
       ]);
-      return { ...c, id: c.$id, isActive: c.isActive, imageUrl: c.imageUrl, _count: { products: prodCount.total } };
+      return { ...c, id: c.$id, isActive: c.isActive, _count: { products: prodCount.total } };
     }));
     categories.value = cats;
   } finally {
