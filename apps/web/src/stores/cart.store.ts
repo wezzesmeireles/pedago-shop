@@ -56,6 +56,18 @@ export const useCartStore = defineStore('cart', () => {
     saveToStorage(items.value);
   }
 
+  function updateQuantity(productId: string, quantity: number) {
+    const existing = items.value.find((i) => i.productId === productId);
+    if (existing) {
+      if (quantity <= 0) {
+        remove(productId);
+      } else {
+        existing.quantity = quantity;
+        saveToStorage(items.value);
+      }
+    }
+  }
+
   function openCart() {
     isOpen.value = true;
   }
@@ -64,5 +76,5 @@ export const useCartStore = defineStore('cart', () => {
     isOpen.value = false;
   }
 
-  return { items, total, count, isOpen, add, remove, clear, openCart, closeCart };
+  return { items, total, count, isOpen, add, remove, clear, updateQuantity, openCart, closeCart };
 });

@@ -34,10 +34,13 @@
           </div>
           <div class="divide-y divide-gray-50">
             <div v-for="item in cart.items" :key="item.productId" class="flex items-center gap-4 px-5 py-4">
-              <div class="w-14 h-14 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
+              <div class="relative w-14 h-14 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
                 <img v-if="item.coverImageUrl" :src="item.coverImageUrl" :alt="item.name" class="w-full h-full object-cover" />
                 <div v-else class="w-full h-full flex items-center justify-center">
                   <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                </div>
+                <div v-if="item.quantity > 1" class="absolute top-0 right-0 bg-primary-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-bl-lg">
+                  {{ item.quantity }}x
                 </div>
               </div>
               <div class="flex-1 min-w-0">

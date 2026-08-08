@@ -789,11 +789,30 @@ async function loadDashboard() {
   // ── Phase 2: revenue dataset — heavier, but fetch ONLY the 2 fields we sum ──
   revenueLoading.value = true;
   try {
-    const paidRes = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
-      Query.equal('status', 'PAID'), Query.orderDesc('paidAt'), Query.limit(5000),
-      Query.select(['totalAmount', 'paidAt']),
-    ]);
-    const paid = paidRes.documents as any[];
+    const paid: any[] = [];
+    let hasMore = true;
+    let cursor: string | null = null;
+    
+    // Batch fetch to avoid timeout/slowness on large datasets in Appwrite
+    while (hasMore) {
+      const queries = [
+        Query.equal('status', 'PAID'),
+        Query.orderDesc('paidAt'),
+        Query.limit(500),
+        Query.select(['totalAmount', 'paidAt']),
+      ];
+      if (cursor) queries.push(Query.cursorAfter(cursor));
+      
+      const batchRes = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
+      paid.push(...batchRes.documents);
+      
+      if (batchRes.documents.length < 500 || paid.length >= 5000) {
+        hasMore = false;
+      } else {
+        cursor = batchRes.documents[batchRes.documents.length - 1].$id;
+      }
+    }
+    
     const sumIf = (pred: (o: any) => boolean) => paid.reduce((s, o) => s + (pred(o) ? Number(o.totalAmount || 0) : 0), 0);
 
     stats.value = {

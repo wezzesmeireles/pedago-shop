@@ -133,27 +133,47 @@
     </section>
 
     <!-- ── Grupo Pedagógico — destaque premium ──────────── -->
-    <section v-if="groupProduct" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-8">
-      <div @click="buyGroupNow" class="block group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 rounded-3xl">
-        <div class="relative rounded-3xl overflow-hidden">
-          <div class="absolute inset-0 bg-gradient-to-br from-violet-700 via-purple-700 to-pink-700 animate-gradient"></div>
-          <div class="absolute -top-20 -right-20 w-72 h-72 bg-pink-500/25 rounded-full blur-3xl pointer-events-none"></div>
-          <div class="absolute -bottom-20 -left-20 w-72 h-72 bg-violet-400/20 rounded-full blur-3xl pointer-events-none"></div>
+    <section v-if="groupProduct" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-12">
+      <!-- Wrapper principal com efeito hover -->
+      <div @click="buyGroupNow" class="relative group cursor-pointer block focus:outline-none">
+        
+        <!-- Ambient Outer Glow -->
+        <div class="absolute -inset-1 bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-600 rounded-[32px] blur-xl opacity-40 group-hover:opacity-70 transition duration-700 animate-pulse"></div>
+
+        <!-- Card Container -->
+        <div class="relative rounded-[28px] p-1 shadow-2xl transition-transform duration-500 group-hover:-translate-y-1.5 bg-violet-950">
+          
+          <!-- Animated Border Frame (Clips the spinning comets) -->
+          <div class="absolute inset-0 rounded-[28px] overflow-hidden">
+            <!-- Dual Neon Comets -->
+            <div class="absolute top-1/2 left-1/2 aspect-square w-[250%] sm:w-[150%] -translate-x-1/2 -translate-y-1/2 animate-[spin_4s_linear_infinite]" 
+                 style="background: conic-gradient(from 0deg, transparent 0%, transparent 25%, #00f2fe 35%, #f093fb 45%, #f5576c 50%, transparent 50%, transparent 75%, #00f2fe 85%, #f093fb 95%, #f5576c 100%);">
+            </div>
+          </div>
+
+          <!-- Inner Content -->
+          <div class="relative rounded-[24px] overflow-hidden bg-violet-800 z-10 w-full h-full">
+            <div class="absolute inset-0 bg-gradient-to-br from-violet-700 via-purple-700 to-pink-700 animate-gradient"></div>
+            <div class="absolute -top-20 -right-20 w-72 h-72 bg-pink-500/25 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-20 -left-20 w-72 h-72 bg-violet-400/20 rounded-full blur-3xl pointer-events-none"></div>
           <div class="absolute inset-0 opacity-[0.06]"
             style="background-image:radial-gradient(circle, white 1px, transparent 1px); background-size: 24px 24px;"></div>
 
           <div class="relative flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-10">
             <!-- Imagem -->
-            <div class="flex-shrink-0 relative">
-              <div class="w-44 h-44 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-white/20
-                           group-hover:scale-[1.04] group-hover:ring-white/40 transition-all duration-500">
+            <div class="flex-shrink-0 relative animate-float">
+              <!-- Glow backdrop behind image -->
+              <div class="absolute inset-2 bg-pink-400 rounded-2xl blur-xl opacity-50 animate-pulse"></div>
+              
+              <div class="relative w-44 h-44 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-white/40
+                           group-hover:scale-[1.05] group-hover:ring-white/60 transition-all duration-500 animate-shine">
                 <img v-if="groupProduct.coverImageUrl"
                   :src="groupProduct.coverImageUrl" :alt="groupProduct.name"
                   class="w-full h-full object-cover" loading="lazy" decoding="async" />
                 <div v-else class="w-full h-full bg-violet-500 flex items-center justify-center text-6xl">📚</div>
               </div>
-              <div class="absolute -top-3 -right-3 bg-yellow-400 text-yellow-900 text-[11px] font-black
-                           px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap">
+              <div class="absolute -top-4 -right-4 bg-gradient-to-r from-yellow-300 to-yellow-500 text-yellow-900 text-xs font-black
+                           px-3 py-1.5 rounded-full shadow-[0_0_20px_rgba(250,204,21,0.8)] whitespace-nowrap animate-[pulse_2s_infinite]">
                 ⭐ Mais Vendido
               </div>
             </div>
@@ -203,8 +223,8 @@
 
               <!-- CTA -->
               <span class="inline-flex items-center gap-2.5 bg-white text-violet-700 font-black text-sm sm:text-base
-                            px-7 py-3.5 rounded-xl shadow-xl group-hover:bg-violet-50 group-hover:shadow-2xl
-                            group-hover:-translate-y-0.5 transition-all duration-200">
+                            px-7 py-3.5 rounded-xl shadow-xl group-hover:bg-violet-50 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]
+                            group-hover:-translate-y-0.5 transition-all duration-300">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                     d="M3 3h2l.4 2M7 13h10l4-9H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
@@ -217,6 +237,7 @@
             </div>
           </div>
         </div>
+      </div>
       </div>
     </section>
 
@@ -685,4 +706,31 @@ onUnmounted(() => {
 
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Animações de destaque para a imagem */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
+}
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0% { left: -100%; opacity: 0; }
+  20% { opacity: 1; }
+  100% { left: 125%; opacity: 0; }
+}
+.animate-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+  transform: skewX(-20deg);
+  animation: shine 4s infinite;
+  pointer-events: none;
+}
 </style>

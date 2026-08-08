@@ -289,6 +289,7 @@ export const useAuthStore = defineStore('auth', () => {
         const errMsg = (fnResponseBody?.message ?? fnError?.message ?? '').toLowerCase();
         const errStatus = fnResponseCode || 0;
         console.error('[register-user fn error]', errStatus, errMsg);
+        console.error('POSSÍVEL ERRO DE MIGRAÇÃO: Verifique se a função "register-user" está implantada no novo servidor Appwrite e se a variável APPWRITE_API_KEY está correta.');
 
         // 409 = already exists
         if (errStatus === 409 || errMsg.includes('already') || errMsg.includes('registered')) {

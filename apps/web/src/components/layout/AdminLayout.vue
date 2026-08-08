@@ -2,82 +2,91 @@
   <div class="min-h-screen flex bg-slate-50">
 
     <!-- ── Sidebar Desktop ─────────────────────────────────────── -->
-    <aside class="w-64 bg-slate-900 flex-col hidden md:flex fixed inset-y-0 left-0 z-30">
+    <aside :class="['bg-slate-900 flex-col hidden md:flex fixed inset-y-0 left-0 z-30 transition-all duration-300', sidebarCollapsed ? 'w-20' : 'w-64']">
       <!-- Logo -->
-      <div class="px-4 pt-7 pb-6 border-b border-slate-800/60 flex flex-col items-center">
+      <div class="px-4 pt-7 pb-6 border-b border-slate-800/60 flex flex-col items-center relative">
+        <button @click="sidebarCollapsed = !sidebarCollapsed" class="absolute -right-3.5 top-8 bg-slate-800 text-slate-300 rounded-full p-1 hover:text-white ring-4 ring-slate-900 z-50 transition-transform shadow-lg cursor-pointer hover:bg-slate-700">
+          <svg v-if="sidebarCollapsed" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
         <RouterLink to="/" class="flex flex-col items-center gap-3 group w-full">
           <!-- Logo image or icon -->
-          <div v-if="config.logoUrl" class="w-full flex items-center justify-center group-hover:scale-105 transition-transform">
-            <img :src="config.logoUrl" :alt="config.storeName" class="max-h-20 max-w-full object-contain drop-shadow-lg" />
+          <div v-if="config.logoUrl" class="w-full flex items-center justify-center group-hover:scale-105 transition-transform" :class="sidebarCollapsed ? 'px-1' : ''">
+            <img :src="config.logoUrl" :alt="config.storeName" class="max-w-full object-contain drop-shadow-lg transition-all duration-300" :class="sidebarCollapsed ? 'max-h-10' : 'max-h-20'" />
           </div>
-          <div v-else class="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-400 via-violet-600 to-purple-800 flex items-center justify-center shadow-2xl shadow-violet-900/60 ring-2 ring-violet-400/30 group-hover:scale-105 transition-transform">
-            <svg class="w-11 h-11 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
+          <div v-else class="rounded-3xl bg-gradient-to-br from-violet-400 via-violet-600 to-purple-800 flex items-center justify-center shadow-2xl shadow-violet-900/60 ring-2 ring-violet-400/30 group-hover:scale-105 transition-all duration-300" :class="sidebarCollapsed ? 'w-10 h-10 rounded-xl' : 'w-20 h-20'">
+            <svg class="text-white drop-shadow-md transition-all duration-300" :class="sidebarCollapsed ? 'w-5 h-5' : 'w-11 h-11'" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
           <!-- Store name -->
-          <div class="text-center w-full">
-            <p class="font-extrabold text-white text-lg leading-tight tracking-tight">{{ config.storeName }}</p>
+          <div class="text-center w-full overflow-hidden transition-all duration-300" :class="sidebarCollapsed ? 'opacity-0 h-0 hidden' : 'opacity-100 h-auto'">
+            <p class="font-extrabold text-white text-lg leading-tight tracking-tight whitespace-nowrap">{{ config.storeName }}</p>
             <span class="inline-block mt-1 text-[10px] font-bold text-violet-400 tracking-[0.2em] uppercase bg-violet-950/60 px-2.5 py-0.5 rounded-full">Admin</span>
           </div>
         </RouterLink>
       </div>
 
       <!-- Nav -->
-      <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        <p class="px-3 pt-1 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Principal</p>
+      <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
+        <p class="pt-1 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest transition-all duration-300 overflow-hidden whitespace-nowrap text-center" :class="sidebarCollapsed ? 'opacity-0 h-0 mb-0 hidden' : 'opacity-100 h-auto px-3'">Principal</p>
         <RouterLink
           v-for="item in mainNav"
           :key="item.to"
           :to="item.to"
+          :title="sidebarCollapsed ? item.label : undefined"
           :class="[
-            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
+            'flex items-center rounded-xl text-sm font-medium transition-all group overflow-hidden relative',
+            sidebarCollapsed ? 'justify-center w-10 h-10 mx-auto p-0' : 'gap-3 px-3 py-2.5',
             isActive(item.to)
               ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-800'
           ]"
         >
-          <span v-html="item.icon" :class="['w-4 h-4 flex-shrink-0', isActive(item.to) ? 'text-white' : 'text-slate-500 group-hover:text-slate-300']"></span>
-          {{ item.label }}
-          <span v-if="item.badge" class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">{{ item.badge }}</span>
+          <span v-html="item.icon" :class="['w-4 h-4 flex-shrink-0 transition-transform', isActive(item.to) ? 'text-white' : 'text-slate-500 group-hover:text-slate-300', sidebarCollapsed ? 'group-hover:scale-110' : '']"></span>
+          <span class="whitespace-nowrap transition-all duration-300" :class="sidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 w-auto'">{{ item.label }}</span>
+          <span v-if="item.badge && !sidebarCollapsed" class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">{{ item.badge }}</span>
+          <span v-if="item.badge && sidebarCollapsed" class="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-900"></span>
         </RouterLink>
 
-        <p class="px-3 pt-4 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Configurações</p>
+        <p class="pt-4 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest transition-all duration-300 overflow-hidden whitespace-nowrap text-center" :class="sidebarCollapsed ? 'opacity-0 h-0 mb-0 hidden' : 'opacity-100 h-auto px-3'">Configurações</p>
         <RouterLink
           v-for="item in settingsNav"
           :key="item.to"
           :to="item.to"
+          :title="sidebarCollapsed ? item.label : undefined"
           :class="[
-            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group',
+            'flex items-center rounded-xl text-sm font-medium transition-all group overflow-hidden',
+            sidebarCollapsed ? 'justify-center w-10 h-10 mx-auto p-0' : 'gap-3 px-3 py-2.5',
             isActive(item.to)
               ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30'
               : 'text-slate-400 hover:text-white hover:bg-slate-800'
           ]"
         >
-          <span v-html="item.icon" :class="['w-4 h-4 flex-shrink-0', isActive(item.to) ? 'text-white' : 'text-slate-500 group-hover:text-slate-300']"></span>
-          {{ item.label }}
+          <span v-html="item.icon" :class="['w-4 h-4 flex-shrink-0 transition-transform', isActive(item.to) ? 'text-white' : 'text-slate-500 group-hover:text-slate-300', sidebarCollapsed ? 'group-hover:scale-110' : '']"></span>
+          <span class="whitespace-nowrap transition-all duration-300" :class="sidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 w-auto'">{{ item.label }}</span>
         </RouterLink>
       </nav>
 
       <!-- Footer -->
-      <div class="px-3 py-4 border-t border-slate-800">
-        <div class="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-800 transition-colors cursor-default">
-          <div class="w-8 h-8 bg-violet-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+      <div class="py-4 border-t border-slate-800 transition-all duration-300" :class="sidebarCollapsed ? 'px-2' : 'px-3'">
+        <div class="flex items-center rounded-xl hover:bg-slate-800 transition-colors cursor-default" :class="sidebarCollapsed ? 'justify-center p-2' : 'gap-3 px-2 py-2'">
+          <div class="bg-violet-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 transition-all duration-300" :class="sidebarCollapsed ? 'w-10 h-10 text-base' : 'w-8 h-8'">
             {{ auth.user?.name?.[0]?.toUpperCase() }}
           </div>
-          <div class="min-w-0 flex-1">
+          <div class="min-w-0 flex-1 overflow-hidden transition-all duration-300" :class="sidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'">
             <p class="text-white text-sm font-medium truncate">{{ auth.user?.name }}</p>
             <p class="text-slate-500 text-xs">Administrador</p>
           </div>
         </div>
-        <div class="flex gap-1 mt-2">
-          <RouterLink to="/" class="flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-white py-1.5 px-2 rounded-lg hover:bg-slate-800 transition-colors">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            Ver loja
+        <div class="flex mt-2 transition-all duration-300" :class="sidebarCollapsed ? 'flex-col items-center gap-2' : 'gap-1'">
+          <RouterLink to="/" class="flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-white rounded-lg hover:bg-slate-800 transition-colors w-full" :class="sidebarCollapsed ? 'p-2.5 w-auto rounded-xl' : 'py-1.5 px-2'" :title="sidebarCollapsed ? 'Ver loja' : undefined">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            <span v-if="!sidebarCollapsed">Ver loja</span>
           </RouterLink>
-          <button @click="handleLogout" class="flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-red-400 py-1.5 px-2 rounded-lg hover:bg-slate-800 transition-colors">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            Sair
+          <button @click="handleLogout" class="flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition-colors w-full" :class="sidebarCollapsed ? 'p-2.5 w-auto rounded-xl' : 'py-1.5 px-2'" :title="sidebarCollapsed ? 'Sair' : undefined">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            <span v-if="!sidebarCollapsed">Sair</span>
           </button>
         </div>
       </div>
@@ -127,7 +136,7 @@
     </aside>
 
     <!-- ── Main ───────────────────────────────────────────────── -->
-    <div class="flex-1 flex flex-col md:ml-64">
+    <div :class="['flex-1 flex flex-col transition-all duration-300', sidebarCollapsed ? 'md:ml-20' : 'md:ml-64']">
       <!-- Topbar -->
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
         <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
@@ -188,6 +197,7 @@ const { config } = useSiteConfigStore();
 const router = useRouter();
 const route = useRoute();
 const mobileMenuOpen = ref(false);
+const sidebarCollapsed = ref(false);
 watch(() => route.path, () => { mobileMenuOpen.value = false; });
 
 const icon = {
