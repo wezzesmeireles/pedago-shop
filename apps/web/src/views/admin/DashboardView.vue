@@ -248,6 +248,58 @@
       </div>
     </div>
 
+    <!-- ── Novos Gráficos: Pagamento + Dia da Semana ─────────── -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mt-5">
+      <!-- Método de Pagamento -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 shadow-md">
+        <h2 class="font-bold text-slate-900 mb-6 text-lg">Método de Pagamento</h2>
+        <div class="flex flex-col sm:flex-row items-center gap-8 sm:gap-10">
+          <div class="relative flex-shrink-0">
+            <svg width="160" height="160" viewBox="0 0 120 120" class="-rotate-90 drop-shadow-md">
+              <circle cx="60" cy="60" r="42" fill="none" stroke="#f1f5f9" stroke-width="15" />
+              <circle v-for="(s, i) in paymentMethodSegments.items" :key="i" cx="60" cy="60" r="42" fill="none"
+                :stroke="s.color" stroke-width="15"
+                :stroke-dasharray="`${(s.frac * DONUT_C).toFixed(2)} ${DONUT_C.toFixed(2)}`"
+                :stroke-dashoffset="`${(-s.offset * DONUT_C).toFixed(2)}`"
+                class="transition-all duration-700" />
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-3xl font-black text-slate-900 leading-none">{{ paymentMethodSegments.total }}</span>
+              <span class="text-xs text-slate-500 font-semibold mt-1 uppercase tracking-wider">pedidos</span>
+            </div>
+          </div>
+          <div class="flex-1 w-full space-y-4">
+            <div v-for="(s, i) in paymentMethodSegments.items" :key="i" class="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <span class="w-3.5 h-3.5 rounded-full flex-shrink-0 shadow-sm" :style="{ background: s.color }"></span>
+              <span class="text-base font-semibold text-slate-700 flex-1">{{ s.label }}</span>
+              <span class="text-lg font-black text-slate-900">{{ s.count }}</span>
+              <span class="text-sm text-slate-500 font-medium w-12 text-right">{{ (s.frac * 100).toFixed(0) }}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vendas por Dia da Semana -->
+      <div class="bg-white rounded-2xl border border-slate-100 p-6 sm:p-8 shadow-md flex flex-col">
+        <h2 class="font-bold text-slate-900 mb-6 text-lg">Vendas por Dia da Semana</h2>
+        <div class="flex items-end justify-between flex-1 gap-3 mt-4 h-48">
+          <div v-for="(day, i) in weekdaySales" :key="i" class="flex flex-col items-center flex-1 group h-full">
+            <div class="relative flex-1 w-full flex items-end justify-center rounded-t-xl mb-3">
+              <div class="w-full max-w-[3.5rem] bg-violet-100 group-hover:bg-violet-200 rounded-t-xl transition-all duration-300 relative overflow-hidden"
+                   :style="{ height: `${day.pct}%` }">
+                <div class="absolute bottom-0 left-0 right-0 bg-violet-600 rounded-t-xl transition-all shadow-lg"
+                     :style="{ height: '100%' }"></div>
+              </div>
+              <div class="absolute -top-8 text-sm font-black text-violet-800 opacity-0 group-hover:opacity-100 transition-all group-hover:-translate-y-1">
+                {{ day.count }}
+              </div>
+            </div>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">{{ day.day }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Armazenamento ────────────────────────────────────── -->
     <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
       <div class="flex items-center justify-between mb-5">
@@ -638,6 +690,53 @@ const statusSegments = computed(() => {
       return seg;
     }),
   };
+});
+
+// ── Vendas por Método de Pagamento (donut) ──────────────────
+const paymentMethodSegments = computed(() => {
+  const items = [
+    { label: 'PIX', count: 0, color: '#10b981' }, // emerald
+    { label: 'Cartão', count: 0, color: '#3b82f6' }, // blue
+    { label: 'Grátis', count: 0, color: '#8b5cf6' }, // violet
+  ];
+  
+  for (const o of paidOrders.value) {
+    if (o.paymentMethod === 'PIX') items[0].count++;
+    else if (o.paymentMethod === 'CREDIT_CARD') items[1].count++;
+    else if (o.paymentMethod === 'FREE' || o.totalAmount === 0) items[2].count++;
+  }
+  
+  const total = items.reduce((s, i) => s + i.count, 0);
+  let acc = 0;
+  return {
+    total,
+    items: items.map(i => {
+      const frac = total ? i.count / total : 0;
+      const seg = { ...i, frac, offset: acc };
+      acc += frac;
+      return seg;
+    }).filter(i => i.count > 0)
+  };
+});
+
+// ── Vendas por Dia da Semana (Bar) ──────────────────────────
+const weekdaySales = computed(() => {
+  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const counts = new Array(7).fill(0);
+  
+  for (const o of paidOrders.value) {
+    if (o.paidAt) {
+      const d = new Date(o.paidAt).getDay();
+      counts[d]++;
+    }
+  }
+  
+  const max = Math.max(...counts, 1);
+  return days.map((day, i) => ({
+    day,
+    count: counts[i],
+    pct: Math.max((counts[i] / max) * 100, 4) // min height 4%
+  }));
 });
 
 // ── Vendas por categoria ────────────────────────────────────

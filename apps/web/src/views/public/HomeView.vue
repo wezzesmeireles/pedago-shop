@@ -168,8 +168,8 @@
               <div class="relative w-44 h-44 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-white/40
                            group-hover:scale-[1.05] group-hover:ring-white/60 transition-all duration-500 animate-shine">
                 <img v-if="groupProduct.coverImageUrl"
-                  :src="groupProduct.coverImageUrl" :alt="groupProduct.name"
-                  class="w-full h-full object-cover" loading="lazy" decoding="async" />
+                  :src="optimizeImage(groupProduct.coverImageUrl, 800)" :alt="groupProduct.name"
+                  class="w-full h-full object-cover" fetchpriority="high" decoding="async" />
                 <div v-else class="w-full h-full bg-violet-500 flex items-center justify-center text-6xl">📚</div>
               </div>
               <div class="absolute -top-4 -right-4 bg-gradient-to-r from-yellow-300 to-yellow-500 text-yellow-900 text-xs font-black
@@ -431,14 +431,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useCatalogStore } from '@/stores/catalog.store';
+import { useCartStore } from '@/stores/cart.store';
+import { useImageOptimizer } from '@/composables/useImageOptimizer';
+import ProductCard from '@/components/catalog/ProductCard.vue';
 import { useHead } from '@vueuse/head';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { ID, Query } from 'appwrite';
 import { useSiteConfigStore } from '@/stores/site-config.store';
-import { useCartStore } from '@/stores/cart.store';
-import ProductCard from '@/components/catalog/ProductCard.vue';
 
+const { optimizeImage } = useImageOptimizer();
 const siteConfigStore = useSiteConfigStore();
 const cart = useCartStore();
 

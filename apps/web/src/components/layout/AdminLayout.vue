@@ -34,9 +34,8 @@
           v-for="item in mainNav"
           :key="item.to"
           :to="item.to"
-          :title="sidebarCollapsed ? item.label : undefined"
           :class="[
-            'flex items-center rounded-xl text-sm font-medium transition-all group overflow-hidden relative',
+            'flex items-center rounded-xl text-sm font-medium transition-all group relative',
             sidebarCollapsed ? 'justify-center w-10 h-10 mx-auto p-0' : 'gap-3 px-3 py-2.5',
             isActive(item.to)
               ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30'
@@ -44,9 +43,15 @@
           ]"
         >
           <span v-html="item.icon" :class="['w-4 h-4 flex-shrink-0 transition-transform', isActive(item.to) ? 'text-white' : 'text-slate-500 group-hover:text-slate-300', sidebarCollapsed ? 'group-hover:scale-110' : '']"></span>
-          <span class="whitespace-nowrap transition-all duration-300" :class="sidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 w-auto'">{{ item.label }}</span>
+          <span class="whitespace-nowrap transition-all duration-300 overflow-hidden" :class="sidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 w-auto'">{{ item.label }}</span>
           <span v-if="item.badge && !sidebarCollapsed" class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">{{ item.badge }}</span>
           <span v-if="item.badge && sidebarCollapsed" class="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-slate-900"></span>
+          
+          <!-- Custom Tooltip -->
+          <div v-if="sidebarCollapsed" class="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded-lg opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-50 whitespace-nowrap shadow-xl border border-slate-700/50 flex items-center">
+            <div class="absolute -left-1 top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-800"></div>
+            {{ item.label }}
+          </div>
         </RouterLink>
 
         <p class="pt-4 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest transition-all duration-300 overflow-hidden whitespace-nowrap text-center" :class="sidebarCollapsed ? 'opacity-0 h-0 mb-0 hidden' : 'opacity-100 h-auto px-3'">Configurações</p>
@@ -54,9 +59,8 @@
           v-for="item in settingsNav"
           :key="item.to"
           :to="item.to"
-          :title="sidebarCollapsed ? item.label : undefined"
           :class="[
-            'flex items-center rounded-xl text-sm font-medium transition-all group overflow-hidden',
+            'flex items-center rounded-xl text-sm font-medium transition-all group relative',
             sidebarCollapsed ? 'justify-center w-10 h-10 mx-auto p-0' : 'gap-3 px-3 py-2.5',
             isActive(item.to)
               ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30'
@@ -64,7 +68,13 @@
           ]"
         >
           <span v-html="item.icon" :class="['w-4 h-4 flex-shrink-0 transition-transform', isActive(item.to) ? 'text-white' : 'text-slate-500 group-hover:text-slate-300', sidebarCollapsed ? 'group-hover:scale-110' : '']"></span>
-          <span class="whitespace-nowrap transition-all duration-300" :class="sidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 w-auto'">{{ item.label }}</span>
+          <span class="whitespace-nowrap transition-all duration-300 overflow-hidden" :class="sidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 w-auto'">{{ item.label }}</span>
+          
+          <!-- Custom Tooltip -->
+          <div v-if="sidebarCollapsed" class="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded-lg opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-50 whitespace-nowrap shadow-xl border border-slate-700/50 flex items-center">
+            <div class="absolute -left-1 top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-800"></div>
+            {{ item.label }}
+          </div>
         </RouterLink>
       </nav>
 
@@ -80,13 +90,21 @@
           </div>
         </div>
         <div class="flex mt-2 transition-all duration-300" :class="sidebarCollapsed ? 'flex-col items-center gap-2' : 'gap-1'">
-          <RouterLink to="/" class="flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-white rounded-lg hover:bg-slate-800 transition-colors w-full" :class="sidebarCollapsed ? 'p-2.5 w-auto rounded-xl' : 'py-1.5 px-2'" :title="sidebarCollapsed ? 'Ver loja' : undefined">
+          <RouterLink to="/" class="group relative flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-white rounded-lg hover:bg-slate-800 transition-colors w-full" :class="sidebarCollapsed ? 'p-2.5 w-auto rounded-xl' : 'py-1.5 px-2'">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
             <span v-if="!sidebarCollapsed">Ver loja</span>
+            <div v-if="sidebarCollapsed" class="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded-lg opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-50 whitespace-nowrap shadow-xl border border-slate-700/50 flex items-center">
+              <div class="absolute -left-1 top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-800"></div>
+              Ver loja
+            </div>
           </RouterLink>
-          <button @click="handleLogout" class="flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition-colors w-full" :class="sidebarCollapsed ? 'p-2.5 w-auto rounded-xl' : 'py-1.5 px-2'" :title="sidebarCollapsed ? 'Sair' : undefined">
+          <button @click="handleLogout" class="group relative flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition-colors w-full" :class="sidebarCollapsed ? 'p-2.5 w-auto rounded-xl' : 'py-1.5 px-2'">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             <span v-if="!sidebarCollapsed">Sair</span>
+            <div v-if="sidebarCollapsed" class="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs font-semibold rounded-lg opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-50 whitespace-nowrap shadow-xl border border-slate-700/50 flex items-center">
+              <div class="absolute -left-1 top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-800"></div>
+              Sair
+            </div>
           </button>
         </div>
       </div>

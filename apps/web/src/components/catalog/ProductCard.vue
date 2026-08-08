@@ -14,10 +14,11 @@
     <RouterLink :to="`/produto/${product.slug}`" class="block relative overflow-hidden bg-gray-50">
       <div class="aspect-square overflow-hidden">
         <img
-          :src="product.coverImageUrl"
+          :src="optimizeImage(product.coverImageUrl, 600)"
           :alt="product.name"
           class="w-full h-full object-cover group-hover:scale-[1.08] transition-transform duration-500"
           loading="lazy"
+          decoding="async"
         />
       </div>
 
@@ -131,6 +132,9 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCartStore } from '@/stores/cart.store';
 import { useConfetti } from '@/composables/useConfetti';
+import { useImageOptimizer } from '@/composables/useImageOptimizer';
+
+const { optimizeImage } = useImageOptimizer();
 
 const props = defineProps<{
   product: {
