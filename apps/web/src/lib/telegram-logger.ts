@@ -28,7 +28,7 @@ export function initTelegramLogger(app: any) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: CHAT_ID,
+          chat_id: chatId,
           text,
           parse_mode: 'HTML',
         })
