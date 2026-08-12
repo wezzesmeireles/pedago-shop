@@ -92,24 +92,26 @@
                 <div class="flex-1 h-px bg-gray-100" />
               </div>
 
-              <!-- ── Já tenho conta ── -->
+              <!-- ── Entrar ou Cadastrar-se ── -->
               <button
                 @click="goLogin"
-                class="w-full flex items-center gap-3 px-4 py-4 rounded-xl border border-gray-200 bg-gray-50 active:bg-gray-100 transition-all"
-                aria-label="Entrar na conta existente"
+                class="group w-full flex items-center gap-3.5 px-4 py-4 rounded-xl border-2 border-gray-100 bg-white hover:border-violet-200 hover:shadow-sm transition-all active:scale-[0.98]"
+                aria-label="Entrar ou Cadastrar-se"
               >
-                <div class="w-9 h-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <div class="w-10 h-10 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-100 group-hover:scale-110 transition-all duration-200">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                   </svg>
                 </div>
                 <div class="text-left flex-1 min-w-0">
-                  <p class="text-sm font-bold text-gray-700 leading-none mb-0.5">Já tenho conta</p>
-                  <p class="text-xs text-gray-400">Entrar com e-mail e senha</p>
+                  <p class="text-[15px] font-bold text-gray-800 mb-0.5 group-hover:text-violet-700 transition-colors">Entrar ou Cadastrar-se</p>
+                  <p class="text-xs text-gray-500 font-medium">Acesse com e-mail, senha ou Google</p>
                 </div>
-                <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
+                <div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-violet-50 transition-colors flex-shrink-0">
+                  <svg class="w-4 h-4 text-gray-400 group-hover:text-violet-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </div>
               </button>
 
               <!-- Safe area bottom (iOS) -->

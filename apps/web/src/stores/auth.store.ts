@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { Query, OAuthProvider } from 'appwrite';
+import { Query, OAuthProvider, ID } from 'appwrite';
 import { account, databases, functions, DB_ID, COLLECTIONS, appwriteEndpoint } from '@/lib/appwrite';
 
 interface User {
@@ -264,50 +264,26 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(name: string, email: string, password: string, phone?: string) {
     loading.value = true;
     try {
-      // Use Appwrite function with server role — bypasses rate limits
-      let fnExecution: Record<string, any> | null = null;
-      let fnError: Error | null = null;
+      // Limpa qualquer sessão órfã antes de criar/logar
+      try { await account.deleteSession('current'); } catch { /* no active session — fine */ }
+      
       try {
-        fnExecution = await functions.createExecution(
-          'register-user',
-          JSON.stringify({ name, email, password, phone }),
-          false,
-          '/',
-          'POST' as any,
-          { 'Content-Type': 'application/json' },
-        );
-      } catch (e: any) {
-        fnError = e;
-      }
-
-      const fnResponseCode = fnExecution?.responseStatusCode ?? 0;
-      const fnResponseBody = (() => {
-        try { return JSON.parse(fnExecution?.responseBody ?? '{}'); } catch { return {}; }
-      })();
-
-      if (fnError || (fnResponseCode && fnResponseCode >= 400)) {
-        const errMsg = (fnResponseBody?.message ?? fnError?.message ?? '').toLowerCase();
-        const errStatus = fnResponseCode || 0;
-        console.error('[register-user fn error]', errStatus, errMsg);
-        console.error('POSSÍVEL ERRO DE MIGRAÇÃO: Verifique se a função "register-user" está implantada no novo servidor Appwrite e se a variável APPWRITE_API_KEY está correta.');
-
-        // 409 = already exists
-        if (errStatus === 409 || errMsg.includes('already') || errMsg.includes('registered')) {
+        await account.create(ID.unique(), email, password, name);
+      } catch (err: any) {
+        // 409 = account already exists
+        if (err.code === 409 || err.message?.includes('already')) {
           try {
             await account.createEmailPasswordSession(email, password);
             await fetchMe();
             return;
           } catch {
-            throw new Error('Este email já está cadastrado. Tente fazer login.');
+            throw new Error('Este email já está cadastrado. Tente fazer login com sua senha.');
           }
         }
-        throw new Error('Erro ao criar conta. Tente novamente.');
+        throw new Error('Erro ao criar conta: ' + (err.message || 'Tente novamente.'));
       }
 
-      // Account created — sign in immediately.
-      // Clear any stale/anonymous session first (same fix as login) — otherwise
-      // Appwrite rejects the new session with "session already exists" (403).
-      try { await account.deleteSession('current'); } catch { /* no active session — fine */ }
+      // Conta criada com sucesso, faz o login
       try {
         await account.createEmailPasswordSession(email, password);
       } catch {
@@ -315,20 +291,24 @@ export const useAuthStore = defineStore('auth', () => {
       }
       await fetchMe();
 
-      // Fallback: se a edge function não salvou o phone, salvar do client diretamente
+      // Salva o phone no perfil recém criado (fetchMe garante que o profile existe)
       if (phone && user.value && !user.value.phone) {
-        const profileResult = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
-          Query.equal('userId', user.value.id),
-          Query.limit(1),
-        ]);
-        const profileDoc = profileResult.documents[0];
-        if (profileDoc) {
-          await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileDoc.$id, {
-            phone,
-            updatedAt: new Date().toISOString(),
-          });
+        try {
+          const profileResult = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+            Query.equal('userId', user.value.id),
+            Query.limit(1),
+          ]);
+          const profileDoc = profileResult.documents[0];
+          if (profileDoc) {
+            await databases.updateDocument(DB_ID, COLLECTIONS.PROFILES, profileDoc.$id, {
+              phone,
+              updatedAt: new Date().toISOString(),
+            });
+          }
+          await fetchMe();
+        } catch (e) {
+          console.error('Erro ao salvar telefone no perfil', e);
         }
-        await fetchMe();
       }
     } finally {
       loading.value = false;
