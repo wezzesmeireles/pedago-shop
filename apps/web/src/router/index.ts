@@ -37,6 +37,7 @@ const router = createRouter({
       children: [
         { path: 'login', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
         { path: 'register', name: 'register', component: () => import('@/views/auth/RegisterView.vue') },
+        { path: '/cadastro', redirect: { name: 'register' } },
         { path: 'google-callback', name: 'google-callback', component: () => import('@/views/auth/GoogleCallbackView.vue') },
         { path: 'whatsapp', name: 'phone-required', component: () => import('@/views/auth/PhoneRequiredView.vue') },
         { path: 'esqueci-senha', name: 'forgot-password', component: () => import('@/views/auth/ForgotPasswordView.vue') },

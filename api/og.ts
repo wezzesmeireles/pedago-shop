@@ -28,9 +28,8 @@ function esc(s: string) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
-function buildOgHtml(o: { title: string; desc: string; image: string; url: string; storeName: string }) {
-  return `<!DOCTYPE html><html lang="pt-BR"><head>
-<meta charset="UTF-8">
+function buildOgTags(o: { title: string; desc: string; image: string; url: string; storeName: string }) {
+  return `
 <title>${esc(o.title)}</title>
 <meta name="description" content="${esc(o.desc)}">
 <meta property="og:title" content="${esc(o.title)}">
@@ -44,8 +43,7 @@ function buildOgHtml(o: { title: string; desc: string; image: string; url: strin
 <meta name="twitter:title" content="${esc(o.title)}">
 <meta name="twitter:description" content="${esc(o.desc)}">
 <meta name="twitter:image" content="${esc(o.image)}">
-<meta http-equiv="refresh" content="0;url=${esc(o.url)}">
-</head><body>Carregando...</body></html>`;
+`;
 }
 
 export default async function handler(req: any, res: any) {
@@ -53,22 +51,24 @@ export default async function handler(req: any, res: any) {
   const slug = String(req.query.slug ?? '').replace(/[^a-z0-9-]/gi, '');
   const isBot = BOT_UA.test(ua);
 
-  // Usuário normal: serve index.html inline (arquivo estático — sem loop)
-  // /index.html é arquivo estático no Vercel; não passa pela função novamente.
-  // URL do browser permanece igual (/produto/:slug ou /) — Vue router roda normalmente.
-  if (!isBot) {
-    try {
-      const spaRes = await fetch(`${SITE_URL}/index.html`, { headers: { 'user-agent': 'vercel-og-proxy' } });
-      const html = await spaRes.text();
-      res.setHeader('Content-Type', 'text/html;charset=utf-8');
-      res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).send(html);
-    } catch {
-      return res.redirect(302, `${SITE_URL}/`);
-    }
+  // Busca o index.html real para usá-lo como base
+  // Isso evita loops infinitos se um navegador in-app (como o do WhatsApp) cair no regex de bot.
+  let baseHtml = '';
+  try {
+    const spaRes = await fetch(`${SITE_URL}/index.html`, { headers: { 'user-agent': 'vercel-og-proxy' } });
+    baseHtml = await spaRes.text();
+  } catch {
+    return res.redirect(302, `${SITE_URL}/`);
   }
 
-  // Bot: busca dados do produto e retorna HTML com OG tags
+  // Usuário normal: retorna o index.html original diretamente (rápido)
+  if (!isBot) {
+    res.setHeader('Content-Type', 'text/html;charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).send(baseHtml);
+  }
+
+  // Bot: busca dados do produto e injeta as tags no head do index.html
   const [cfgRows, productRows] = await Promise.all([
     supaGet('site_config?key=eq.global&select=value&limit=1').catch(() => []),
     slug
@@ -90,7 +90,17 @@ export default async function handler(req: any, res: any) {
   const image: string = toOgImage(product?.cover_image_url ?? defaultImage);
   const url = slug ? `${SITE_URL}/produto/${slug}` : SITE_URL;
 
+  const ogTags = buildOgTags({ title, desc, image, url, storeName });
+
+  // Remove as tags antigas e injeta as novas antes de </head>
+  let injectedHtml = baseHtml
+    .replace(/<title>.*?<\/title>/i, '')
+    .replace(/<meta[^>]*name="description"[^>]*>/i, '')
+    .replace(/<meta[^>]*property="og:[^>]*>/gi, '')
+    .replace(/<meta[^>]*name="twitter:[^>]*>/gi, '')
+    .replace('</head>', ogTags + '</head>');
+
   res.setHeader('Content-Type', 'text/html;charset=utf-8');
   res.setHeader('Cache-Control', 'public,max-age=300,s-maxage=300');
-  res.status(200).send(buildOgHtml({ title, desc, image, url, storeName }));
+  res.status(200).send(injectedHtml);
 }

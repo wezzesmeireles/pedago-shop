@@ -3,6 +3,7 @@ import { createPinia } from 'pinia';
 import { createHead } from '@vueuse/head';
 import App from './App.vue';
 import router from './router';
+import { initTelegramLogger } from './lib/telegram-logger';
 import './assets/main.css';
 
 async function main() {
@@ -15,6 +16,8 @@ async function main() {
   const app = createApp(App);
   const pinia = createPinia();
   const head = createHead();
+  
+  initTelegramLogger(app);
 
   app.use(pinia);
   app.use(router);
