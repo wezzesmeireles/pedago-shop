@@ -199,8 +199,16 @@ export const useAuthStore = defineStore('auth', () => {
     if (import.meta.env.VITE_TARGET === 'mobile') {
       return loginWithGoogleNative();
     }
-    const successUrl = `${window.location.origin}/auth/google-callback`;
-    const failUrl = `${window.location.origin}/login`;
+    // O Appwrite autoriza `localhost` para desenvolvimento, mas trata
+    // `127.0.0.1` como uma plataforma Web diferente. Normalize o callback
+    // local para o host já cadastrado, independentemente de como o Vite foi
+    // aberto no navegador.
+    const oauthOrigin = new URL(window.location.origin);
+    if (oauthOrigin.hostname === '127.0.0.1' || oauthOrigin.hostname === '::1') {
+      oauthOrigin.hostname = 'localhost';
+    }
+    const successUrl = `${oauthOrigin.origin}/auth/google-callback`;
+    const failUrl = `${oauthOrigin.origin}/auth/login`;
     // createOAuth2Token passes userId+secret in URL — works cross-domain
     return account.createOAuth2Token(OAuthProvider.Google, successUrl, failUrl);
   }

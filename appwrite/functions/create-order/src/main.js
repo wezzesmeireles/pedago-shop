@@ -1,4 +1,4 @@
-import { Client, Databases, ID, Query, Permission, Role } from 'node-appwrite'
+import { Client, Databases, ID, Query, Permission, Role, Messaging } from 'node-appwrite'
 import crypto from 'crypto'
 
 export default async ({ req, res, log, error }) => {
@@ -268,6 +268,41 @@ export default async ({ req, res, log, error }) => {
     }
   } catch (err) {
     log('Telegram notification failed: ' + err.message)
+  }
+
+  // Push acompanha o mesmo evento do Telegram. Falhas ou usuários sem target
+  // nunca interrompem a criação do pedido/pagamento.
+  try {
+    const messaging = new Messaging(client)
+    const admins = await db.listDocuments(DB, 'profiles', [
+      Query.equal('role', 'ADMIN'), Query.limit(100),
+    ])
+    const adminIds = admins.documents.map(profile => profile.userId).filter(Boolean)
+    const isPix = method === 'PIX'
+    const isFreeOrder = method === 'FREE'
+    if (adminIds.length) {
+      await messaging.createPush(
+        ID.unique(),
+        isPix ? '💠 Novo PIX gerado' : isFreeOrder ? '🎁 Novo material gratuito' : '🛒 Novo pedido',
+        `Pedido ${orderNumber} — ${isFreeOrder ? 'material liberado' : 'aguardando pagamento'}`,
+        [], adminIds, [], { route: '/admin/pedidos', orderId: order.$id },
+      )
+    }
+    if (userId && (isPix || isFreeOrder)) {
+      await messaging.createPush(
+        ID.unique(),
+        isPix ? 'PIX gerado com sucesso' : 'Material liberado!',
+        isPix
+          ? `O pedido ${orderNumber} está aguardando o pagamento.`
+          : `O pedido ${orderNumber} já está disponível para baixar.`,
+        [], [userId], [], {
+          route: isPix ? '/checkout' : '/minha-conta/downloads',
+          orderId: order.$id,
+        },
+      )
+    }
+  } catch (err) {
+    log('Order push notification failed: ' + err.message)
   }
 
   // Normalized payment object matching what the frontend expects

@@ -142,6 +142,16 @@ export default async ({ req, res, log }) => {
     } catch (err) { log('Push failed: ' + err.message) }
   }
 
+  async function sendCustomerPush(userId, title, pushBody, data) {
+    if (!userId) return
+    try {
+      const messaging = new Messaging(client)
+      await messaging.createPush(
+        ID.unique(), title, pushBody, [], [userId], [], data || {},
+      )
+    } catch (err) { log('Customer push failed: ' + err.message) }
+  }
+
   // Atomic "paid notification" claim. This path runs concurrently (checkout
   // polls reconcile every 5s without awaiting, plus the cron and the MP
   // webhook), so the `status !== 'PAID'` guard alone races: several in-flight
@@ -306,12 +316,24 @@ export default async ({ req, res, log }) => {
             `Pedido ${order.orderNumber} — ${(order.customerName || 'Cliente').split(' ')[0]}`,
             { route: '/admin/pedidos', orderId: order.$id },
           )
+          await sendCustomerPush(
+            order.userId,
+            '✅ Pagamento aprovado!',
+            `O pedido ${order.orderNumber} já está disponível para baixar.`,
+            { route: '/minha-conta/downloads', orderId: order.$id },
+          )
         }
 
       } else if (['rejected', 'cancelled', 'expired'].includes(payment.status)) {
         await db.updateDocument(DB, 'orders', order.$id, {
           status: 'CANCELLED', mpStatus: payment.status, updatedAt: now,
         })
+        await sendCustomerPush(
+          order.userId,
+          payment.status === 'expired' ? 'Seu PIX expirou' : 'Pagamento não concluído',
+          `O pagamento do pedido ${order.orderNumber} não foi concluído.`,
+          { route: '/carrinho', orderId: order.$id },
+        )
         log(`Order ${order.orderNumber} CANCELLED`)
       }
     } catch (err) {

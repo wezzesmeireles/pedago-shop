@@ -97,6 +97,20 @@
       "timeout": 60,
       "ignore": ["node_modules", ".npm"],
       "path": "appwrite/functions/reconcile-orders"
+    },
+    {
+      "functionId": "product-notifications",
+      "name": "product-notifications",
+      "runtime": "node-22",
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "scopes": ["documents.read", "messages.write"],
+      "execute": [],
+      "events": ["databases.*.collections.products.documents.*.create"],
+      "schedule": "",
+      "timeout": 30,
+      "ignore": ["node_modules", ".npm"],
+      "path": "appwrite/functions/product-notifications"
     }
   ]
 }

@@ -235,16 +235,25 @@ export default async ({ req, res, log, error }) => {
     // Telegram. Mesmo claim atômico (wonNotifyClaim) → sem duplicar. Best-effort.
     if (wonNotifyClaim) {
       try {
+        const messaging = new Messaging(client)
         const admins = await db.listDocuments(DB, 'profiles', [
           Query.equal('role', 'ADMIN'), Query.limit(100),
         ])
         const userIds = admins.documents.map(d => d.userId).filter(Boolean)
         if (userIds.length) {
-          await new Messaging(client).createPush(
+          await messaging.createPush(
             ID.unique(),
             `🎉 Nova venda — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
             `Pedido ${order.orderNumber} — ${(order.customerName || 'Cliente').split(' ')[0]}`,
             [], userIds, [], { route: '/admin/pedidos', orderId: order.$id },
+          )
+        }
+        if (order.userId) {
+          await messaging.createPush(
+            ID.unique(),
+            '✅ Pagamento aprovado!',
+            `O pedido ${order.orderNumber} já está disponível para baixar.`,
+            [], [order.userId], [], { route: '/minha-conta/downloads', orderId: order.$id },
           )
         }
       } catch (err) {

@@ -5,6 +5,7 @@ node_modules/
 # Build outputs
 dist/
 build/
+apps/web/dev-dist/
 
 # Environment files
 .env
