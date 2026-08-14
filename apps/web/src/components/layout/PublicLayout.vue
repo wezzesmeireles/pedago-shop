@@ -159,19 +159,24 @@
         </div>
 
         <!-- Busca mobile — abaixo da linha principal -->
-        <div class="md:hidden pb-3 pt-1">
+        <div
+          class="brand-mobile-search-row md:hidden overflow-hidden transition-all duration-300 ease-out"
+          :class="scrolled
+            ? 'max-h-0 opacity-0 pb-0 pointer-events-none'
+            : 'max-h-20 opacity-100 pb-2 pt-0.5'"
+        >
           <div class="relative brand-mobile-search">
             <input
               v-model="searchQuery"
               type="search"
               placeholder="Buscar atividades..."
-              class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-2xl
+              class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-2xl
                      bg-white focus:outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100/70
                      placeholder:text-gray-400 transition-all"
               style="font-size: 16px;"
               @keyup.enter="doSearch"
             />
-            <svg class="absolute left-3.5 top-3.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg class="absolute left-3.5 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
             </svg>
           </div>
@@ -261,7 +266,7 @@
     </header>
 
     <!-- Main content -->
-    <main class="flex-1">
+    <main class="flex-1 pb-[68px] md:pb-0">
       <RouterView />
     </main>
 
@@ -394,7 +399,7 @@
     <WhatsAppWidget v-if="config.socialLinks?.whatsapp" />
 
     <!-- Crédito discreto da agência -->
-    <AlivenCredit />
+    <AlivenCredit v-if="!scrolled" />
 
     <!-- Scroll to top button -->
     <transition name="fade">
@@ -455,8 +460,6 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import { useCartStore } from '@/stores/cart.store';
-import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { ID } from 'appwrite';
 import { defineAsyncComponent } from 'vue';
 const CartDrawer = defineAsyncComponent(() => import('@/components/catalog/CartDrawer.vue'));
 const CartFab = defineAsyncComponent(() => import('@/components/catalog/CartFab.vue'));
@@ -473,8 +476,6 @@ const { config, loaded: configLoaded } = storeToRefs(siteConfigStore);
 const userMenuOpen = ref(false);
 const mobileMenuOpen = ref(false);
 const searchQuery = ref('');
-const newsletterEmail = ref('');
-const newsletterSent = ref(false);
 const scrolled = ref(false);
 
 const navLinks = [
@@ -504,34 +505,12 @@ const trustBadges = [
   { label: 'Atividades prontas para imprimir', sub: 'Download disponível na conta', icon: PrintIcon, bg: 'bg-blue-100', color: 'text-blue-600' },
 ];
 
-function openCart() {
-  cart.openCart();
-}
-
 function doSearch() {
   if (searchQuery.value.trim()) {
     router.push(`/catalogo?busca=${encodeURIComponent(searchQuery.value.trim())}`);
     mobileMenuOpen.value = false;
     searchQuery.value = '';
   }
-}
-
-async function subscribeNewsletter() {
-  const email = newsletterEmail.value.trim().toLowerCase();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
-  try {
-    await databases.createDocument(DB_ID, COLLECTIONS.NEWSLETTER, ID.unique(), {
-      email,
-      source: 'footer',
-      createdAt: new Date().toISOString(),
-    });
-  } catch (e: any) {
-    // 409 = email já cadastrado — tratamos como sucesso (já está na lista)
-    if (e?.code !== 409) { console.error('[newsletter]', e); return; }
-  }
-  newsletterSent.value = true;
-  newsletterEmail.value = '';
-  setTimeout(() => { newsletterSent.value = false; }, 3000);
 }
 
 function scrollToTop() {
@@ -676,16 +655,36 @@ onUnmounted(() => {
 
 @media (max-width: 767px) {
   .brand-header .brand-logo {
-    height: 47px;
-    max-width: 68vw;
+    height: 41px;
+    max-width: 66vw;
   }
 
   .brand-header > div > div:first-child {
-    height: 68px;
+    height: 58px;
   }
 
   .brand-header {
     box-shadow: 0 8px 24px -22px rgba(72, 43, 98, 0.48);
+  }
+
+  .brand-mobile-search-row {
+    will-change: max-height, opacity;
+  }
+
+  .brand-mobile-nav {
+    min-height: 60px;
+  }
+
+  .mobile-nav-item {
+    min-height: 58px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .mobile-nav-item > svg,
+  .mobile-nav-item > span > svg {
+    width: 22px;
+    height: 22px;
   }
 }
 

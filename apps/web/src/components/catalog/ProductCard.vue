@@ -14,9 +14,12 @@
     <RouterLink :to="`/produto/${product.slug}`" class="block relative overflow-hidden bg-gray-50">
       <div class="aspect-square overflow-hidden">
         <img
-          :src="optimizeImage(product.coverImageUrl, 600)"
+          :src="optimizeImage(product.coverImageUrl, 480)"
           :alt="product.name"
           class="w-full h-full object-cover group-hover:scale-[1.08] transition-transform duration-500"
+          width="480"
+          height="480"
+          sizes="(max-width: 639px) 50vw, (max-width: 1023px) 33vw, 220px"
           loading="lazy"
           decoding="async"
         />
@@ -214,6 +217,8 @@ function addToCart() {
     font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
     font-weight: 600;
     color: #51465a;
+    font-size: 0.8rem;
+    min-height: 2.3rem;
   }
 
   .product-card button {

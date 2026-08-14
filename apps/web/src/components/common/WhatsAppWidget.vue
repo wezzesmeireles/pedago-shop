@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed bottom-[88px] md:bottom-6 right-6 z-[100]">
+  <div class="fixed bottom-[68px] md:bottom-6 right-3 md:right-6 z-[38]">
     <!-- Chat window -->
     <transition
       enter-active-class="transition duration-200 ease-out"
@@ -9,7 +9,7 @@
       leave-from-class="transform translate-y-0 opacity-100 scale-100"
       leave-to-class="transform translate-y-4 opacity-0 scale-95"
     >
-      <div v-if="isOpen" class="absolute bottom-16 right-0 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col mb-4 origin-bottom-right">
+      <div v-if="isOpen" class="absolute bottom-14 md:bottom-16 right-0 w-[calc(100vw-24px)] max-w-80 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 flex flex-col mb-3 md:mb-4 origin-bottom-right">
         <!-- Header -->
         <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-4 text-white flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -80,14 +80,14 @@
     <!-- Floating Action Button -->
     <div class="relative">
       <!-- Efeito de piscar (ping) -->
-      <div v-if="!isOpen" class="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-75"></div>
+      <div v-if="!isOpen" class="hidden sm:block absolute inset-0 bg-green-400 rounded-full animate-ping opacity-60"></div>
       
       <button 
         @click="isOpen = !isOpen" 
-        class="relative w-14 h-14 bg-gradient-to-tr from-green-500 to-emerald-400 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-500/40 hover:scale-105 active:scale-95 transition-all"
+        class="relative w-11 h-11 md:w-14 md:h-14 bg-gradient-to-tr from-green-500 to-emerald-400 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-500/35 hover:scale-105 active:scale-95 transition-all"
         aria-label="Abrir chat de ajuda"
       >
-        <svg v-if="!isOpen" class="w-7 h-7 drop-shadow-sm" fill="currentColor" viewBox="0 0 24 24"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 001.333 4.993L2 22l5.233-1.375a9.976 9.976 0 004.779 1.217h.004c5.505 0 9.988-4.478 9.989-9.984 0-5.505-4.483-9.988-9.993-9.988zm0 18.293c-1.558 0-3.085-.418-4.42-1.21l-.317-.188-3.287.863.878-3.2-.207-.329a8.28 8.28 0 01-1.266-4.437c0-4.57 3.72-8.294 8.295-8.294 4.576 0 8.3 3.725 8.3 8.3 0 4.576-3.724 8.295-8.296 8.295h-.002V20.293z" /><path d="M16.55 13.918c-.25-.125-1.477-.73-1.705-.813-.228-.084-.395-.125-.561.125-.166.25-.643.813-.788.98-.146.166-.291.187-.541.062-1.119-.556-2.023-1.074-2.825-2.453-.105-.181.101-.173.342-.647.083-.166.042-.312-.021-.437-.062-.125-.561-1.353-.77-1.853-.203-.484-.409-.419-.561-.427-.146-.008-.312-.01-.478-.01-.166 0-.437.062-.666.312-.229.25-.873.854-.873 2.082 0 1.229.894 2.416 1.019 2.582.125.166 1.761 2.686 4.266 3.769 1.834.793 2.392.835 3.016.793.578-.039 1.477-.604 1.685-1.187.208-.583.208-1.083.146-1.187-.063-.104-.229-.166-.479-.291z" /></svg>
+        <svg v-if="!isOpen" class="w-[22px] h-[22px] md:w-7 md:h-7 drop-shadow-sm" fill="currentColor" viewBox="0 0 24 24"><path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.964 9.964 0 001.333 4.993L2 22l5.233-1.375a9.976 9.976 0 004.779 1.217h.004c5.505 0 9.988-4.478 9.989-9.984 0-5.505-4.483-9.988-9.993-9.988zm0 18.293c-1.558 0-3.085-.418-4.42-1.21l-.317-.188-3.287.863.878-3.2-.207-.329a8.28 8.28 0 01-1.266-4.437c0-4.57 3.72-8.294 8.295-8.294 4.576 0 8.3 3.725 8.3 8.3 0 4.576-3.724 8.295-8.296 8.295h-.002V20.293z" /><path d="M16.55 13.918c-.25-.125-1.477-.73-1.705-.813-.228-.084-.395-.125-.561.125-.166.25-.643.813-.788.98-.146.166-.291.187-.541.062-1.119-.556-2.023-1.074-2.825-2.453-.105-.181.101-.173.342-.647.083-.166.042-.312-.021-.437-.062-.125-.561-1.353-.77-1.853-.203-.484-.409-.419-.561-.427-.146-.008-.312-.01-.478-.01-.166 0-.437.062-.666.312-.229.25-.873.854-.873 2.082 0 1.229.894 2.416 1.019 2.582.125.166 1.761 2.686 4.266 3.769 1.834.793 2.392.835 3.016.793.578-.039 1.477-.604 1.685-1.187.208-.583.208-1.083.146-1.187-.063-.104-.229-.166-.479-.291z" /></svg>
         <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>

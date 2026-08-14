@@ -165,18 +165,26 @@
 
 @media (max-width: 767px) {
   .aliven-credit {
-    width: 46px;
-    height: 46px;
-    min-height: 46px;
-    padding: 4px;
-    border-radius: 14px;
+    left: 9px;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 3px;
+    border-radius: 13px;
     justify-content: center;
+    opacity: 0.88;
     box-shadow: 0 8px 22px -10px rgba(1, 3, 20, 0.78), 0 0 16px -9px rgba(59, 130, 246, 0.9);
   }
 
   .aliven-credit__mark {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .aliven-credit__logo {
+    width: 22px;
+    height: 22px;
   }
 
   .aliven-credit__copy,

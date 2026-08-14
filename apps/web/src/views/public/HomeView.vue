@@ -22,6 +22,7 @@
               :src="slide.imageUrl"
               :alt="slide.title || 'Banner'"
               class="brand-hero-image w-full h-auto block"
+              sizes="100vw"
               :loading="idx === 0 ? 'eager' : 'lazy'"
               :fetchpriority="idx === 0 ? 'high' : 'auto'"
               decoding="async"
@@ -47,7 +48,7 @@
 
         <!-- Prev/Next arrows -->
         <button @click="prevBanner"
-          class="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full
+          class="brand-hero-arrow absolute left-2 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full
                  bg-white/20 backdrop-blur-md hover:bg-white/40 flex items-center justify-center
                  text-white transition-all shadow-lg border border-white/30 active:scale-90"
           aria-label="Anterior">
@@ -56,7 +57,7 @@
           </svg>
         </button>
         <button @click="nextBanner"
-          class="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full
+          class="brand-hero-arrow absolute right-2 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full
                  bg-white/20 backdrop-blur-md hover:bg-white/40 flex items-center justify-center
                  text-white transition-all shadow-lg border border-white/30 active:scale-90"
           aria-label="Próximo">
@@ -66,14 +67,17 @@
         </button>
 
         <!-- Dots -->
-        <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
+        <div class="brand-hero-dots absolute bottom-2.5 sm:bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center z-20 rounded-full bg-black/20 backdrop-blur-md border border-white/15 p-1 shadow-lg">
           <button
             v-for="(_, idx) in bannerSlides" :key="idx"
             @click="goToBanner(idx)"
-            :class="['transition-all duration-300 rounded-full',
-              bannerIndex === idx ? 'w-6 h-2.5 bg-white' : 'w-2.5 h-2.5 bg-white/50 hover:bg-white/80']"
+            class="brand-hero-dot-hit w-7 h-7 flex items-center justify-center rounded-full bg-transparent transition-transform active:scale-90"
+            :aria-current="bannerIndex === idx ? 'true' : undefined"
             :aria-label="`Banner ${idx + 1}`"
-          ></button>
+          >
+            <span :class="['block h-1.5 rounded-full transition-all duration-300',
+              bannerIndex === idx ? 'w-5 bg-white shadow-sm' : 'w-1.5 bg-white/55']"></span>
+          </button>
         </div>
         </template>
       </div>
@@ -115,7 +119,7 @@
     </section>
 
     <!-- Boas-vindas lúdica para telas pequenas -->
-    <section class="mobile-welcome sm:hidden mx-4 mt-5 rounded-[24px] p-4 overflow-hidden">
+    <section class="mobile-welcome sm:hidden mx-4 mt-4 rounded-[22px] p-3.5 overflow-hidden">
       <span class="mobile-welcome__shape mobile-welcome__shape--one" aria-hidden="true">✦</span>
       <span class="mobile-welcome__shape mobile-welcome__shape--two" aria-hidden="true">●</span>
       <div class="relative flex items-center gap-3">
@@ -129,17 +133,17 @@
 
     <!-- ── Atalhos de categoria ─────────────────────────── -->
     <section v-if="categories.length" class="brand-categories max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-      <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+      <div class="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
         <RouterLink to="/catalogo"
-          class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-violet-600 text-white hover:bg-violet-700 transition-colors">
+          class="flex-shrink-0 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-full bg-violet-600 text-white hover:bg-violet-700 transition-colors">
           Todos
         </RouterLink>
         <RouterLink to="/catalogo?destaque=1"
-          class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors whitespace-nowrap">
+          class="flex-shrink-0 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors whitespace-nowrap">
           🔥 Mais Vendidos
         </RouterLink>
         <RouterLink v-for="cat in categories" :key="cat.id" :to="`/catalogo?categoria=${encodeURIComponent(cat.slug)}`"
-          :class="['flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full transition-colors whitespace-nowrap', cat.slug === 'gratis' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700']">
+          :class="['flex-shrink-0 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-full transition-colors whitespace-nowrap', cat.slug === 'gratis' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700']">
           <span v-if="cat.slug === 'gratis'">🎁 </span>{{ cat.name }}
         </RouterLink>
       </div>
@@ -172,17 +176,18 @@
           <div class="absolute inset-0 opacity-[0.06]"
             style="background-image:radial-gradient(circle, white 1px, transparent 1px); background-size: 24px 24px;"></div>
 
-          <div class="relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-5 sm:p-10">
+          <div class="relative flex flex-col sm:flex-row items-center gap-3 sm:gap-6 p-4 sm:p-10">
             <!-- Imagem -->
             <div class="flex-shrink-0 relative animate-float">
               <!-- Glow backdrop behind image -->
               <div class="absolute inset-2 bg-pink-400 rounded-2xl blur-xl opacity-50 animate-pulse"></div>
               
-              <div class="relative w-36 h-36 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-white/40
+              <div class="relative w-28 h-28 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-white/40
                            group-hover:scale-[1.05] group-hover:ring-white/60 transition-all duration-500 animate-shine">
                 <img v-if="groupProduct.coverImageUrl"
-                  :src="optimizeImage(groupProduct.coverImageUrl, 800)" :alt="groupProduct.name"
-                  class="w-full h-full object-cover" fetchpriority="high" decoding="async" />
+                  :src="optimizeImage(groupProduct.coverImageUrl, 600)" :alt="groupProduct.name"
+                  class="w-full h-full object-cover" width="600" height="600"
+                  sizes="(max-width: 639px) 112px, 224px" fetchpriority="high" decoding="async" />
                 <div v-else class="w-full h-full bg-violet-500 flex items-center justify-center text-6xl">📚</div>
               </div>
               <div class="absolute -top-4 -right-4 bg-gradient-to-r from-yellow-300 to-yellow-500 text-yellow-900 text-xs font-black
@@ -193,16 +198,16 @@
 
             <!-- Conteúdo -->
             <div class="flex-1 text-center sm:text-left">
-              <h2 class="font-display text-white font-bold text-xl sm:text-3xl lg:text-4xl leading-tight mb-2 drop-shadow-sm">
+              <h2 class="font-display text-white font-bold text-lg sm:text-3xl lg:text-4xl leading-tight mb-1.5 sm:mb-2 drop-shadow-sm">
                 {{ groupProduct.name }}
               </h2>
               <p v-if="groupProduct.description"
-                class="text-violet-200 text-sm sm:text-base leading-relaxed mb-5 line-clamp-2 max-w-lg">
+                class="text-violet-200 text-xs sm:text-base leading-relaxed mb-3 sm:mb-5 line-clamp-2 max-w-lg">
                 {{ groupProduct.description }}
               </p>
 
               <!-- Preço -->
-              <div class="flex items-end gap-3 mb-2 justify-center sm:justify-start">
+              <div class="flex items-end gap-3 mb-1.5 sm:mb-2 justify-center sm:justify-start">
                 <span class="font-display text-3xl sm:text-5xl font-bold text-white leading-none">
                   {{ formatPrice(groupProduct.price) }}
                 </span>
@@ -220,7 +225,7 @@
               </p>
 
               <!-- Urgency timer -->
-              <div v-if="groupTimeLeft > 0" class="flex items-center gap-2 mb-5 justify-center sm:justify-start">
+              <div v-if="groupTimeLeft > 0" class="flex items-center gap-2 mb-3 sm:mb-5 justify-center sm:justify-start">
                 <div class="flex items-center gap-1.5 text-yellow-300 font-semibold text-xs">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   Oferta expira em
@@ -236,7 +241,7 @@
 
               <!-- CTA -->
               <span class="inline-flex items-center gap-2.5 bg-white text-violet-700 font-black text-sm sm:text-base
-                            px-7 py-3.5 rounded-xl shadow-xl group-hover:bg-violet-50 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]
+                            px-6 sm:px-7 py-3 sm:py-3.5 rounded-xl shadow-xl group-hover:bg-violet-50 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]
                             group-hover:-translate-y-0.5 transition-all duration-300">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
@@ -445,8 +450,6 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useCatalogStore } from '@/stores/catalog.store';
 import { useCartStore } from '@/stores/cart.store';
 import { useImageOptimizer } from '@/composables/useImageOptimizer';
 import ProductCard from '@/components/catalog/ProductCard.vue';
@@ -850,9 +853,17 @@ onUnmounted(() => {
     object-position: center;
   }
 
-  .brand-hero :deep(button) {
-    width: 38px;
-    height: 38px;
+  .brand-hero .brand-hero-arrow {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand-hero .brand-hero-dot-hit {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
   }
 
   .brand-benefits > div {
@@ -883,15 +894,15 @@ onUnmounted(() => {
   }
 
   .brand-categories :deep(a) {
-    min-height: 42px;
+    min-height: 38px;
     display: inline-flex;
     align-items: center;
     font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
   }
 
   .brand-featured {
-    padding-top: 20px;
-    padding-bottom: 30px;
+    padding-top: 16px;
+    padding-bottom: 24px;
   }
 
   .brand-featured :deep(.animate-float) {
@@ -899,8 +910,8 @@ onUnmounted(() => {
   }
 
   .product-section {
-    padding-top: 26px;
-    padding-bottom: 26px;
+    padding-top: 22px;
+    padding-bottom: 22px;
   }
 
   .product-section h2 {
