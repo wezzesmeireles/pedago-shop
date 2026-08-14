@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-shell min-h-screen flex">
+  <div class="admin-shell min-h-screen flex overflow-x-hidden">
 
     <!-- ── Sidebar Desktop ─────────────────────────────────────── -->
     <aside :class="['admin-sidebar flex-col hidden md:flex fixed inset-y-0 left-0 z-30 transition-all duration-300', sidebarCollapsed ? 'w-20' : 'w-64']">
@@ -109,31 +109,47 @@
 
     <!-- ── Mobile overlay ──────────────────────────────────────── -->
     <div v-show="mobileMenuOpen"
-      class="fixed inset-0 z-40 md:hidden bg-black/60 transition-opacity duration-200"
+      class="fixed inset-0 z-40 md:hidden bg-slate-950/65 backdrop-blur-[2px] transition-opacity duration-200"
       :class="mobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'"
       @click="mobileMenuOpen = false">
     </div>
 
     <!-- ── Mobile Drawer ──────────────────────────────────────── -->
-    <aside class="admin-sidebar admin-sidebar-mobile fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] flex flex-col md:hidden transition-transform duration-200 ease-out"
+    <aside class="admin-sidebar admin-sidebar-mobile fixed inset-y-0 left-0 z-50 w-[min(92vw,360px)] flex flex-col md:hidden transition-transform duration-300 ease-out"
       :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'">
-        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800/60">
-          <RouterLink to="/" class="admin-logo-card flex items-center gap-3 p-2" @click="mobileMenuOpen = false">
-            <img src="/site-pedagogico-logo.png" alt="Site Pedagógico" class="h-10 w-auto max-w-[190px] object-contain" />
+        <div class="flex items-center justify-between gap-3 px-4 py-4 border-b border-white/10">
+          <RouterLink to="/" class="admin-logo-card flex items-center gap-3 p-2 min-w-0" @click="mobileMenuOpen = false">
+            <img src="/site-pedagogico-logo.png" alt="Site Pedagógico" class="h-9 w-auto max-w-[190px] object-contain" />
           </RouterLink>
-          <button @click="mobileMenuOpen = false" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
+          <button @click="mobileMenuOpen = false" aria-label="Fechar menu" class="w-11 h-11 flex items-center justify-center text-slate-300 hover:text-white rounded-2xl bg-white/5 hover:bg-white/10 flex-shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
-        <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <RouterLink v-for="item in [...mainNav, ...settingsNav]" :key="item.to" :to="item.to"
+        <nav class="flex-1 px-3 py-4 overflow-y-auto overscroll-contain">
+          <p class="px-3 pb-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Gerenciar</p>
+          <div class="grid grid-cols-2 gap-2">
+          <RouterLink v-for="item in mainNav" :key="item.to" :to="item.to"
             @click="mobileMenuOpen = false"
-            :class="['flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all', isActive(item.to) ? 'admin-nav-active text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800']">
-            <span v-html="item.icon" class="w-4 h-4 flex-shrink-0"></span>
-            {{ item.label }}
+            :class="['mobile-drawer-link flex min-w-0 flex-col items-start gap-2 px-3 py-3 rounded-2xl text-xs font-bold transition-all', isActive(item.to) ? 'admin-nav-active text-white' : 'text-slate-300 bg-white/[0.035] hover:text-white hover:bg-white/[0.07]']">
+            <span v-html="item.icon" class="w-5 h-5 flex-shrink-0"></span>
+            <span class="truncate w-full">{{ item.label }}</span>
           </RouterLink>
+          </div>
+          <p class="px-3 pt-6 pb-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Configurações</p>
+          <div class="space-y-1">
+            <RouterLink v-for="item in settingsNav" :key="item.to" :to="item.to"
+              @click="mobileMenuOpen = false"
+              :class="['flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-semibold transition-all', isActive(item.to) ? 'admin-nav-active text-white' : 'text-slate-300 hover:text-white hover:bg-white/[0.07]']">
+              <span v-html="item.icon" class="w-5 h-5 flex-shrink-0"></span>
+              {{ item.label }}
+            </RouterLink>
+          </div>
         </nav>
-        <div class="px-3 py-4 border-t border-slate-800">
+        <div class="px-3 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] border-t border-white/10">
+          <div class="flex items-center gap-3 px-3 py-2.5 mb-1 rounded-2xl bg-white/[0.04]">
+            <div class="admin-avatar w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0">{{ auth.user?.name?.[0]?.toUpperCase() }}</div>
+            <div class="min-w-0"><p class="text-sm font-bold text-white truncate">{{ auth.user?.name }}</p><p class="text-[11px] text-white/40">Administrador</p></div>
+          </div>
           <button @click="handleLogout" class="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-400 hover:bg-slate-800 rounded-xl transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             Sair da conta
@@ -144,26 +160,29 @@
     <!-- ── Main ───────────────────────────────────────────────── -->
     <div :class="['admin-workspace flex-1 flex flex-col transition-all duration-300 min-w-0', sidebarCollapsed ? 'md:ml-20' : 'md:ml-64']">
       <!-- Topbar -->
-      <header class="admin-topbar h-[68px] flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
-        <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+      <header class="admin-topbar h-[68px] flex items-center justify-between px-3 md:px-6 sticky top-0 z-20">
+        <button @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Abrir menu" class="md:hidden w-11 h-11 flex items-center justify-center text-white rounded-2xl admin-menu-button transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <div class="flex items-center gap-2 text-sm text-slate-500">
+        <div class="flex-1 min-w-0 px-3 md:px-0 flex items-center gap-2 text-sm text-slate-500">
           <span class="hidden md:inline">Admin</span>
           <span class="hidden md:inline text-slate-300">/</span>
-          <span class="text-slate-900 font-semibold">{{ currentPageLabel }}</span>
+          <div class="min-w-0">
+            <span class="block md:inline text-slate-900 font-display font-bold text-base md:text-sm truncate">{{ currentPageLabel }}</span>
+            <span class="md:hidden block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Painel administrativo</span>
+          </div>
         </div>
         <div class="flex items-center gap-3">
           <span class="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Sistema online
           </span>
-          <div class="admin-avatar w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold">
+          <div class="admin-avatar w-10 h-10 md:w-9 md:h-9 rounded-2xl md:rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
             {{ auth.user?.name?.[0]?.toUpperCase() }}
           </div>
         </div>
       </header>
 
-      <main class="admin-content flex-1 p-3 sm:p-4 md:p-6 pb-24 md:pb-8">
+      <main class="admin-content flex-1 p-3 sm:p-4 md:p-6 pb-28 md:pb-8">
         <RouterView v-slot="{ Component }">
           <Transition name="page" mode="out-in">
             <!-- Cache each admin view after its first load: revisiting a tab is
@@ -178,18 +197,18 @@
     </div>
 
     <!-- ── Mobile Bottom Nav ─────────────────────────────────── -->
-    <nav class="admin-bottom-nav fixed bottom-0 left-0 right-0 z-30 md:hidden bg-white/95 backdrop-blur-xl border-t flex safe-area-inset-bottom">
+    <nav class="admin-bottom-nav fixed z-30 md:hidden flex bg-white/95 backdrop-blur-xl border safe-area-inset-bottom">
       <RouterLink v-for="item in bottomNav" :key="item.to" :to="item.to"
-        :class="['flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[52px] transition-colors',
+        :class="['flex-1 flex flex-col items-center justify-center py-2 gap-1 min-h-[58px] rounded-2xl transition-colors',
           isActive(item.to) ? 'text-violet-600' : 'text-slate-400']">
         <span v-html="item.icon" :class="['[&>svg]:w-5 [&>svg]:h-5', isActive(item.to) ? 'text-violet-600' : 'text-slate-400']"></span>
-        <span class="text-[10px] font-medium leading-none">{{ item.label }}</span>
+        <span class="text-[11px] font-bold leading-none">{{ item.label }}</span>
       </RouterLink>
       <button @click="mobileMenuOpen = !mobileMenuOpen"
-        :class="['flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[52px] transition-colors',
+        :class="['flex-1 flex flex-col items-center justify-center py-2 gap-1 min-h-[58px] rounded-2xl transition-colors',
           mobileMenuOpen ? 'text-violet-600' : 'text-slate-400']">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
-        <span class="text-[10px] font-medium leading-none">Mais</span>
+        <span class="text-[11px] font-bold leading-none">Mais</span>
       </button>
     </nav>
   </div>
@@ -245,12 +264,11 @@ const settingsNav: NavItem[] = [
 
 const allNav = [...mainNav, ...settingsNav];
 
-// Bottom nav: 4 most-used pages + "Mais" drawer trigger
+// Bottom nav: three priority destinations + a spacious menu trigger.
 const bottomNav: NavItem[] = [
   { to: '/admin/dashboard', label: 'Início', icon: icon.grid },
   { to: '/admin/produtos', label: 'Produtos', icon: icon.box },
   { to: '/admin/pedidos', label: 'Pedidos', icon: icon.clipboard },
-  { to: '/admin/usuarios', label: 'Usuários', icon: icon.users },
 ];
 
 function isActive(path: string) {
@@ -313,6 +331,11 @@ async function handleLogout() {
   background: rgba(255,255,255,0.88);
   backdrop-filter: blur(18px) saturate(1.25);
   box-shadow: 0 8px 24px -24px rgba(55, 31, 75, 0.45);
+}
+
+.admin-menu-button {
+  background: linear-gradient(135deg, var(--admin-cyan), var(--admin-purple));
+  box-shadow: 0 8px 18px -10px rgba(70, 45, 105, 0.75);
 }
 
 .admin-content {
@@ -386,9 +409,14 @@ async function handleLogout() {
 .admin-content :deep(tbody tr:hover) { background: rgba(0,174,189,0.025); }
 
 .admin-bottom-nav {
-  min-height: 64px;
+  left: 10px;
+  right: 10px;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  min-height: 66px;
+  padding: 4px;
+  border-radius: 24px;
   border-color: rgba(125,74,168,0.12);
-  box-shadow: 0 -12px 30px -22px rgba(55,31,75,0.42);
+  box-shadow: 0 16px 40px -16px rgba(55,31,75,0.48);
 }
 
 .admin-bottom-nav > * { position: relative; min-height: 62px; }
@@ -406,14 +434,32 @@ async function handleLogout() {
 .admin-bottom-nav > * > svg { position: relative; z-index: 1; }
 
 @media (max-width: 767px) {
-  .admin-content :deep(h1) { font-size: 1.5rem; line-height: 1.15; }
+  .admin-shell { min-width: 0; }
+  .admin-workspace { width: 100%; min-width: 0; }
+  .admin-content { padding: 14px 12px 112px; overflow-x: hidden; }
+  .admin-content :deep(> *) { min-width: 0; max-width: 100%; }
+  .admin-content :deep(h1) { font-size: 1.35rem; line-height: 1.15; }
   .admin-content :deep(h2) { line-height: 1.2; }
   .admin-content :deep(.rounded-2xl) { border-radius: 18px; }
+  .admin-content :deep(.space-y-6 > :not([hidden]) ~ :not([hidden])) { margin-top: 1rem; }
+  .admin-content :deep(.gap-5),
+  .admin-content :deep(.gap-6) { gap: 0.875rem; }
+  .admin-content :deep(.p-6),
+  .admin-content :deep(.p-5) { padding: 1rem; }
+  .admin-content :deep(.px-6) { padding-left: 1rem; padding-right: 1rem; }
+  .admin-content :deep(.grid.grid-cols-2) { gap: 0.625rem; }
+  .admin-content :deep(.grid.grid-cols-2 > button),
+  .admin-content :deep(.grid.grid-cols-2 > .bg-white) { padding: 0.75rem; }
+  .admin-content :deep(.grid.grid-cols-2 .text-3xl) { font-size: 1.55rem; }
+  .admin-content :deep(.min-w-\[200px\]) { min-width: 100%; }
+  .admin-content :deep(.overflow-x-auto) { overscroll-behavior-x: contain; scrollbar-width: thin; }
   .admin-content :deep(input:not([type='checkbox']):not([type='radio'])),
-  .admin-content :deep(select) { min-height: 44px; font-size: 16px; }
+  .admin-content :deep(select),
+  .admin-content :deep(textarea) { min-height: 46px; font-size: 16px; }
   .admin-content :deep(button) { min-height: 40px; }
-  .admin-topbar { height: 62px; }
+  .admin-topbar { height: 66px; }
   .admin-sidebar-mobile { box-shadow: 24px 0 55px -25px rgba(15,9,22,0.8); }
+  .mobile-drawer-link :deep(svg) { width: 1.25rem; height: 1.25rem; }
 }
 
 /* Enter-only transition: the outgoing page is removed instantly (no blank

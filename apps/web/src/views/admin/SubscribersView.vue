@@ -1,13 +1,13 @@
 <template>
   <div class="max-w-4xl">
     <!-- Header -->
-    <div class="flex items-center justify-between gap-4 mb-6 flex-wrap">
+    <div class="flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-between gap-4 mb-5 sm:mb-6">
       <div>
         <h1 class="text-xl font-bold text-slate-900">Inscritos (Newsletter)</h1>
         <p class="text-sm text-slate-500 mt-0.5">Emails capturados no site</p>
       </div>
       <button v-if="subscribers.length" @click="exportCsv"
-        class="btn-pill text-sm px-5 py-2.5">
+        class="btn-pill text-sm px-5 py-2.5 justify-center w-full sm:w-auto">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
         Exportar CSV
       </button>

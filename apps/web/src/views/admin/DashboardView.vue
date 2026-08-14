@@ -19,7 +19,7 @@
         <p class="text-sm text-slate-500 mt-1 font-medium">☀️ {{ dateLabel }} · um resumo fresquinho da sua loja</p>
       </div>
       <RouterLink to="/admin/produtos"
-        class="font-display inline-flex items-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white text-sm font-bold px-5 py-3 rounded-full shadow-lg shadow-violet-500/30 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 transition-all self-start sm:self-auto">
+        class="font-display inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white text-sm font-bold px-5 py-3 rounded-full shadow-lg shadow-violet-500/30 hover:shadow-xl hover:-translate-y-0.5 active:scale-95 transition-all w-full sm:w-auto self-stretch sm:self-auto">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
         Novo Produto
       </RouterLink>
@@ -39,7 +39,7 @@
           <div class="stat-emoji">💰</div>
           <p class="stat-label">Receita</p>
           <p :class="['stat-num truncate', { 'opacity-60': revenueLoading }]"><CountUp :value="filteredRevenue" :format="formatPrice" /></p>
-          <div class="flex items-center gap-1 mt-3">
+          <div class="grid grid-cols-2 sm:flex sm:items-center gap-1 mt-3 revenue-filters">
             <button
               v-for="f in [{ key: 'day', label: 'Dia' }, { key: 'week', label: 'Semana' }, { key: 'month', label: 'Mês' }, { key: 'year', label: 'Ano' }]"
               :key="f.key"
@@ -976,6 +976,13 @@ h1, h2 { font-family: 'Fredoka', 'Nunito', system-ui, sans-serif; }
 .stat-num {
   font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
   font-size: 1.875rem; font-weight: 700; line-height: 1;
+}
+
+@media (max-width: 639px) {
+  .stat-card { border-radius: 1.25rem; padding: 0.875rem; min-height: 142px; }
+  .stat-emoji { width: 2.5rem; height: 2.5rem; border-radius: 0.8rem; font-size: 1.2rem; margin-bottom: 0.55rem; }
+  .stat-num { font-size: 1.5rem; }
+  .revenue-filters button { width: 100%; min-height: 25px; padding: 0.2rem 0.35rem; }
 }
 
 /* Waving hand on the greeting */

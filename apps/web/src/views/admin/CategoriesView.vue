@@ -2,13 +2,13 @@
   <div class="space-y-4">
 
     <!-- ── Header ── -->
-    <div class="flex items-center justify-between gap-3 flex-wrap">
+    <div class="flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h1 class="text-2xl font-black text-slate-900">Categorias</h1>
         <p class="text-sm text-slate-500 mt-0.5">Organize os produtos do catálogo</p>
       </div>
       <button @click="openCreate"
-        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-violet-600 hover:bg-violet-700 text-white shadow-sm hover:shadow-violet-200 transition-all">
+        class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold bg-violet-600 hover:bg-violet-700 text-white shadow-sm hover:shadow-violet-200 transition-all w-full sm:w-auto">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
         Nova Categoria
       </button>

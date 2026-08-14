@@ -2,13 +2,13 @@
   <div class="space-y-4">
 
     <!-- ── Header ── -->
-    <div class="flex items-center justify-between gap-3 flex-wrap">
+    <div class="flex flex-col items-stretch sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h1 class="text-2xl font-black text-slate-900">Pedidos</h1>
         <p class="text-sm text-slate-500 mt-0.5">Gerencie todos os pedidos da loja</p>
       </div>
       <button @click="reconcileAll" :disabled="reconciling"
-        :class="['inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all',
+        :class="['inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all w-full sm:w-auto',
           reconciling ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm hover:shadow-amber-200']">
         <svg :class="['w-4 h-4', reconciling && 'animate-spin']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
