@@ -24,6 +24,16 @@ export function isWebPushConfigured(): boolean {
   );
 }
 
+export function isIosDevice(): boolean {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+}
+
+export function isStandalonePwa(): boolean {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+}
+
 export function canUseWebPush(): boolean {
   return (
     import.meta.env.VITE_TARGET !== 'mobile' &&

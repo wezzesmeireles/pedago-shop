@@ -17,7 +17,8 @@
         <p v-if="!showIosInstructions">Acesso rápido, tela cheia e novidades dos seus materiais.</p>
         <p v-else>
           Toque em <strong>Compartilhar</strong> e depois em
-          <strong>Adicionar à Tela de Início</strong>.
+          <strong>Adicionar à Tela de Início</strong>. Abra pelo novo ícone para
+          ativar as notificações.
         </p>
       </div>
 
@@ -80,6 +81,12 @@ function onInstalled(): void {
   localStorage.setItem('pedago-pwa-installed', '1');
 }
 
+function showIosInstallInstructions(): void {
+  if (isStandalone()) return;
+  showIosInstructions.value = true;
+  visible.value = true;
+}
+
 async function install(): Promise<void> {
   if (!deferredPrompt) return;
   await deferredPrompt.prompt();
@@ -98,6 +105,7 @@ function dismiss(days = 30): void {
 }
 
 onMounted(() => {
+  window.addEventListener('pedago:show-ios-install', showIosInstallInstructions);
   if (!canShowHere()) return;
   window.addEventListener('beforeinstallprompt', onBeforeInstall);
   window.addEventListener('appinstalled', onInstalled);
@@ -112,6 +120,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', onBeforeInstall);
   window.removeEventListener('appinstalled', onInstalled);
+  window.removeEventListener('pedago:show-ios-install', showIosInstallInstructions);
   if (showTimer) clearTimeout(showTimer);
 });
 </script>

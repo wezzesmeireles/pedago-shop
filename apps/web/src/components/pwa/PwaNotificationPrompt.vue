@@ -22,7 +22,12 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
-import { canUseWebPush, enableWebPush } from '@/pwa/push';
+import {
+  canUseWebPush,
+  enableWebPush,
+  isIosDevice,
+  isStandalonePwa,
+} from '@/pwa/push';
 
 const DISMISS_KEY = 'pedago-web-push-dismissed-until';
 const auth = useAuthStore();
@@ -34,10 +39,12 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 
 const permission = computed(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission);
 const pushSupported = computed(() => canUseWebPush());
+const needsIosInstall = computed(() => isIosDevice() && !isStandalonePwa());
 const isEnabled = computed(() => Boolean(
   auth.user?.id && localStorage.getItem('pedago-web-push-enabled') === auth.user.id,
 ));
 const cardTitle = computed(() => {
+  if (needsIosInstall.value) return 'Instale para ativar no iPhone';
   if (!pushSupported.value) return 'Navegador sem suporte a avisos';
   if (!auth.user?.id) return 'Entre para ativar os avisos';
   if (permission.value === 'denied') return 'Notificações bloqueadas';
@@ -45,13 +52,16 @@ const cardTitle = computed(() => {
   return 'Acompanhe seus pedidos';
 });
 const cardDescription = computed(() => {
-  if (!pushSupported.value) return 'Abra o site no Chrome ou Edge para testar as notificações do PWA.';
+  if (needsIosInstall.value) return 'Toque em Compartilhar, escolha Adicionar à Tela de Início e abra o Site Pedagógico pelo novo ícone.';
+  if (!pushSupported.value && isIosDevice()) return 'Atualize o iPhone para o iOS 16.4 ou mais recente e abra o site pelo ícone da Tela de Início.';
+  if (!pushSupported.value) return 'Este navegador não oferece os recursos necessários para notificações.';
   if (!auth.user?.id) return 'O token de notificação precisa ser vinculado à sua conta.';
   if (permission.value === 'denied') return 'Libere as notificações nas configurações deste site no navegador.';
   if (permission.value === 'granted' && isEnabled.value) return 'Este aparelho está pronto para receber novidades e atualizações de pedidos.';
   return 'Receba avisos quando o PIX for aprovado e o material estiver disponível.';
 });
 const primaryLabel = computed(() => {
+  if (needsIosInstall.value) return 'Como instalar';
   if (!pushSupported.value) return '';
   if (!auth.user?.id) return 'Entrar na conta';
   if (permission.value === 'denied' || (permission.value === 'granted' && isEnabled.value)) return '';
@@ -60,9 +70,9 @@ const primaryLabel = computed(() => {
 
 function schedule(userId?: string): void {
   const isLocalTest = import.meta.env.DEV;
-  if (!isLocalTest && !canUseWebPush()) return;
+  if (!isLocalTest && !canUseWebPush() && !needsIosInstall.value) return;
   if (!isLocalTest && !userId) return;
-  if (!isLocalTest && Notification.permission !== 'default') return;
+  if (!isLocalTest && !needsIosInstall.value && Notification.permission !== 'default') return;
   if (!isLocalTest && userId && localStorage.getItem('pedago-web-push-enabled') === userId) return;
   if (!isLocalTest && Number(localStorage.getItem(DISMISS_KEY) || 0) > Date.now()) return;
   if (timer) clearTimeout(timer);
@@ -75,6 +85,11 @@ watch(() => auth.user?.id, (userId) => {
 }, { immediate: true });
 
 function handlePrimary(): void {
+  if (needsIosInstall.value) {
+    visible.value = false;
+    window.dispatchEvent(new CustomEvent('pedago:show-ios-install'));
+    return;
+  }
   if (!auth.user?.id) {
     router.push({ name: 'login', query: { redirect: window.location.pathname } });
     return;
