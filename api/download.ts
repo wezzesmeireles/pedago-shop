@@ -61,8 +61,10 @@ export default async function handler(req: any, res: any) {
       method: 'PATCH',
       headers: { ...appwriteHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        downloadCount: downloadCount + 1,
-        lastDownloadAt: now.toISOString(),
+        data: {
+          downloadCount: downloadCount + 1,
+          lastDownloadAt: now.toISOString(),
+        },
       }),
     })
     if (!countResponse.ok) {
