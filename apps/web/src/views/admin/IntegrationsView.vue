@@ -381,8 +381,6 @@ const showMpToken = ref(false);
 const showWebhookSecret = ref(false);
 const showTgToken = ref(false);
 const showGoogleSecret = ref(false);
-const testingTg = ref(false);
-
 const appwriteEndpoint = ((import.meta as any).env?.VITE_APPWRITE_ENDPOINT || '').replace(/\/v1$/, '');
 const appwriteProjectId = (import.meta as any).env?.VITE_APPWRITE_PROJECT_ID || '';
 const apiUrl = appwriteEndpoint && appwriteProjectId

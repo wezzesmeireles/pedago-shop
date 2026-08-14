@@ -297,14 +297,6 @@ function setCategory(slug: string) {
   fetchProducts();
 }
 
-function toggleFree() {
-  filters.onlyFree = !filters.onlyFree;
-  filters.category = '';
-  filters.featured = false;
-  filtersOpen.value = false;
-  fetchProducts();
-}
-
 function toggleFeatured() {
   filters.featured = !filters.featured;
   filters.category = '';
