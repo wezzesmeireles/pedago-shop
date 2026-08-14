@@ -1,9 +1,9 @@
 <template>
-  <div>
+  <div class="home-page">
 
     <!-- ── Hero Banner Carousel ────────────────────────── -->
-    <section class="relative overflow-hidden">
-      <div class="relative">
+    <section class="brand-hero-shell relative overflow-hidden px-0 sm:px-5 lg:px-8 sm:pt-5">
+      <div class="brand-hero relative max-w-[1380px] mx-auto sm:rounded-[28px] overflow-hidden">
         <!-- Skeleton enquanto o config carrega do servidor -->
         <div v-if="!siteConfigStore.loaded"
           class="w-full min-h-[200px] sm:min-h-[320px] md:min-h-[420px] bg-gray-200 animate-pulse">
@@ -21,7 +21,7 @@
               v-if="slide.imageUrl"
               :src="slide.imageUrl"
               :alt="slide.title || 'Banner'"
-              class="w-full h-auto sm:h-auto block"
+              class="brand-hero-image w-full h-auto block"
               :loading="idx === 0 ? 'eager' : 'lazy'"
               :fetchpriority="idx === 0 ? 'high' : 'auto'"
               decoding="async"
@@ -80,10 +80,10 @@
     </section>
 
     <!-- ── Barra de benefícios ──────────────────────────── -->
-    <section class="bg-white border-y border-gray-100">
+    <section class="brand-benefits bg-white/90 border-y border-gray-100/80">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <div v-for="b in heroBenefits" :key="b.title" class="flex items-center gap-2.5">
+          <div v-for="b in heroBenefits" :key="b.title" class="brand-benefit flex items-center gap-2.5 rounded-2xl p-2 sm:p-2.5">
             <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" :class="b.bg">
               <span v-html="b.icon" :class="['w-4 h-4', b.color]"></span>
             </div>
@@ -98,7 +98,7 @@
 
     <!-- ── Atalhos de categoria ─────────────────────────── -->
     <!-- ── Social Proof Strip ─────────────────────────────── -->
-    <section class="bg-violet-50 border-b border-violet-100">
+    <section class="brand-proof border-b">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
         <div class="flex items-center gap-1.5">
           <div class="flex text-amber-400 text-sm leading-none">
@@ -114,8 +114,21 @@
       </div>
     </section>
 
+    <!-- Boas-vindas lúdica para telas pequenas -->
+    <section class="mobile-welcome sm:hidden mx-4 mt-5 rounded-[24px] p-4 overflow-hidden">
+      <span class="mobile-welcome__shape mobile-welcome__shape--one" aria-hidden="true">✦</span>
+      <span class="mobile-welcome__shape mobile-welcome__shape--two" aria-hidden="true">●</span>
+      <div class="relative flex items-center gap-3">
+        <div class="mobile-welcome__icon" aria-hidden="true">🌈</div>
+        <div>
+          <p class="font-display text-lg font-bold text-purple-800 leading-tight">Aprender pode ser divertido!</p>
+          <p class="text-xs text-purple-600/75 mt-1 leading-relaxed">Atividades criativas, coloridas e prontas para imprimir.</p>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Atalhos de categoria ─────────────────────────── -->
-    <section v-if="categories.length" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5">
+    <section v-if="categories.length" class="brand-categories max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
       <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
         <RouterLink to="/catalogo"
           class="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-violet-600 text-white hover:bg-violet-700 transition-colors">
@@ -133,7 +146,7 @@
     </section>
 
     <!-- ── Grupo Pedagógico — destaque premium ──────────── -->
-    <section v-if="groupProduct" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-12">
+    <section v-if="groupProduct" class="brand-featured max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 pb-12">
       <!-- Wrapper principal com efeito hover -->
       <div @click="buyGroupNow" class="relative group cursor-pointer block focus:outline-none">
         
@@ -159,13 +172,13 @@
           <div class="absolute inset-0 opacity-[0.06]"
             style="background-image:radial-gradient(circle, white 1px, transparent 1px); background-size: 24px 24px;"></div>
 
-          <div class="relative flex flex-col sm:flex-row items-center gap-6 p-6 sm:p-10">
+          <div class="relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-5 sm:p-10">
             <!-- Imagem -->
             <div class="flex-shrink-0 relative animate-float">
               <!-- Glow backdrop behind image -->
               <div class="absolute inset-2 bg-pink-400 rounded-2xl blur-xl opacity-50 animate-pulse"></div>
               
-              <div class="relative w-44 h-44 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-white/40
+              <div class="relative w-36 h-36 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-4 ring-white/40
                            group-hover:scale-[1.05] group-hover:ring-white/60 transition-all duration-500 animate-shine">
                 <img v-if="groupProduct.coverImageUrl"
                   :src="optimizeImage(groupProduct.coverImageUrl, 800)" :alt="groupProduct.name"
@@ -180,7 +193,7 @@
 
             <!-- Conteúdo -->
             <div class="flex-1 text-center sm:text-left">
-              <h2 class="text-white font-black text-2xl sm:text-3xl lg:text-4xl leading-tight mb-2 drop-shadow-sm">
+              <h2 class="font-display text-white font-bold text-xl sm:text-3xl lg:text-4xl leading-tight mb-2 drop-shadow-sm">
                 {{ groupProduct.name }}
               </h2>
               <p v-if="groupProduct.description"
@@ -190,7 +203,7 @@
 
               <!-- Preço -->
               <div class="flex items-end gap-3 mb-2 justify-center sm:justify-start">
-                <span class="text-4xl sm:text-5xl font-black text-white leading-none">
+                <span class="font-display text-3xl sm:text-5xl font-bold text-white leading-none">
                   {{ formatPrice(groupProduct.price) }}
                 </span>
                 <div v-if="groupProduct.comparePrice" class="flex flex-col pb-1">
@@ -242,7 +255,7 @@
     </section>
 
     <!-- ── Mais Vendidos ────────────────────────────────── -->
-    <section v-if="bestSellers.length >= 1" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <section v-if="bestSellers.length >= 1" class="product-section max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-9">
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-xl font-black text-gray-800 flex items-center gap-2.5">
           <span class="w-1.5 h-7 rounded-full bg-gradient-to-b from-amber-400 to-orange-500 inline-block"></span>
@@ -254,14 +267,14 @@
           <svg class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
         </RouterLink>
       </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 sm:gap-3">
         <ProductCard v-for="product in bestSellers" :key="product.id" :product="product" />
       </div>
     </section>
 
     <!-- ── Seções por Categoria ─────────────────────────── -->
     <template v-for="cat in categoriesWithProducts" :key="cat.id">
-      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <section class="product-section max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-9">
         <div class="flex items-center justify-between mb-5">
           <h2 class="text-xl font-black text-gray-800 flex items-center gap-2.5">
             <span :class="['w-1.5 h-7 rounded-full inline-block', cat.slug === 'gratis' ? 'bg-gradient-to-b from-emerald-400 to-teal-500' : 'bg-gradient-to-b from-violet-500 to-pink-500']"></span>
@@ -276,7 +289,7 @@
             </svg>
           </RouterLink>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 sm:gap-3">
           <ProductCard v-for="product in cat.products" :key="product.id" :product="product" />
         </div>
       </section>
@@ -285,7 +298,7 @@
     <!-- ── Testimonials Marquee ──────────────────────────── -->
     <section ref="testimonialsSection" class="py-16 reveal relative overflow-hidden">
       <!-- Background -->
-      <div class="absolute inset-0 bg-gradient-to-br from-violet-600 via-purple-600 to-pink-600 animate-gradient"></div>
+      <div class="absolute inset-0 brand-testimonials-bg animate-gradient"></div>
       <!-- Blur orbs -->
       <div class="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-pink-400/30 blur-3xl pointer-events-none"></div>
       <div class="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-violet-400/30 blur-3xl pointer-events-none"></div>
@@ -357,7 +370,7 @@
     </section>
 
     <!-- ── Newsletter ────────────────────────────────────── -->
-    <section ref="newsletterSection" class="py-16 reveal relative overflow-hidden" style="background-color: #0f0a1e;">
+    <section ref="newsletterSection" class="brand-newsletter py-16 reveal relative overflow-hidden">
       <!-- Grid pattern -->
       <div class="absolute inset-0 opacity-[0.04]"
         style="background-image: linear-gradient(#7c3aed 1px, transparent 1px), linear-gradient(to right, #7c3aed 1px, transparent 1px); background-size: 32px 32px;"></div>
@@ -704,6 +717,206 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.home-page {
+  background:
+    radial-gradient(circle at 0 34%, rgba(0, 174, 189, 0.045), transparent 24rem),
+    radial-gradient(circle at 100% 57%, rgba(255, 95, 162, 0.05), transparent 28rem);
+}
+
+.home-page :is(h1, h2, h3) {
+  font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
+}
+
+.brand-hero-shell {
+  background: linear-gradient(180deg, #fff 0%, #fcfbff 100%);
+}
+
+.brand-hero {
+  box-shadow: 0 22px 55px -32px rgba(70, 42, 98, 0.52);
+}
+
+.brand-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(125, 74, 168, 0.12);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.brand-hero-image {
+  min-height: 190px;
+  object-fit: cover;
+}
+
+.brand-benefits {
+  backdrop-filter: blur(12px);
+}
+
+.brand-benefit {
+  border: 1px solid transparent;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.brand-benefit:nth-child(1) { background: rgba(155, 212, 0, 0.06); }
+.brand-benefit:nth-child(2) { background: rgba(125, 74, 168, 0.055); }
+.brand-benefit:nth-child(3) { background: rgba(0, 174, 189, 0.055); }
+.brand-benefit:nth-child(4) { background: rgba(255, 95, 162, 0.055); }
+
+.brand-benefit:hover {
+  transform: translateY(-2px);
+  border-color: rgba(125, 74, 168, 0.1);
+  background: #fff;
+}
+
+.brand-proof {
+  border-color: rgba(125, 74, 168, 0.1);
+  background: linear-gradient(90deg, rgba(0, 174, 189, 0.08), rgba(155, 212, 0, 0.065), rgba(255, 95, 162, 0.08), rgba(125, 74, 168, 0.08));
+}
+
+.brand-categories :deep(a) {
+  border: 1px solid rgba(125, 74, 168, 0.08);
+  box-shadow: 0 6px 16px -12px rgba(70, 42, 98, 0.42);
+}
+
+.brand-categories :deep(a:first-child) {
+  border-color: transparent;
+  background: linear-gradient(135deg, #7d4aa8, #9a59b0);
+  box-shadow: 0 8px 18px -9px rgba(125, 74, 168, 0.72);
+}
+
+.product-section {
+  position: relative;
+}
+
+.product-section + .product-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 174, 189, 0.16), rgba(255, 95, 162, 0.14), transparent);
+}
+
+.brand-testimonials-bg {
+  background: linear-gradient(135deg, #00aebd 0%, #7250a4 48%, #ee5b9c 100%);
+  background-size: 180% 180%;
+}
+
+.brand-newsletter {
+  background:
+    radial-gradient(circle at 12% 20%, rgba(0, 174, 189, 0.22), transparent 24rem),
+    radial-gradient(circle at 90% 80%, rgba(255, 95, 162, 0.18), transparent 26rem),
+    #171027;
+}
+
+.mobile-welcome {
+  position: relative;
+  border: 1px solid rgba(255, 95, 162, 0.16);
+  background: linear-gradient(135deg, rgba(255, 95, 162, 0.11), rgba(155, 212, 0, 0.1) 52%, rgba(0, 174, 189, 0.1));
+  box-shadow: 0 12px 28px -20px rgba(95, 55, 130, 0.45);
+}
+
+.mobile-welcome__icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 17px;
+  background: rgba(255,255,255,0.82);
+  box-shadow: 0 8px 18px -12px rgba(125, 74, 168, 0.5);
+  font-size: 25px;
+  transform: rotate(-3deg);
+}
+
+.mobile-welcome__shape {
+  position: absolute;
+  color: rgba(125, 74, 168, 0.17);
+  pointer-events: none;
+}
+
+.mobile-welcome__shape--one { top: 5px; right: 13px; font-size: 24px; }
+.mobile-welcome__shape--two { right: 48px; bottom: -8px; font-size: 31px; color: rgba(0, 174, 189, 0.12); }
+
+@media (max-width: 639px) {
+  .brand-hero-image {
+    width: 100%;
+    height: 215px;
+    min-height: 215px;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .brand-hero :deep(button) {
+    width: 38px;
+    height: 38px;
+  }
+
+  .brand-benefits > div {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .brand-benefit {
+    min-height: 68px;
+    padding: 9px;
+    border-color: rgba(125, 74, 168, 0.07);
+  }
+
+  .brand-benefit > div:first-child {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+  }
+
+  .brand-proof > div {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    gap: 6px 14px;
+  }
+
+  .brand-categories {
+    padding-top: 18px;
+  }
+
+  .brand-categories :deep(a) {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
+  }
+
+  .brand-featured {
+    padding-top: 20px;
+    padding-bottom: 30px;
+  }
+
+  .brand-featured :deep(.animate-float) {
+    animation-duration: 5s;
+  }
+
+  .product-section {
+    padding-top: 26px;
+    padding-bottom: 26px;
+  }
+
+  .product-section h2 {
+    font-size: 1.15rem;
+    line-height: 1.15;
+  }
+
+  .product-section h2 > span:first-child {
+    height: 24px;
+  }
+}
+
+@media (min-width: 640px) {
+  .brand-hero-image { min-height: 280px; }
+}
+
 .icon-swap-enter-active { transition: opacity 0.15s ease; }
 .icon-swap-leave-active { transition: opacity 0.1s ease; position: absolute; }
 .icon-swap-enter-from, .icon-swap-leave-to { opacity: 0; }
