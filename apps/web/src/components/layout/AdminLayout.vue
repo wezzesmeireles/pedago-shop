@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen flex bg-slate-50">
+  <div class="admin-shell min-h-screen flex">
 
     <!-- ── Sidebar Desktop ─────────────────────────────────────── -->
-    <aside :class="['bg-slate-900 flex-col hidden md:flex fixed inset-y-0 left-0 z-30 transition-all duration-300', sidebarCollapsed ? 'w-20' : 'w-64']">
+    <aside :class="['admin-sidebar flex-col hidden md:flex fixed inset-y-0 left-0 z-30 transition-all duration-300', sidebarCollapsed ? 'w-20' : 'w-64']">
       <!-- Logo -->
       <div class="px-4 pt-7 pb-6 border-b border-slate-800/60 flex flex-col items-center relative">
         <button @click="sidebarCollapsed = !sidebarCollapsed" class="absolute -right-3.5 top-8 bg-slate-800 text-slate-300 rounded-full p-1 hover:text-white ring-4 ring-slate-900 z-50 transition-transform shadow-lg cursor-pointer hover:bg-slate-700">
@@ -10,14 +10,11 @@
           <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <RouterLink to="/" class="flex flex-col items-center gap-3 group w-full">
-          <!-- Logo image or icon -->
-          <div v-if="config.logoUrl" class="w-full flex items-center justify-center group-hover:scale-105 transition-transform" :class="sidebarCollapsed ? 'px-1' : ''">
-            <img :src="config.logoUrl" :alt="config.storeName" class="max-w-full object-contain drop-shadow-lg transition-all duration-300" :class="sidebarCollapsed ? 'max-h-10' : 'max-h-20'" />
+          <div v-if="!sidebarCollapsed" class="admin-logo-card w-full flex items-center justify-center group-hover:scale-[1.02] transition-transform">
+            <img src="/site-pedagogico-logo.png" alt="Site Pedagógico" class="w-full object-contain" />
           </div>
-          <div v-else class="rounded-3xl bg-gradient-to-br from-violet-400 via-violet-600 to-purple-800 flex items-center justify-center shadow-2xl shadow-violet-900/60 ring-2 ring-violet-400/30 group-hover:scale-105 transition-all duration-300" :class="sidebarCollapsed ? 'w-10 h-10 rounded-xl' : 'w-20 h-20'">
-            <svg class="text-white drop-shadow-md transition-all duration-300" :class="sidebarCollapsed ? 'w-5 h-5' : 'w-11 h-11'" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
+          <div v-else class="admin-monogram w-11 h-11 rounded-2xl flex items-center justify-center text-white font-display font-bold text-sm shadow-lg">
+            SP
           </div>
           <!-- Store name -->
           <div class="text-center w-full overflow-hidden transition-all duration-300" :class="sidebarCollapsed ? 'opacity-0 h-0 hidden' : 'opacity-100 h-auto'">
@@ -38,7 +35,7 @@
             'flex items-center rounded-xl text-sm font-medium transition-all group relative',
             sidebarCollapsed ? 'justify-center w-10 h-10 mx-auto p-0' : 'gap-3 px-3 py-2.5',
             isActive(item.to)
-              ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30'
+              ? 'admin-nav-active text-white shadow-lg'
               : 'text-slate-400 hover:text-white hover:bg-slate-800'
           ]"
         >
@@ -63,7 +60,7 @@
             'flex items-center rounded-xl text-sm font-medium transition-all group relative',
             sidebarCollapsed ? 'justify-center w-10 h-10 mx-auto p-0' : 'gap-3 px-3 py-2.5',
             isActive(item.to)
-              ? 'bg-violet-600 text-white shadow-lg shadow-violet-900/30'
+              ? 'admin-nav-active text-white shadow-lg'
               : 'text-slate-400 hover:text-white hover:bg-slate-800'
           ]"
         >
@@ -118,20 +115,11 @@
     </div>
 
     <!-- ── Mobile Drawer ──────────────────────────────────────── -->
-    <aside class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 flex flex-col md:hidden transition-transform duration-200 ease-out"
+    <aside class="admin-sidebar admin-sidebar-mobile fixed inset-y-0 left-0 z-50 w-[min(86vw,320px)] flex flex-col md:hidden transition-transform duration-200 ease-out"
       :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'">
         <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800/60">
-          <RouterLink to="/" class="flex items-center gap-3" @click="mobileMenuOpen = false">
-            <div v-if="config.logoUrl" class="h-10 flex items-center">
-              <img :src="config.logoUrl" :alt="config.storeName" class="max-h-10 max-w-[120px] object-contain" />
-            </div>
-            <div v-else class="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-400 via-violet-600 to-purple-800 flex items-center justify-center shadow-lg shadow-violet-900/40 ring-1 ring-violet-400/20">
-              <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            </div>
-            <div>
-              <p class="font-extrabold text-white text-base leading-tight">{{ config.storeName }}</p>
-              <span class="text-[10px] font-bold text-violet-400 tracking-widest uppercase">Admin</span>
-            </div>
+          <RouterLink to="/" class="admin-logo-card flex items-center gap-3 p-2" @click="mobileMenuOpen = false">
+            <img src="/site-pedagogico-logo.png" alt="Site Pedagógico" class="h-10 w-auto max-w-[190px] object-contain" />
           </RouterLink>
           <button @click="mobileMenuOpen = false" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -140,7 +128,7 @@
         <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           <RouterLink v-for="item in [...mainNav, ...settingsNav]" :key="item.to" :to="item.to"
             @click="mobileMenuOpen = false"
-            :class="['flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all', isActive(item.to) ? 'bg-violet-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800']">
+            :class="['flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all', isActive(item.to) ? 'admin-nav-active text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800']">
             <span v-html="item.icon" class="w-4 h-4 flex-shrink-0"></span>
             {{ item.label }}
           </RouterLink>
@@ -154,9 +142,9 @@
     </aside>
 
     <!-- ── Main ───────────────────────────────────────────────── -->
-    <div :class="['flex-1 flex flex-col transition-all duration-300', sidebarCollapsed ? 'md:ml-20' : 'md:ml-64']">
+    <div :class="['admin-workspace flex-1 flex flex-col transition-all duration-300 min-w-0', sidebarCollapsed ? 'md:ml-20' : 'md:ml-64']">
       <!-- Topbar -->
-      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
+      <header class="admin-topbar h-[68px] flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
         <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden w-9 h-9 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
@@ -166,13 +154,16 @@
           <span class="text-slate-900 font-semibold">{{ currentPageLabel }}</span>
         </div>
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center text-violet-700 text-sm font-bold">
+          <span class="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Sistema online
+          </span>
+          <div class="admin-avatar w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold">
             {{ auth.user?.name?.[0]?.toUpperCase() }}
           </div>
         </div>
       </header>
 
-      <main class="flex-1 p-4 md:p-6 pb-20 md:pb-6">
+      <main class="admin-content flex-1 p-3 sm:p-4 md:p-6 pb-24 md:pb-8">
         <RouterView v-slot="{ Component }">
           <Transition name="page" mode="out-in">
             <!-- Cache each admin view after its first load: revisiting a tab is
@@ -187,7 +178,7 @@
     </div>
 
     <!-- ── Mobile Bottom Nav ─────────────────────────────────── -->
-    <nav class="fixed bottom-0 left-0 right-0 z-30 md:hidden bg-white border-t border-slate-100 flex safe-area-inset-bottom shadow-[0_-1px_12px_rgba(0,0,0,0.06)]">
+    <nav class="admin-bottom-nav fixed bottom-0 left-0 right-0 z-30 md:hidden bg-white/95 backdrop-blur-xl border-t flex safe-area-inset-bottom">
       <RouterLink v-for="item in bottomNav" :key="item.to" :to="item.to"
         :class="['flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[52px] transition-colors',
           isActive(item.to) ? 'text-violet-600' : 'text-slate-400']">
@@ -275,9 +266,154 @@ async function handleLogout() {
 </script>
 
 <style scoped>
+.admin-shell {
+  --admin-cyan: #00aebd;
+  --admin-pink: #ef5d9d;
+  --admin-lime: #9bd400;
+  --admin-purple: #7d4aa8;
+  background: #f7f8fc;
+}
+
+.admin-sidebar {
+  background:
+    radial-gradient(circle at 15% 5%, rgba(0, 174, 189, 0.14), transparent 16rem),
+    radial-gradient(circle at 85% 95%, rgba(239, 93, 157, 0.12), transparent 18rem),
+    linear-gradient(180deg, #20152f, #171120 72%, #15101d);
+  box-shadow: 12px 0 35px -28px rgba(39, 21, 55, 0.8);
+}
+
+.admin-logo-card {
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 12px 28px -18px rgba(0,0,0,0.7);
+}
+.admin-logo-card img { max-height: 58px; }
+
+.admin-monogram,
+.admin-avatar {
+  background: linear-gradient(135deg, var(--admin-cyan), var(--admin-purple) 52%, var(--admin-pink));
+  box-shadow: 0 9px 20px -10px rgba(125, 74, 168, 0.8);
+}
+
+.admin-nav-active {
+  background: linear-gradient(135deg, rgba(0,174,189,0.9), rgba(125,74,168,0.96) 54%, rgba(239,93,157,0.9));
+  box-shadow: 0 10px 22px -13px rgba(125,74,168,0.9), inset 0 1px rgba(255,255,255,0.13);
+}
+
+.admin-workspace {
+  background:
+    radial-gradient(circle at 100% 0, rgba(0,174,189,0.055), transparent 28rem),
+    radial-gradient(circle at 0 100%, rgba(239,93,157,0.045), transparent 30rem),
+    #f7f8fc;
+}
+
+.admin-topbar {
+  border-bottom: 1px solid rgba(125, 74, 168, 0.1);
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(18px) saturate(1.25);
+  box-shadow: 0 8px 24px -24px rgba(55, 31, 75, 0.45);
+}
+
+.admin-content {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
 /* Playful admin: every routed view's headings use the rounded display face */
 :deep(h1), :deep(h2), :deep(h3) {
   font-family: 'Fredoka', 'Nunito', system-ui, sans-serif;
+}
+
+.admin-content :deep(h1) {
+  color: #241a2d;
+  letter-spacing: -0.025em;
+}
+
+.admin-content :deep(.bg-white.rounded-2xl),
+.admin-content :deep(.bg-white.rounded-xl),
+.admin-content :deep(.bg-white.rounded-3xl) {
+  border-color: rgba(125, 74, 168, 0.095);
+  box-shadow: 0 10px 30px -25px rgba(63, 37, 82, 0.48);
+}
+
+.admin-content :deep(input:not([type='checkbox']):not([type='radio'])),
+.admin-content :deep(select),
+.admin-content :deep(textarea) {
+  border-color: #e4dfe7;
+  background-color: rgba(255,255,255,0.94);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.admin-content :deep(input:not([type='checkbox']):not([type='radio']):hover),
+.admin-content :deep(select:hover),
+.admin-content :deep(textarea:hover) {
+  border-color: rgba(0,174,189,0.38);
+}
+
+.admin-content :deep(input:not([type='checkbox']):not([type='radio']):focus),
+.admin-content :deep(select:focus),
+.admin-content :deep(textarea:focus) {
+  border-color: var(--admin-cyan) !important;
+  --tw-ring-color: rgba(0,174,189,0.14) !important;
+  box-shadow: 0 0 0 4px rgba(0,174,189,0.1);
+}
+
+.admin-content :deep(button),
+.admin-content :deep(a) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.admin-content :deep(button:not(:disabled):active),
+.admin-content :deep(a:active) {
+  transform: scale(0.98);
+}
+
+.admin-content :deep(table) {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-content :deep(thead th) {
+  color: #776b7e;
+  background: #faf9fc;
+}
+
+.admin-content :deep(tbody tr) {
+  transition: background-color 150ms ease;
+}
+.admin-content :deep(tbody tr:hover) { background: rgba(0,174,189,0.025); }
+
+.admin-bottom-nav {
+  min-height: 64px;
+  border-color: rgba(125,74,168,0.12);
+  box-shadow: 0 -12px 30px -22px rgba(55,31,75,0.42);
+}
+
+.admin-bottom-nav > * { position: relative; min-height: 62px; }
+.admin-bottom-nav > *.text-violet-600::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  width: 36px;
+  height: 29px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0,174,189,0.12), rgba(239,93,157,0.13));
+}
+.admin-bottom-nav > *.text-violet-600 { color: var(--admin-purple); }
+.admin-bottom-nav > * > span,
+.admin-bottom-nav > * > svg { position: relative; z-index: 1; }
+
+@media (max-width: 767px) {
+  .admin-content :deep(h1) { font-size: 1.5rem; line-height: 1.15; }
+  .admin-content :deep(h2) { line-height: 1.2; }
+  .admin-content :deep(.rounded-2xl) { border-radius: 18px; }
+  .admin-content :deep(input:not([type='checkbox']):not([type='radio'])),
+  .admin-content :deep(select) { min-height: 44px; font-size: 16px; }
+  .admin-content :deep(button) { min-height: 40px; }
+  .admin-topbar { height: 62px; }
+  .admin-sidebar-mobile { box-shadow: 24px 0 55px -25px rgba(15,9,22,0.8); }
 }
 
 /* Enter-only transition: the outgoing page is removed instantly (no blank

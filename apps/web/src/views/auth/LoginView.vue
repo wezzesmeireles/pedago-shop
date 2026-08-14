@@ -1,7 +1,9 @@
 <template>
-  <div class="animate-fade-in">
-    <h2 class="text-2xl font-bold text-gray-900 mb-2">Bem-vindo de volta!</h2>
-    <p class="text-gray-500 text-sm mb-6">Entre na sua conta para acessar seus downloads</p>
+  <div class="login-view animate-fade-in">
+    <div class="login-greeting" aria-hidden="true">👋</div>
+    <span class="login-eyebrow">Área do educador</span>
+    <h2 class="login-title text-gray-900 mb-2">Que bom ter você aqui!</h2>
+    <p class="text-gray-500 text-sm mb-7 leading-relaxed">Entre para acessar seus materiais, pedidos e downloads.</p>
 
     <form @submit.prevent="handleLogin" class="space-y-4">
       <AppInput v-model="form.email" label="Email" type="email" placeholder="seu@email.com" required :error="errors.email" />
@@ -15,7 +17,7 @@
             :type="showPassword ? 'text' : 'password'"
             placeholder="••••••••"
             required
-            :class="['w-full rounded-xl border px-4 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all', errors.password ? 'border-red-400 bg-red-50' : 'border-slate-200']"
+            :class="['login-password w-full rounded-2xl border px-4 py-3.5 pr-11 text-sm focus:outline-none focus:ring-4 focus:ring-cyan-100 focus:border-cyan-400 transition-all', errors.password ? 'border-red-400 bg-red-50' : 'border-slate-200']"
           />
           <button
             type="button"
@@ -38,13 +40,13 @@
       <p v-if="errors.general" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-xl animate-slide-in-up">{{ errors.general }}</p>
 
       <div class="flex justify-end -mt-1">
-        <RouterLink to="/auth/esqueci-senha" class="text-xs text-primary-600 hover:underline font-medium">
+        <RouterLink to="/auth/esqueci-senha" class="text-xs text-purple-700 hover:text-pink-600 font-bold transition-colors">
           Esqueci minha senha
         </RouterLink>
       </div>
 
-      <AppButton type="submit" variant="primary" size="lg" :loading="loading" class="w-full">
-        Entrar
+      <AppButton type="submit" variant="primary" size="lg" :loading="loading" class="login-submit w-full">
+        Entrar na minha conta
       </AppButton>
     </form>
 
@@ -53,7 +55,7 @@
       <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-400">ou continue com</span></div>
     </div>
 
-    <button type="button" @click="loginGoogle" :disabled="googleLoading" class="flex items-center justify-center gap-3 w-full border-2 border-gray-200 rounded-2xl py-3 text-gray-700 font-semibold hover:bg-gray-50 transition-all disabled:opacity-60">
+    <button type="button" @click="loginGoogle" :disabled="googleLoading" class="google-button flex items-center justify-center gap-3 w-full border-2 rounded-2xl py-3.5 text-gray-700 font-semibold transition-all disabled:opacity-60">
       <svg class="w-5 h-5" viewBox="0 0 24 24">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -65,7 +67,7 @@
 
     <p class="text-center text-sm text-gray-500 mt-6">
       Não tem conta?
-      <RouterLink to="/auth/register" class="text-primary-600 font-medium hover:underline">Cadastre-se</RouterLink>
+      <RouterLink to="/auth/register" class="text-purple-700 font-bold hover:text-pink-600 transition-colors">Cadastre-se</RouterLink>
     </p>
   </div>
 </template>
@@ -153,3 +155,26 @@ async function handleLogin() {
   }
 }
 </script>
+
+<style scoped>
+.login-view { position:relative; }
+.login-greeting { position:absolute; top:-4px; right:0; display:grid; place-items:center; width:46px; height:46px; border-radius:17px; background:linear-gradient(135deg,rgba(255,95,162,.13),rgba(155,212,0,.13)); font-size:23px; transform:rotate(4deg); }
+.login-eyebrow { display:inline-flex; align-items:center; gap:6px; margin-bottom:9px; color:#00a0ad; font-size:10px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
+.login-eyebrow::before { content:''; width:7px; height:7px; border-radius:50%; background:#9bd400; box-shadow:0 0 0 4px rgba(155,212,0,.13); }
+.login-title { max-width:300px; padding-right:42px; font-family:'Fredoka','Inter',system-ui,sans-serif; font-size:1.8rem; font-weight:700; line-height:1.08; letter-spacing:-.02em; }
+.login-password { min-height:50px; background:#fff; }
+.login-password:hover { border-color:rgba(0,174,189,.4); }
+.login-submit { min-height:51px; border-radius:16px !important; background:linear-gradient(135deg,#7d4aa8,#ef5d9d) !important; box-shadow:0 12px 24px -13px rgba(125,74,168,.75); font-family:'Fredoka','Inter',system-ui,sans-serif; font-weight:700; }
+.login-submit:hover { transform:translateY(-1px); box-shadow:0 15px 27px -13px rgba(239,93,157,.72); }
+.google-button { border-color:#e8e1eb; background:#fff; box-shadow:0 8px 18px -17px rgba(64,37,83,.5); }
+.google-button:hover { border-color:rgba(0,174,189,.32); background:#fafeff; transform:translateY(-1px); }
+.login-view :deep(label) { color:#6e6075; font-weight:800; letter-spacing:.07em; }
+.login-view :deep(input:not(.login-password)) { min-height:50px; border-radius:16px; padding-top:.875rem; padding-bottom:.875rem; }
+.login-view :deep(input:not(.login-password):hover) { border-color:rgba(0,174,189,.4); }
+.login-view :deep(input:not(.login-password):focus) { border-color:#00aebd; --tw-ring-color:rgba(0,174,189,.16); --tw-ring-offset-width:0px; }
+
+@media (max-width:767px) {
+  .login-title { font-size:1.65rem; }
+  .login-greeting { width:42px; height:42px; font-size:21px; }
+}
+</style>

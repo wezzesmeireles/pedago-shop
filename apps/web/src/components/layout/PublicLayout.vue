@@ -1,11 +1,11 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-white">
+  <div class="site-shell min-h-screen flex flex-col">
 
     <!-- Announcement Bar — visível em todos os tamanhos quando configurado -->
     <div
       v-if="config.announcementBarText"
       class="relative overflow-hidden text-white text-xs py-2 text-center font-semibold tracking-wide animate-slide-in-down"
-      :style="{ background: config.announcementBarColor ? config.announcementBarColor : 'linear-gradient(90deg,#7c3aed,#a855f7,#db2777)' }"
+      :style="{ background: config.announcementBarColor ? config.announcementBarColor : 'linear-gradient(90deg,#00aebd,#8fcf00,#ff5fa2,#7d4aa8)' }"
     >
       <!-- Brilho animado de varredura -->
       <span class="absolute inset-0 pointer-events-none announcement-shine" />
@@ -14,7 +14,7 @@
 
     <!-- Header -->
     <header
-      class="sticky top-0 z-50 transition-all duration-300"
+      class="brand-header sticky top-0 z-50 transition-all duration-300"
       :class="scrolled
         ? 'bg-white/90 backdrop-blur-xl shadow-md shadow-gray-200/60 border-b border-gray-100/80'
         : 'bg-white border-b border-gray-100'"
@@ -23,47 +23,36 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <!-- ── Linha principal: logo + busca + ações ── -->
-        <div class="flex items-center justify-between h-16 sm:h-18 gap-3 sm:gap-4">
+        <div class="flex items-center justify-between h-[74px] sm:h-[86px] gap-3 sm:gap-6">
 
           <!-- Logo -->
           <RouterLink to="/" class="flex items-center gap-2 flex-shrink-0 group" aria-label="Início">
             <!-- Skeleton enquanto config não carregou -->
-            <div v-if="!configLoaded" class="h-11 w-32 bg-gray-200 animate-pulse rounded-xl"></div>
-            <template v-else>
-              <img
-                v-if="config.logoUrl"
-                :src="config.logoUrl"
-                class="h-11 sm:h-14 w-auto object-contain transition-all duration-200 group-hover:scale-[1.03]"
-                style="image-rendering: -webkit-optimize-contrast;"
-                :alt="config.storeName"
-                fetchpriority="high"
-                decoding="async"
-              />
-              <span
-                v-else
-                class="inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-600 to-purple-600
-                       text-white font-extrabold text-base px-3.5 py-1.5 rounded-xl shadow-md
-                       group-hover:shadow-violet-400/40 group-hover:scale-[1.03] transition-all duration-200"
-              >
-                {{ config.storeName }}
-              </span>
-            </template>
+            <div v-if="!configLoaded" class="h-12 w-40 sm:w-56 bg-gray-100 animate-pulse rounded-xl"></div>
+            <img
+              v-else
+              src="/site-pedagogico-logo.png"
+              class="brand-logo h-[52px] sm:h-[66px] w-auto max-w-[58vw] object-contain transition-all duration-300 group-hover:scale-[1.02]"
+              alt="Site Pedagógico — Materiais e conteúdos pedagógicos"
+              fetchpriority="high"
+              decoding="async"
+            />
           </RouterLink>
 
           <!-- Busca (desktop) — mais larga e com sombra ao focar -->
-          <div class="flex-1 max-w-md hidden md:block">
+          <div class="flex-1 max-w-lg hidden md:block">
             <div class="relative group">
               <input
                 v-model="searchQuery"
                 type="text"
                 placeholder="Buscar atividades pedagógicas..."
-                class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-full
-                       bg-gray-50 hover:bg-white hover:border-violet-300
-                       focus:outline-none focus:bg-white focus:border-violet-400 focus:ring-2 focus:ring-violet-100
+                class="brand-search w-full pl-11 pr-4 py-3 text-sm border rounded-2xl
+                       bg-white hover:border-cyan-300
+                       focus:outline-none focus:bg-white focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100/70
                        transition-all duration-200 placeholder:text-gray-400"
                 @keyup.enter="doSearch"
               />
-              <svg class="absolute left-3.5 top-3 w-4 h-4 text-gray-400 group-focus-within:text-violet-500 transition-colors"
+              <svg class="absolute left-4 top-3.5 w-4 h-4 text-gray-400 group-focus-within:text-cyan-600 transition-colors"
                 fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
               </svg>
@@ -77,9 +66,8 @@
             <RouterLink
               v-if="!auth.isLoggedIn"
               to="/auth/login"
-              class="hidden md:inline-flex items-center gap-1.5 text-sm font-semibold text-violet-600
-                     border border-violet-200 hover:border-violet-400 hover:bg-violet-50
-                     px-3.5 py-2 rounded-full transition-all duration-200"
+              class="brand-login hidden md:inline-flex items-center gap-1.5 text-sm font-bold text-white
+                     px-4 py-2.5 rounded-xl transition-all duration-200 active:scale-95"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
@@ -172,13 +160,13 @@
 
         <!-- Busca mobile — abaixo da linha principal -->
         <div class="md:hidden pb-3 pt-1">
-          <div class="relative">
+          <div class="relative brand-mobile-search">
             <input
               v-model="searchQuery"
               type="search"
               placeholder="Buscar atividades..."
               class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-2xl
-                     bg-gray-50 focus:bg-white focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100
+                     bg-white focus:outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100/70
                      placeholder:text-gray-400 transition-all"
               style="font-size: 16px;"
               @keyup.enter="doSearch"
@@ -190,15 +178,15 @@
         </div>
 
         <!-- Nav desktop — com pill no item ativo -->
-        <nav class="hidden md:flex items-center justify-center gap-0.5 pb-1.5 border-t border-gray-50 pt-1">
+        <nav class="brand-nav hidden md:flex items-center justify-center gap-1 pb-2 border-t border-gray-100/70 pt-2">
           <RouterLink
             v-for="link in navLinks"
             :key="link.to"
             :to="link.to"
             class="px-4 py-1.5 text-sm font-medium rounded-full transition-all duration-200"
             :class="route.path === link.to || (link.to !== '/' && route.path.startsWith(link.to))
-              ? 'text-violet-700 bg-violet-50 font-semibold'
-              : 'text-gray-500 hover:text-violet-600 hover:bg-violet-50/60'"
+              ? 'brand-nav-active font-bold'
+              : 'text-gray-500 hover:text-purple-700 hover:bg-purple-50/70'"
           >
             {{ link.label }}
           </RouterLink>
@@ -305,15 +293,14 @@
     </section>
 
     <!-- Footer -->
-    <footer style="background-color: #2d1b69;" class="text-white pt-12 pb-24 md:pb-6">
+    <footer class="brand-footer text-white pt-12 pb-24 md:pb-6">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10">
 
           <!-- Brand -->
           <div>
-            <RouterLink to="/" class="inline-flex items-center gap-2 mb-4 hover:opacity-90 transition-opacity">
-              <img v-if="config.logoUrl" :src="config.logoUrl" class="h-10 w-auto" :alt="config.storeName" />
-              <span v-else class="text-lg font-bold text-white">{{ config.storeName }}</span>
+            <RouterLink to="/" class="inline-flex items-center gap-2 mb-4 bg-white rounded-2xl px-3 py-2 shadow-lg hover:-translate-y-0.5 transition-all">
+              <img src="/site-pedagogico-logo.png" class="h-12 w-auto max-w-[220px] object-contain" alt="Site Pedagógico" />
             </RouterLink>
             <p class="text-purple-300 text-sm mb-4 leading-relaxed">{{ config.storeDescription }}</p>
             <div class="flex items-center gap-3 flex-wrap">
@@ -406,6 +393,9 @@
     <!-- WhatsApp floating widget — visível para todos -->
     <WhatsAppWidget v-if="config.socialLinks?.whatsapp" />
 
+    <!-- Crédito discreto da agência -->
+    <AlivenCredit />
+
     <!-- Scroll to top button -->
     <transition name="fade">
       <button
@@ -423,19 +413,19 @@
     </transition>
 
     <!-- ── Bottom navigation (mobile only) ──────────────── -->
-    <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 flex items-stretch"
+    <nav class="brand-mobile-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t flex items-stretch"
       style="padding-bottom: env(safe-area-inset-bottom);">
-      <RouterLink to="/" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors"
-        :class="route.path === '/' ? 'text-primary-600' : 'text-gray-400'">
+      <RouterLink to="/" class="mobile-nav-item flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-colors"
+        :class="route.path === '/' ? 'mobile-nav-active' : 'text-gray-400'">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         <span class="text-[10px] font-semibold">Início</span>
       </RouterLink>
-      <RouterLink to="/catalogo" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors"
-        :class="route.path.startsWith('/catalogo') ? 'text-primary-600' : 'text-gray-400'">
+      <RouterLink to="/catalogo" class="mobile-nav-item flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-colors"
+        :class="route.path.startsWith('/catalogo') ? 'mobile-nav-active' : 'text-gray-400'">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         <span class="text-[10px] font-semibold">Buscar</span>
       </RouterLink>
-      <button @click="cart.openCart()" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-gray-400 transition-colors relative">
+      <button @click="cart.openCart()" class="mobile-nav-item mobile-cart-item flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-400 transition-colors relative">
         <span class="relative">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
           <span v-if="cart.count > 0" class="absolute -top-1.5 -right-2 bg-primary-600 text-white text-[9px] font-black min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">{{ cart.count }}</span>
@@ -443,14 +433,14 @@
         <span class="text-[10px] font-semibold">Carrinho</span>
       </button>
       <RouterLink :to="auth.isLoggedIn ? '/minha-conta/pedidos' : '/auth/login'"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors"
-        :class="route.path.startsWith('/minha-conta/pedidos') ? 'text-primary-600' : 'text-gray-400'">
+        class="mobile-nav-item flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-colors"
+        :class="route.path.startsWith('/minha-conta/pedidos') ? 'mobile-nav-active' : 'text-gray-400'">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
         <span class="text-[10px] font-semibold">Pedidos</span>
       </RouterLink>
       <RouterLink :to="auth.isLoggedIn ? '/minha-conta/downloads' : '/auth/login'"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors"
-        :class="(route.path.startsWith('/minha-conta/downloads') || route.path.startsWith('/auth')) ? 'text-primary-600' : 'text-gray-400'">
+        class="mobile-nav-item flex-1 flex flex-col items-center justify-center gap-1 py-2 transition-colors"
+        :class="(route.path.startsWith('/minha-conta/downloads') || route.path.startsWith('/auth')) ? 'mobile-nav-active' : 'text-gray-400'">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
         <span class="text-[10px] font-semibold">Conta</span>
       </RouterLink>
@@ -471,6 +461,7 @@ import { defineAsyncComponent } from 'vue';
 const CartDrawer = defineAsyncComponent(() => import('@/components/catalog/CartDrawer.vue'));
 const CartFab = defineAsyncComponent(() => import('@/components/catalog/CartFab.vue'));
 const WhatsAppWidget = defineAsyncComponent(() => import('@/components/common/WhatsAppWidget.vue'));
+const AlivenCredit = defineAsyncComponent(() => import('@/components/common/AlivenCredit.vue'));
 
 const auth = useAuthStore();
 const siteConfigStore = useSiteConfigStore();
@@ -575,6 +566,129 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.site-shell {
+  --brand-cyan: #00aebd;
+  --brand-pink: #ff5fa2;
+  --brand-lime: #9bd400;
+  --brand-purple: #7d4aa8;
+  background:
+    radial-gradient(circle at 3% 14%, rgba(0, 174, 189, 0.055), transparent 22rem),
+    radial-gradient(circle at 97% 38%, rgba(255, 95, 162, 0.05), transparent 24rem),
+    #fffefe;
+}
+
+.brand-header::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand-cyan) 0 25%, var(--brand-pink) 25% 50%, var(--brand-purple) 50% 75%, var(--brand-lime) 75%);
+}
+
+.brand-logo {
+  filter: drop-shadow(0 5px 12px rgba(86, 50, 126, 0.08));
+}
+
+.brand-search {
+  border-color: rgba(0, 174, 189, 0.18);
+  box-shadow: 0 8px 24px -18px rgba(86, 50, 126, 0.45);
+}
+
+.brand-login {
+  background: linear-gradient(135deg, #8a58b3, #f05a9b);
+  box-shadow: 0 8px 18px -8px rgba(125, 74, 168, 0.7);
+}
+
+.brand-login:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 11px 22px -8px rgba(240, 90, 155, 0.65);
+}
+
+.brand-nav-active {
+  color: #68408d;
+  background: linear-gradient(135deg, rgba(0, 174, 189, 0.1), rgba(255, 95, 162, 0.11));
+  box-shadow: inset 0 0 0 1px rgba(125, 74, 168, 0.08);
+}
+
+.brand-mobile-search::after {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 174, 189, 0.5), rgba(255, 95, 162, 0.45), transparent);
+}
+
+.brand-footer {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(0, 174, 189, 0.16), transparent 28rem),
+    radial-gradient(circle at 88% 92%, rgba(255, 95, 162, 0.13), transparent 30rem),
+    linear-gradient(145deg, #241241, #321854 58%, #1f1438);
+  border-top: 4px solid transparent;
+  border-image: linear-gradient(90deg, #00aebd, #9bd400, #ff5fa2, #7d4aa8) 1;
+}
+
+.brand-mobile-nav {
+  min-height: 64px;
+  border-color: rgba(125, 74, 168, 0.12);
+  box-shadow: 0 -10px 28px -18px rgba(72, 43, 98, 0.35);
+}
+
+.mobile-nav-item {
+  position: relative;
+  min-height: 62px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-item::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  width: 36px;
+  height: 30px;
+  border-radius: 13px;
+  opacity: 0;
+  transform: scale(0.75);
+  background: linear-gradient(135deg, rgba(0, 174, 189, 0.12), rgba(255, 95, 162, 0.13));
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.mobile-nav-item > svg,
+.mobile-nav-item > span,
+.mobile-nav-item > span > svg {
+  position: relative;
+  z-index: 1;
+}
+
+.mobile-nav-active {
+  color: #7d4aa8;
+}
+
+.mobile-nav-active::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.mobile-cart-item svg {
+  color: #ef5d9d;
+}
+
+@media (max-width: 767px) {
+  .brand-header .brand-logo {
+    height: 47px;
+    max-width: 68vw;
+  }
+
+  .brand-header > div > div:first-child {
+    height: 68px;
+  }
+
+  .brand-header {
+    box-shadow: 0 8px 24px -22px rgba(72, 43, 98, 0.48);
+  }
+}
+
 /* Announcement bar shine */
 .announcement-shine {
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%);

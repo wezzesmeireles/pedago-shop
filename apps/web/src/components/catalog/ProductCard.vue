@@ -1,13 +1,13 @@
 <template>
   <div
-    class="group bg-white rounded-xl overflow-hidden border border-gray-100
-           hover:border-violet-200 hover:shadow-xl transition-all duration-300
+    class="product-card group bg-white rounded-2xl overflow-hidden border border-gray-100
+           hover:border-cyan-200 hover:shadow-xl transition-all duration-300
            flex flex-col hover:-translate-y-1 relative"
   >
     <!-- Shine border on hover -->
     <div
       class="shine-card pointer-events-none absolute inset-0 rounded-xl opacity-0
-             group-hover:opacity-100 transition-opacity duration-300 z-10"
+             group-hover:opacity-100 transition-opacity duration-300 z-10 rounded-2xl"
     />
 
     <!-- Image -->
@@ -75,7 +75,7 @@
     <div class="p-3 flex flex-col flex-1">
       <RouterLink :to="`/produto/${product.slug}`">
         <h3 class="text-xs sm:text-sm font-medium text-gray-700 leading-snug line-clamp-2 mb-2
-                   group-hover:text-violet-600 transition-colors duration-200 min-h-[2.5rem]">
+                   group-hover:text-purple-700 transition-colors duration-200 min-h-[2.5rem]">
           {{ product.name }}
         </h3>
       </RouterLink>
@@ -85,7 +85,7 @@
         <div>
           <div class="flex items-center gap-1.5">
             <span v-if="isFree" class="text-sm font-black text-emerald-600">Grátis</span>
-            <span v-else class="text-sm font-black text-violet-700">{{ formatPrice(product.price) }}</span>
+            <span v-else class="text-sm font-black text-purple-700">{{ formatPrice(product.price) }}</span>
             <span v-if="product.comparePrice && !isFree" class="text-[11px] text-gray-400 line-through">
               {{ formatPrice(product.comparePrice) }}
             </span>
@@ -105,7 +105,7 @@
             ? 'bg-emerald-500 text-white focus:ring-emerald-400'
             : isFree
               ? 'bg-emerald-500 hover:bg-emerald-600 text-white focus:ring-emerald-400 shadow-sm'
-              : 'bg-violet-600 hover:bg-violet-700 text-white focus:ring-violet-400 shadow-sm'"
+              : 'brand-cart-btn text-white focus:ring-purple-400 shadow-sm'"
         >
           <transition name="btn-icon" mode="out-in">
             <svg v-if="justAdded" key="check" class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,8 +187,46 @@ function addToCart() {
 </script>
 
 <style scoped>
+.product-card {
+  box-shadow: 0 8px 28px -22px rgba(58, 34, 78, 0.5);
+}
+
+.product-card:hover {
+  box-shadow: 0 18px 36px -20px rgba(76, 45, 104, 0.35), 0 8px 18px -14px rgba(0, 174, 189, 0.3);
+}
+
+.brand-cart-btn {
+  background: linear-gradient(135deg, #7d4aa8, #ef5d9d);
+  box-shadow: 0 7px 16px -9px rgba(125, 74, 168, 0.72);
+}
+
+.brand-cart-btn:hover {
+  background: linear-gradient(135deg, #6f3f98, #e64d90);
+}
+
+@media (max-width: 639px) {
+  .product-card {
+    border-radius: 20px;
+    box-shadow: 0 10px 24px -20px rgba(58, 34, 78, 0.62);
+  }
+
+  .product-card h3 {
+    font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    color: #51465a;
+  }
+
+  .product-card button {
+    min-height: 42px;
+    border-radius: 12px;
+    font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.01em;
+  }
+}
+
 .shine-card {
-  background-image: radial-gradient(transparent, transparent, #7C3AED, #EC4899, transparent, transparent);
+  background-image: radial-gradient(transparent, transparent, #00aebd, #ff5fa2, transparent, transparent);
   background-size: 300% 300%;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
