@@ -9,6 +9,16 @@ export default async ({ req, res, log, error }) => {
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
+  const callerId = req.headers['x-appwrite-user-id']
+  if (!callerId) return res.json({ error: 'Unauthorized' }, 401)
+  const callerProfiles = await db.listDocuments(DB, 'profiles', [
+    Query.equal('userId', callerId), Query.limit(1),
+  ])
+  const caller = callerProfiles.documents[0]
+  if (!caller || caller.role !== 'ADMIN' || caller.isActive === false) {
+    return res.json({ error: 'Forbidden' }, 403)
+  }
+
   // Parse body once (Appwrite executions always arrive as POST, so the
   // PATCH "method" is signalled via body._method)
   let parsedBody = {}

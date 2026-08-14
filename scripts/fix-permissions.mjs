@@ -7,7 +7,13 @@ import { Client, Databases, Permission, Role, Query } from 'node-appwrite'
 const client = new Client()
   .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://appwrite.wsgestao.digital/v1')
   .setProject(process.env.APPWRITE_PROJECT_ID || '6a1bc2b1000d09c3f5f1')
-  .setKey(process.env.APPWRITE_API_KEY)
+  .setKey(required('APPWRITE_API_KEY'))
+
+function required(name) {
+  const value = process.env[name]
+  if (!value) throw new Error(`${name} is required`)
+  return value
+}
 
 const db = new Databases(client)
 const DB = 'pedago-db'
@@ -18,20 +24,23 @@ async function updateCollectionPermissions() {
   console.log('\n📋 Atualizando permissões das coleções...')
 
   const adminRead   = Permission.read(Role.label('admin'))
+  const adminCreate = Permission.create(Role.label('admin'))
   const adminWrite  = Permission.update(Role.label('admin'))
   const adminDelete = Permission.delete(Role.label('admin'))
   const usersCreate = Permission.create(Role.users())
   const anyRead     = Permission.read(Role.any())
+  const anyCreate   = Permission.create(Role.any())
 
   const collections = [
-    { id: 'profiles',         perms: [anyRead, usersCreate, adminWrite, adminDelete] },
-    { id: 'categories',       perms: [anyRead, adminWrite, adminDelete] },
-    { id: 'products',         perms: [anyRead, adminWrite, adminDelete] },
+    { id: 'profiles',         perms: [adminRead, usersCreate, adminWrite, adminDelete] },
+    { id: 'categories',       perms: [anyRead, adminCreate, adminWrite, adminDelete] },
+    { id: 'products',         perms: [adminRead, adminCreate, adminWrite, adminDelete] },
     { id: 'orders',           perms: [adminRead, adminWrite, adminDelete, usersCreate] },
     { id: 'order_items',      perms: [adminRead, adminWrite, adminDelete] },
     { id: 'download_tokens',  perms: [adminRead, adminWrite, adminDelete] },
-    { id: 'site_config',      perms: [anyRead, adminWrite] },
+    { id: 'site_config',      perms: [adminRead, adminCreate, adminWrite, adminDelete] },
     { id: 'webhook_events',   perms: [adminRead, adminWrite] },
+    { id: 'newsletter',       perms: [adminRead, anyCreate, adminDelete] },
   ]
 
   for (const col of collections) {
@@ -42,6 +51,27 @@ async function updateCollectionPermissions() {
       console.error(`  ✗ ${col.id}: ${e.message}`)
     }
   }
+}
+
+async function fixProfiles() {
+  console.log('\nCorrigindo permissões de profiles...')
+  const profiles = await fetchAll('profiles')
+  let ok = 0, fail = 0
+  for (const profile of profiles) {
+    const uid = profile.userId
+    if (!uid) continue
+    try {
+      await db.updateDocument(DB, 'profiles', profile.$id, {}, [
+        Permission.read(Role.label('admin')),
+        Permission.update(Role.label('admin')),
+        Permission.delete(Role.label('admin')),
+        Permission.read(Role.user(uid)),
+        Permission.update(Role.user(uid)),
+      ])
+      ok++
+    } catch { fail++ }
+  }
+  console.log(`  ${ok} ok, ${fail} erros`)
 }
 
 // ── Step 2: Add user permissions to existing documents ────────────────────────
@@ -137,6 +167,7 @@ async function fixDownloadTokens(orders) {
 async function main() {
   console.log('🔧 Corrigindo permissões do Appwrite...')
   await updateCollectionPermissions()
+  await fixProfiles()
   const orders = await fixOrders()
   await fixOrderItems(orders)
   await fixDownloadTokens(orders)

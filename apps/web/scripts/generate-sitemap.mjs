@@ -1,30 +1,15 @@
 import fs from 'fs';
 import path from 'path';
-import { Client, Databases, Query } from 'appwrite';
 
-const APPWRITE_ENDPOINT = 'https://appwrite.wsgestao.digital/v1';
-const PROJECT_ID = '6a1bc2b1000d09c3f5f1';
-const DATABASE_ID = 'pedago-db';
 const BASE_URL = 'https://www.sitepedagogico.com';
-
-const client = new Client()
-  .setEndpoint(APPWRITE_ENDPOINT)
-  .setProject(PROJECT_ID);
-
-const databases = new Databases(client);
 
 async function generateSitemap() {
   console.log('Generating sitemap...');
   try {
-    const productsRes = await databases.listDocuments(DATABASE_ID, 'products', [
-      Query.limit(500)
-    ]);
-    const categoriesRes = await databases.listDocuments(DATABASE_ID, 'categories', [
-      Query.limit(500)
-    ]);
-    
-    const products = productsRes.documents;
-    const categories = categoriesRes.documents;
+    const response = await fetch(`${BASE_URL}/api/catalog`);
+    if (!response.ok) throw new Error(`Catalog API returned ${response.status}`);
+
+    const { products = [], categories = [] } = await response.json();
     
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

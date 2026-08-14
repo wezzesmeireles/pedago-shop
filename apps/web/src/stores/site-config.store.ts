@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
+import { authenticatedHeaders, publicApiUrl } from '@/lib/public-api';
 import type { SiteConfigData } from '@sitepedagogico/shared';
 import { DEFAULT_SITE_CONFIG } from '@sitepedagogico/shared';
 
@@ -29,24 +29,22 @@ function mergeConfig(data: Partial<SiteConfigData>): SiteConfigData {
   return merged;
 }
 
-async function fetchFromAppwrite(): Promise<SiteConfigData | null> {
-  const doc = await databases.getDocument(DB_ID, COLLECTIONS.SITE_CONFIG, 'global');
-  const raw = typeof doc.value === 'string' ? JSON.parse(doc.value) : doc.value;
-  return raw;
+async function fetchFromServer(admin = false): Promise<SiteConfigData | null> {
+  const response = await fetch(publicApiUrl('/api/site-config'), {
+    headers: admin ? await authenticatedHeaders() : undefined,
+  });
+  if (!response.ok) throw new Error(`Configuração indisponível (${response.status})`);
+  return response.json();
 }
 
 async function saveConfig(config: object) {
-  const value = JSON.stringify(config);
-  const now = new Date().toISOString();
-  try {
-    await databases.updateDocument(DB_ID, COLLECTIONS.SITE_CONFIG, 'global', { value, updatedAt: now });
-  } catch (err: any) {
-    if (err.code === 404) {
-      await databases.createDocument(DB_ID, COLLECTIONS.SITE_CONFIG, 'global', { key: 'global', value, updatedAt: now });
-    } else {
-      throw err;
-    }
-  }
+  const response = await fetch(publicApiUrl('/api/site-config'), {
+    method: 'PUT',
+    headers: await authenticatedHeaders(),
+    body: JSON.stringify(config),
+  });
+  if (!response.ok) throw new Error(`Não foi possível salvar (${response.status})`);
+  return response.json();
 }
 
 export const useSiteConfigStore = defineStore('siteConfig', () => {
@@ -64,7 +62,7 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
 
     // 2. Appwrite → atualiza em background (first visit bloqueia até ter dados)
     try {
-      const data = await fetchFromAppwrite();
+      const data = await fetchFromServer();
       if (data) {
         const merged = mergeConfig(data);
         config.value = merged;
@@ -80,11 +78,17 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
 
   async function update(data: Partial<SiteConfigData>) {
     const merged = { ...config.value, ...data };
-    await saveConfig(merged);
-    config.value = merged;
-    applyTheme(merged);
-    writeCache(merged);
-    return merged;
+    const saved = mergeConfig(await saveConfig(merged));
+    config.value = saved;
+    applyTheme(saved);
+    writeCache(saved);
+    return saved;
+  }
+
+  async function fetchPrivate() {
+    const data = await fetchFromServer(true);
+    if (!data) return null;
+    return data;
   }
 
   function applyTheme(cfg: SiteConfigData) {
@@ -99,5 +103,5 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     if (cfg.storeName) document.title = cfg.storeName;
   }
 
-  return { config, loaded, fetch, update };
+  return { config, loaded, fetch, fetchPrivate, update };
 });

@@ -14,17 +14,25 @@ function authHeaders() {
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
+  if (!API_KEY || !RESEND_KEY) return res.status(500).json({ error: 'Configuração interna incompleta' });
 
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email não informado' });
+  const email = String(req.body?.email ?? '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Email inválido' });
 
   try {
-    const qs = 'queries[]=' + encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'email', values: [email.toLowerCase().trim()] })) + '&queries[]=' + encodeURIComponent(JSON.stringify({ method: 'limit', values: [1] }));
+    const qs = 'queries[]=' + encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'email', values: [email] })) + '&queries[]=' + encodeURIComponent(JSON.stringify({ method: 'limit', values: [1] }));
     const userRes = await fetch(`${APPWRITE}/users?${qs}`, { headers: authHeaders() });
     if (!userRes.ok) return res.json({ ok: true });
     const userData = await userRes.json();
     const user = userData.users?.[0];
     if (!user) return res.json({ ok: true });
+
+    const recentQs = 'queries[]=' + encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'email', values: [email] })) + '&queries[]=' + encodeURIComponent(JSON.stringify({ method: 'orderDesc', attribute: '$createdAt' })) + '&queries[]=' + encodeURIComponent(JSON.stringify({ method: 'limit', values: [1] }));
+    const recentRes = await fetch(`${APPWRITE}/databases/${DB}/collections/${COLLECTION}/documents?${recentQs}`, { headers: authHeaders() });
+    if (recentRes.ok) {
+      const recent = (await recentRes.json()).documents?.[0];
+      if (recent?.$createdAt && Date.now() - new Date(recent.$createdAt).getTime() < 60_000) return res.json({ ok: true });
+    }
 
     const token = randomUUID();
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();

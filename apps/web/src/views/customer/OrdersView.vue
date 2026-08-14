@@ -313,10 +313,6 @@ const totalSpent = computed(() =>
     .reduce((sum, o) => sum + Number(o.totalAmount), 0),
 );
 
-function countByStatus(status: string) {
-  return orders.value.filter(o => o.status === status).length;
-}
-
 function formatPrice(p: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(p));
 }

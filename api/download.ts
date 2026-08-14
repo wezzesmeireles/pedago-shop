@@ -53,15 +53,26 @@ export default async function handler(req: any, res: any) {
       return res.status(410).send('Este link expirou. Acesse Meus Downloads para obter um novo.')
     }
 
-    // ── 3. Incrementar contador (best-effort, não bloqueia) ───────────────────
-    fetch(`${APPWRITE}/databases/${DB}/collections/download_tokens/documents/${tokenDoc.$id}`, {
+    const downloadCount = Number(tokenDoc.downloadCount ?? 0)
+
+    // Downloads are unlimited. Keep the counter only for statistics; a failure
+    // here must never prevent delivery of an otherwise valid purchased file.
+    const countResponse = await fetch(`${APPWRITE}/databases/${DB}/collections/download_tokens/documents/${tokenDoc.$id}`, {
       method: 'PATCH',
       headers: { ...appwriteHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        downloadCount: (tokenDoc.downloadCount ?? 0) + 1,
-        lastDownloadAt: now.toISOString(),
+        data: {
+          downloadCount: downloadCount + 1,
+          lastDownloadAt: now.toISOString(),
+        },
       }),
-    }).catch(() => {})
+    })
+    if (!countResponse.ok) {
+      const body = await countResponse.text()
+      console.warn('[download] counter update failed; continuing delivery', countResponse.status, body.slice(0, 300), {
+        tokenId: tokenDoc.$id,
+      })
+    }
 
     // ── 4. Delivery por link externo ──────────────────────────────────────────
     if (tokenDoc.deliveryLink) {

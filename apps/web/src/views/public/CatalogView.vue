@@ -2,8 +2,8 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <div class="mb-5 flex items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Catálogo de Atividades</h1>
-        <p class="text-gray-500 text-sm mt-0.5">{{ pagination.total }} atividades disponíveis</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">{{ catalogHeading }}</h1>
+        <p class="text-gray-500 text-sm mt-0.5">{{ catalogIntro }}</p>
       </div>
       <!-- Mobile filter toggle -->
       <button
@@ -146,9 +146,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { useHead } from '@vueuse/head';
-import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { Query } from 'appwrite';
+import { useHead } from '@unhead/vue';
+import { fetchPublicCatalog } from '@/lib/public-api';
 import { useCatalogStore } from '@/stores/catalog.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import ProductCard from '@/components/catalog/ProductCard.vue';
@@ -202,6 +201,23 @@ const filters = reactive({
 });
 
 const categories = computed(() => catalogStore.categories);
+const activeCategory = computed(() =>
+  categories.value.find((category: any) => category.slug === filters.category),
+);
+const catalogHeading = computed(() =>
+  activeCategory.value
+    ? `Atividades de ${activeCategory.value.name} em PDF`
+    : filters.featured
+      ? 'Atividades pedagógicas mais vendidas'
+      : filters.search
+        ? `Resultados para “${filters.search}”`
+        : 'Catálogo de atividades pedagógicas em PDF',
+);
+const catalogIntro = computed(() =>
+  activeCategory.value
+    ? `${pagination.value.total} materiais de ${activeCategory.value.name} prontos para imprimir`
+    : `${pagination.value.total} atividades disponíveis para baixar e imprimir`,
+);
 
 // The "Grátis" category gets a distinct green styling (it replaces the old
 // auto price=0 filter — now it's a normal, reorderable category).
@@ -237,35 +253,25 @@ async function fetchProducts(page = 1) {
     const limit = 12;
     const offset = (page - 1) * limit;
 
-    // Resolve category slug → $id if filtering by category
-    let categoryId: string | null = null;
-    if (filters.category) {
-      const catResult = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
-        Query.equal('slug', filters.category),
-        Query.limit(1),
-      ]);
-      categoryId = catResult.documents[0]?.$id ?? null;
-    }
+    const catalog = await fetchPublicCatalog();
+    const categoryId = filters.category
+      ? catalog.categories.find((category: any) => category.slug === filters.category)?.$id
+      : null;
+    const search = filters.search.trim().toLocaleLowerCase('pt-BR');
+    let filtered = catalog.products.filter((product: any) =>
+      (!search || String(product.name ?? '').toLocaleLowerCase('pt-BR').includes(search)) &&
+      (!categoryId || product.categoryId === categoryId) &&
+      (!filters.onlyFree || Number(product.price) === 0) &&
+      (!filters.featured || product.isFeatured === true)
+    );
+    filtered = [...filtered].sort((a: any, b: any) => {
+      if (filters.sort === 'price_asc') return Number(a.price) - Number(b.price);
+      if (filters.sort === 'price_desc') return Number(b.price) - Number(a.price);
+      if (filters.sort === 'popular') return Number(b.salesCount ?? 0) - Number(a.salesCount ?? 0);
+      return new Date(b.$createdAt ?? b.createdAt ?? 0).getTime() - new Date(a.$createdAt ?? a.createdAt ?? 0).getTime();
+    });
 
-    const queries: string[] = [
-      Query.equal('isActive', true),
-      Query.isNull('deletedAt'),
-      Query.limit(limit),
-      Query.offset(offset),
-    ];
-
-    if (filters.search) queries.push(Query.search('name', filters.search));
-    if (categoryId) queries.push(Query.equal('categoryId', categoryId));
-    if (filters.onlyFree) queries.push(Query.equal('price', 0));
-    if (filters.featured) queries.push(Query.equal('isFeatured', true));
-
-    if (filters.sort === 'price_asc') queries.push(Query.orderAsc('price'));
-    else if (filters.sort === 'price_desc') queries.push(Query.orderDesc('price'));
-    else if (filters.sort === 'popular') queries.push(Query.orderDesc('salesCount'));
-    else queries.push(Query.orderDesc('$createdAt'));
-
-    const result = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, queries);
-    products.value = result.documents.map((p: any) => ({
+    products.value = filtered.slice(offset, offset + limit).map((p: any) => ({
       ...p,
       id: p.$id,
       coverImageUrl: p.coverImageUrl,
@@ -273,7 +279,7 @@ async function fetchProducts(page = 1) {
       isFeatured: p.isFeatured,
       salesCount: p.salesCount,
     }));
-    const total = result.total;
+    const total = filtered.length;
     pagination.value = { page, limit, total, totalPages: Math.ceil(total / limit) };
   } catch (err: any) {
     fetchError.value = 'Erro ao carregar produtos. Verifique sua conexão e tente novamente.';
@@ -286,14 +292,6 @@ async function fetchProducts(page = 1) {
 function setCategory(slug: string) {
   filters.category = slug;
   filters.onlyFree = false;
-  filters.featured = false;
-  filtersOpen.value = false;
-  fetchProducts();
-}
-
-function toggleFree() {
-  filters.onlyFree = !filters.onlyFree;
-  filters.category = '';
   filters.featured = false;
   filtersOpen.value = false;
   fetchProducts();
