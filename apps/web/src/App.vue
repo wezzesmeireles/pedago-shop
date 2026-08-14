@@ -8,6 +8,9 @@
     </Transition>
   </RouterView>
   <PhoneRequiredModal />
+  <PwaInstallPrompt />
+  <PwaNotificationPrompt />
+  <PwaConnectionStatus />
 </template>
 
 <script setup lang="ts">
@@ -16,6 +19,9 @@ import { useRoute } from 'vue-router';
 import { useHead } from '@vueuse/head';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import PhoneRequiredModal from '@/components/ui/PhoneRequiredModal.vue';
+import PwaInstallPrompt from '@/components/pwa/PwaInstallPrompt.vue';
+import PwaNotificationPrompt from '@/components/pwa/PwaNotificationPrompt.vue';
+import PwaConnectionStatus from '@/components/pwa/PwaConnectionStatus.vue';
 
 const siteConfig = useSiteConfigStore();
 const route = useRoute();
