@@ -49,7 +49,7 @@ export default async ({ req, res, log, error }) => {
   // Use the user ID from the Appwrite-injected header — this is always the real
   // caller's ID regardless of what the body says, preventing IDOR attacks where
   // an attacker crafts a request with another user's ID in the body.
-  const userId = req.headers['x-appwrite-user-id'] || body.userId
+  const userId = req.headers['x-appwrite-user-id']
   const { customerName, customerEmail, items, paymentMethod, guestPhone } = body
   if (!userId || !items?.length) return res.json({ error: 'userId and items required' }, 400)
 

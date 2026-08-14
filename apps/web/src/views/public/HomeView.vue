@@ -118,15 +118,17 @@
       </div>
     </section>
 
-    <!-- Boas-vindas lúdica para telas pequenas -->
-    <section class="mobile-welcome sm:hidden mx-4 mt-4 rounded-[22px] p-3.5 overflow-hidden">
-      <span class="mobile-welcome__shape mobile-welcome__shape--one" aria-hidden="true">✦</span>
-      <span class="mobile-welcome__shape mobile-welcome__shape--two" aria-hidden="true">●</span>
-      <div class="relative flex items-center gap-3">
-        <div class="mobile-welcome__icon" aria-hidden="true">🌈</div>
-        <div>
-          <p class="font-display text-lg font-bold text-purple-800 leading-tight">Aprender pode ser divertido!</p>
-          <p class="text-xs text-purple-600/75 mt-1 leading-relaxed">Atividades criativas, coloridas e prontas para imprimir.</p>
+    <!-- Apresentação semântica e lúdica -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+      <div class="mobile-welcome rounded-[22px] p-3.5 sm:p-5 overflow-hidden">
+        <span class="mobile-welcome__shape mobile-welcome__shape--one" aria-hidden="true">✦</span>
+        <span class="mobile-welcome__shape mobile-welcome__shape--two" aria-hidden="true">●</span>
+        <div class="relative flex items-center justify-center gap-3 sm:gap-4 text-left sm:text-center">
+          <div class="mobile-welcome__icon" aria-hidden="true">🌈</div>
+          <div>
+            <h1 class="font-display text-lg sm:text-2xl font-bold text-purple-800 leading-tight">Atividades pedagógicas em PDF para imprimir</h1>
+            <p class="text-xs sm:text-sm text-purple-600/75 mt-1 leading-relaxed">Materiais criativos e lúdicos para educação infantil e anos iniciais, com download imediato.</p>
+          </div>
         </div>
       </div>
     </section>
@@ -453,9 +455,10 @@ import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useCartStore } from '@/stores/cart.store';
 import { useImageOptimizer } from '@/composables/useImageOptimizer';
 import ProductCard from '@/components/catalog/ProductCard.vue';
-import { useHead } from '@vueuse/head';
+import { useHead } from '@unhead/vue';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { ID, Query } from 'appwrite';
+import { ID } from 'appwrite';
+import { fetchPublicCatalog } from '@/lib/public-api';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 
 const { optimizeImage } = useImageOptimizer();
@@ -464,8 +467,8 @@ const cart = useCartStore();
 
 useHead(computed(() => {
   const cfg = siteConfigStore.config;
-  const title = cfg.seoTitle || cfg.storeName || 'Site Pedagógico';
-  const description = cfg.seoDescription || cfg.storeDescription || '';
+  const title = 'Atividades Pedagógicas em PDF para Imprimir | Site Pedagógico';
+  const description = 'Atividades pedagógicas lúdicas e prontas para imprimir em PDF para educação infantil e anos iniciais. Compra segura e download imediato.';
   const image = cfg.logoUrl || cfg.bannerImageUrl || (cfg.banners?.[0]?.imageUrl) || '';
   const url = typeof window !== 'undefined' ? window.location.origin : '';
   return {
@@ -643,25 +646,18 @@ onMounted(async () => {
   await Promise.allSettled([
     (async () => {
       try {
-        const catResult = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
-          Query.equal('isActive', true),
-          Query.orderAsc('sortOrder'),
-          Query.limit(100),
-        ]);
-        const catDocs = catResult.documents;
+        const catalog = await fetchPublicCatalog();
+        const catDocs = [...catalog.categories].sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         categories.value = catDocs.map((c: any) => ({ ...c, id: c.$id }));
         const catMap = new Map<string, any>();
         for (const cat of catDocs) {
           catMap.set(cat.$id, { ...cat, id: cat.$id, products: [] });
         }
 
-        const prodResult = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-          Query.equal('isActive', true),
-          Query.isNull('deletedAt'),
-          Query.orderDesc('$createdAt'),
-          Query.limit(300),
-        ]);
-        for (const p of prodResult.documents) {
+        const newest = [...catalog.products].sort((a: any, b: any) =>
+          new Date(b.$createdAt ?? b.createdAt ?? 0).getTime() - new Date(a.$createdAt ?? a.createdAt ?? 0).getTime()
+        );
+        for (const p of newest) {
           const mapped = {
             ...p,
             id: p.$id,
@@ -679,13 +675,11 @@ onMounted(async () => {
     })(),
     (async () => {
       try {
-        const result = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-          Query.equal('isActive', true),
-          Query.isNull('deletedAt'),
-          Query.orderDesc('salesCount'),
-          Query.limit(50),
-        ]);
-        const found = result.documents.find((p: any) =>
+        const catalog = await fetchPublicCatalog();
+        const found = [...catalog.products]
+          .sort((a: any, b: any) => Number(b.salesCount ?? 0) - Number(a.salesCount ?? 0))
+          .slice(0, 50)
+          .find((p: any) =>
           p.name?.toLowerCase().includes('grupo')
         );
         if (found) {
@@ -696,17 +690,11 @@ onMounted(async () => {
     (async () => {
       try {
         const mapP = (p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice });
-        let best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-          Query.equal('isActive', true), Query.isNull('deletedAt'),
-          Query.equal('isFeatured', true), Query.orderDesc('salesCount'), Query.limit(12),
-        ]);
-        if (best.documents.length === 0) {
-          best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-            Query.equal('isActive', true), Query.isNull('deletedAt'),
-            Query.greaterThan('salesCount', 0), Query.orderDesc('salesCount'), Query.limit(6),
-          ]);
-        }
-        bestSellers.value = best.documents.map(mapP);
+        const catalog = await fetchPublicCatalog();
+        const bySales = (a: any, b: any) => Number(b.salesCount ?? 0) - Number(a.salesCount ?? 0);
+        let best = catalog.products.filter((p: any) => p.isFeatured).sort(bySales).slice(0, 12);
+        if (best.length === 0) best = catalog.products.filter((p: any) => Number(p.salesCount ?? 0) > 0).sort(bySales).slice(0, 6);
+        bestSellers.value = best.map(mapP);
       } catch (e) { console.error('best sellers error:', e); }
     })(),
   ]);

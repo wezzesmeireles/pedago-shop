@@ -5,3 +5,7 @@ allowBuilds:
   core-js: true
   esbuild: true
   vue-demi: true
+minimumReleaseAgeExclude:
+  - '@unhead/bundler@3.3.2'
+  - '@unhead/vue@3.3.2'
+  - unhead@3.3.2

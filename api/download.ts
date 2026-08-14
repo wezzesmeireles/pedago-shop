@@ -53,15 +53,22 @@ export default async function handler(req: any, res: any) {
       return res.status(410).send('Este link expirou. Acesse Meus Downloads para obter um novo.')
     }
 
+    const maxDownloads = Number(tokenDoc.maxDownloads ?? 0)
+    const downloadCount = Number(tokenDoc.downloadCount ?? 0)
+    if (maxDownloads > 0 && downloadCount >= maxDownloads) {
+      return res.status(410).send('O limite de downloads deste link foi atingido.')
+    }
+
     // ── 3. Incrementar contador (best-effort, não bloqueia) ───────────────────
-    fetch(`${APPWRITE}/databases/${DB}/collections/download_tokens/documents/${tokenDoc.$id}`, {
+    const countResponse = await fetch(`${APPWRITE}/databases/${DB}/collections/download_tokens/documents/${tokenDoc.$id}`, {
       method: 'PATCH',
       headers: { ...appwriteHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        downloadCount: (tokenDoc.downloadCount ?? 0) + 1,
+        downloadCount: downloadCount + 1,
         lastDownloadAt: now.toISOString(),
       }),
-    }).catch(() => {})
+    })
+    if (!countResponse.ok) return res.status(503).send('Não foi possível validar o download. Tente novamente.')
 
     // ── 4. Delivery por link externo ──────────────────────────────────────────
     if (tokenDoc.deliveryLink) {

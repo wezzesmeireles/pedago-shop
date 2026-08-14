@@ -42,7 +42,13 @@ export default async ({ req, res, log, error }) => {
       isActive: true,
       createdAt: now,
       updatedAt: now,
-    })
+    }, [
+      Permission.read(Role.user(user.$id)),
+      Permission.update(Role.user(user.$id)),
+      Permission.read(Role.label('admin')),
+      Permission.update(Role.label('admin')),
+      Permission.delete(Role.label('admin')),
+    ])
     await users.updateLabels(user.$id, ['customer'])
   } catch (err) {
     // Rollback: delete orphaned auth user if profile creation fails

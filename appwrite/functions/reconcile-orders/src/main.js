@@ -55,7 +55,7 @@ export default async ({ req, res, log }) => {
     // Verify the caller is the user they claim to be — prevent one user from
     // hijacking another user's guest orders by crafting the linkUserId field.
     const callerId = req.headers['x-appwrite-user-id']
-    if (callerId && callerId !== linkUserId) {
+    if (!callerId || callerId !== linkUserId) {
       return res.json({ error: 'Unauthorized' }, 403)
     }
     let linked = 0

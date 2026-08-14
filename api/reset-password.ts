@@ -5,6 +5,7 @@ const API_KEY = process.env.APPWRITE_API_KEY;
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
+  if (!API_KEY) return res.status(500).json({ error: 'Configuração interna incompleta' });
 
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: 'Token e senha são obrigatórios' });
@@ -14,7 +15,6 @@ export default async function handler(req: any, res: any) {
     const h = { 'X-Appwrite-Project': PROJECT, 'X-Appwrite-Key': API_KEY };
 
     const tokUrl = `${APPWRITE}/databases/${DB}/collections/recovery_tokens/documents/${token}`;
-    console.log('[reset-password] fetching', tokUrl);
     const tokRes = await fetch(tokUrl, { headers: { ...h, 'Content-Type': 'application/json' } });
     if (!tokRes.ok) {
       const errText = await tokRes.text().catch(() => '(no body)');
@@ -24,6 +24,9 @@ export default async function handler(req: any, res: any) {
 
     const tokenDoc = await tokRes.json();
     if (new Date(tokenDoc.expiresAt) < new Date()) return res.status(410).json({ error: 'Token expirado' });
+
+    const consumeRes = await fetch(tokUrl, { method: 'DELETE', headers: h });
+    if (!consumeRes.ok) return res.status(400).json({ error: 'Token inválido ou já utilizado' });
 
     const updateRes = await fetch(`${APPWRITE}/users/${tokenDoc.userId}/password`, {
       method: 'PATCH',
@@ -35,10 +38,6 @@ export default async function handler(req: any, res: any) {
       console.error('[reset-password] update err:', errData);
       return res.status(500).json({ error: 'Erro ao redefinir senha' });
     }
-
-    fetch(`${APPWRITE}/databases/${DB}/collections/recovery_tokens/documents/${token}`, {
-      method: 'DELETE', headers: h,
-    }).catch(() => {}); // fire-and-forget: deletion is best-effort
 
     res.json({ ok: true });
   } catch (err: any) {

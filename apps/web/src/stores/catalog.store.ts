@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { Query } from 'appwrite';
+import { fetchPublicCatalog } from '@/lib/public-api';
 
 export const useCatalogStore = defineStore('catalog', () => {
   const categories = ref<any[]>([]);
@@ -9,12 +8,8 @@ export const useCatalogStore = defineStore('catalog', () => {
 
   async function fetchCategories() {
     try {
-      const response = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
-        Query.equal('isActive', true),
-        Query.orderAsc('sortOrder'),
-        Query.limit(200),
-      ]);
-      categories.value = response.documents;
+      const response = await fetchPublicCatalog();
+      categories.value = [...response.categories].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     } catch (err) {
       console.error('fetchCategories failed:', err);
       categories.value = [];
@@ -23,26 +18,16 @@ export const useCatalogStore = defineStore('catalog', () => {
 
   async function fetchFeatured() {
     try {
-      const response = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-        Query.equal('isFeatured', true),
-        Query.equal('isActive', true),
-        Query.isNull('deletedAt'),
-        Query.orderAsc('sortOrder'),
-        Query.limit(8),
-      ]);
-
-      // Fetch categories separately and join in JS (Appwrite has no JOIN support)
-      const catResponse = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
-        Query.limit(100),
-      ]);
+      const response = await fetchPublicCatalog();
       const catMap = Object.fromEntries(
-        catResponse.documents.map((c) => [c.$id, c])
+        response.categories.map((c) => [c.$id, c])
       );
 
-      featuredProducts.value = response.documents.map((p) => ({
-        ...p,
-        category: p.categoryId ? catMap[p.categoryId] ?? null : null,
-      }));
+      featuredProducts.value = response.products
+        .filter((p) => p.isFeatured)
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .slice(0, 8)
+        .map((p) => ({ ...p, category: p.categoryId ? catMap[p.categoryId] ?? null : null }));
     } catch (err) {
       console.error('fetchFeatured failed:', err);
       featuredProducts.value = [];

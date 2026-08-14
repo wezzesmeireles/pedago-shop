@@ -13,20 +13,27 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { useHead } from '@vueuse/head';
+import { useHead } from '@unhead/vue';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 import PhoneRequiredModal from '@/components/ui/PhoneRequiredModal.vue';
 
 const siteConfig = useSiteConfigStore();
 const route = useRoute();
 
-// Canonical SEMPRE no domínio de produção (.com), por rota — evita o Google
-// indexar/mostrar o domínio antigo (.com.br) ou variações (apex/localhost).
+const canonicalUrl = computed(() => {
+  const base = 'https://www.sitepedagogico.com';
+  if (route.name === 'catalog' && typeof route.query.categoria === 'string') {
+    return `${base}/catalogo?categoria=${encodeURIComponent(route.query.categoria)}`;
+  }
+  return `${base}${route.path}`;
+});
+
+// Mantém o domínio novo como fonte oficial e preserva categorias indexáveis.
 useHead({
   link: [
     {
       rel: 'canonical',
-      href: computed(() => `https://www.sitepedagogico.com${route.path}`),
+      href: canonicalUrl,
     },
   ],
 });

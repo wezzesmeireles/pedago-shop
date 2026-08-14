@@ -434,17 +434,17 @@ async function testRecipient(r: TgRecipient) {
 
 onMounted(async () => {
   try {
-    // Ensure config is loaded
-    if (!siteConfigStore.loaded) await siteConfigStore.fetch();
-    const v = siteConfigStore.config as any;
-    form.value.mercadoPagoAccessToken = v.mercadoPagoAccessToken ?? '';
-    form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';
-    form.value.mercadoPagoWebhookSecret = v.mercadoPagoWebhookSecret ?? '';
-    form.value.telegramBotToken = v.telegramBotToken ?? '';
-    form.value.googleClientId = v.googleClientId ?? '';
-    form.value.googleClientSecret = v.googleClientSecret ?? '';
+    const v = (await siteConfigStore.fetchPrivate()) as any;
+    // Secrets are loaded only for an authenticated administrator and never
+    // stored in the public Pinia/localStorage configuration cache.
+    form.value.mercadoPagoAccessToken = v?.mercadoPagoAccessToken ?? '';
+    form.value.mercadoPagoPixKey = v?.mercadoPagoPixKey ?? '';
+    form.value.mercadoPagoWebhookSecret = v?.mercadoPagoWebhookSecret ?? '';
+    form.value.telegramBotToken = v?.telegramBotToken ?? '';
+    form.value.googleClientId = v?.googleClientId ?? '';
+    form.value.googleClientSecret = v?.googleClientSecret ?? '';
     // migrate old single chatId to recipients list
-    if (v.telegramRecipients?.length) {
+    if (v?.telegramRecipients?.length) {
       form.value.telegramRecipients = v.telegramRecipients.map((r: any) => ({ ...r, testing: false, testResult: '' }));
     } else if (v.telegramChatId) {
       form.value.telegramRecipients = [{ id: crypto.randomUUID(), name: 'Admin', chatId: v.telegramChatId, testing: false, testResult: '' }];
