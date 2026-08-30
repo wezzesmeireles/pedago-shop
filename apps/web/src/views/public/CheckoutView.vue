@@ -325,6 +325,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
 import { normalizePixPayment } from '@/lib/pix-payment';
+import { collectClientContext } from '@/lib/client-context';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import PixLogo from '@/components/ui/PixLogo.vue';
@@ -393,6 +394,7 @@ async function createOrder() {
     // Free products bypass payment selection
     const paymentMethod = cart.total === 0 ? 'FREE' : selectedMethod.value;
     const authUser = auth.user;
+    const clientContext = await collectClientContext();
     const funcData = await invokeFunction('create-order', {
       userId: authUser?.id,
       customerName: guestData?.name ?? authUser?.name ?? '',
@@ -405,6 +407,7 @@ async function createOrder() {
         quantity: i.quantity,
       })),
       paymentMethod,
+      clientContext,
       ...(guestData?.phone ? { guestPhone: guestData.phone } : {}),
     });
     if (funcData?.error || funcData?.message) {

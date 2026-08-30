@@ -12,10 +12,27 @@ export default async ({ req, res, log }) => {
 
   function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
   function dtBR(iso) { try { return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { return iso } }
+  function accessBlock(meta, location) {
+    const info = meta?.client && typeof meta.client === 'object' ? meta.client : {}
+    const lines = [
+      `📍 ${esc(location || 'Localização indisponível')}`,
+      meta?.buyerIp ? `🌐 IP: <code>${esc(meta.buyerIp)}</code>` : '🌐 IP não informado',
+      `📱 ${esc(info.model || 'Aparelho não informado')} · ${esc(info.os || 'Sistema não informado')}`,
+      `🌍 ${esc(info.browser || 'Navegador não informado')} · ${esc(info.appMode || 'Navegador')}`,
+    ]
+    if (info.screen || info.viewport) lines.push(`🖥 Tela: ${esc(info.screen || info.viewport)}`)
+    if (info.timezone) lines.push(`🕓 Fuso: ${esc(info.timezone)}`)
+    return `<b>ACESSO</b>\n${lines.join('\n')}`
+  }
   async function sendTelegram(token, chatId, html) {
+    const panelUrl = `${(process.env.FRONTEND_URL || 'https://www.sitepedagogico.com').replace(/\/$/, '')}/admin/pedidos`
+    const telegramOptions = {
+      link_preview_options: { is_disabled: true },
+      reply_markup: { inline_keyboard: [[{ text: '📦 Abrir pedidos', url: panelUrl }]] },
+    }
     const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML', ...telegramOptions }),
     })
     if (!r.ok) {
       const err = await r.text()
@@ -23,7 +40,7 @@ export default async ({ req, res, log }) => {
       const plain = html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: plain }),
+        body: JSON.stringify({ chat_id: chatId, text: plain, ...telegramOptions }),
       })
     }
   }
@@ -283,33 +300,32 @@ export default async ({ req, res, log }) => {
         }
         log(`Order ${order.orderNumber} marked PAID`)
         if (!alreadyPaid && await claimPaidNotification(order.$id)) {
-          let buyerIp = '', buyerLocation = ''
+          let orderMeta = {}, buyerLocation = ''
           try {
-            const meta = order.metadata ? JSON.parse(order.metadata) : {}
-            buyerIp = meta.buyerIp || ''
-            if (buyerIp) buyerLocation = await geolocate(buyerIp)
+            orderMeta = order.metadata ? JSON.parse(order.metadata) : {}
+            if (orderMeta.buyerIp) buyerLocation = await geolocate(orderMeta.buyerIp)
           } catch {}
           const payLabel = order.paymentMethod === 'PIX' ? '💠 PIX'
             : order.paymentMethod === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
             : esc(order.paymentMethod || '—')
           const itemsText = itemsResult.documents
-            .map(it => `  • ${esc(it.productName)}${((it.quantity || 1) > 1) ? ` (x${it.quantity})` : ''}`)
+            .map((it, index) => `${index + 1}. ${esc(it.productName)}${((it.quantity || 1) > 1) ? ` × ${it.quantity}` : ''}`)
             .join('\n') || '—'
           let when = ''
           try { when = new Date(now).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { when = now }
           await notifyTelegram(
-            `✅ <b>Pagamento Aprovado!</b>\n\n` +
+            `🎉 <b>PAGAMENTO APROVADO</b>\n━━━━━━━━━━━━━━━━━━\n` +
             `🧾 <b>${esc(order.orderNumber)}</b>\n` +
-            `👤 <b>${esc(order.customerName || 'Cliente')}</b>\n` +
-            `📧 ${esc(order.customerEmail || '—')}\n` +
-            (order.guestPhone ? `📱 ${esc(order.guestPhone)}\n🔰 Compra Rápida\n` : '') +
-            `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
-            `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b>   ${payLabel}` +
-            (payment.date_approved ? `\n✅ Pago em: ${dtBR(payment.date_approved)}` : '') +
-            (order.mpPaymentId ? `\n🔑 ID MP: <code>${esc(order.mpPaymentId)}</code>` : '') +
-            (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
-            (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
-            `\n🕐 ${when}`
+            `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b> · ${payLabel}\n` +
+            (payment.date_approved ? `✅ Pago em ${dtBR(payment.date_approved)}\n` : '') +
+            `\n<b>CLIENTE</b>\n` +
+            `👤 ${esc(order.customerName || 'Cliente')}\n` +
+            `📧 ${esc(order.customerEmail || 'Não informado')}\n` +
+            (order.guestPhone ? `📞 ${esc(order.guestPhone)} · Compra rápida\n` : '🔐 Cliente com conta\n') +
+            `\n<b>ITENS LIBERADOS</b>\n${itemsText}\n\n` +
+            `${accessBlock(orderMeta, buyerLocation)}\n\n` +
+            (order.mpPaymentId ? `🔑 <b>ID Mercado Pago:</b> <code>${esc(order.mpPaymentId)}</code>\n` : '') +
+            `🕐 ${when}`
           )
           await sendAdminPush(
             `🎉 Nova venda — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,

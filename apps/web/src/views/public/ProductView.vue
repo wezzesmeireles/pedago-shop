@@ -267,6 +267,7 @@ import { useHead } from '@unhead/vue';
 import { useRoute, useRouter } from 'vue-router';
 import { invokeFunction } from '@/services/api';
 import { fetchPublicCatalog } from '@/lib/public-api';
+import { collectClientContext } from '@/lib/client-context';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -420,12 +421,14 @@ async function claimFree() {
   claiming.value = true;
   claimError.value = '';
   try {
+    const clientContext = await collectClientContext();
     const data = await invokeFunction('create-order', {
       userId: auth.user?.id,
       customerName: auth.user?.name ?? '',
       customerEmail: auth.user?.email ?? '',
       items: [{ productId: product.value.id, slug: product.value.slug, quantity: 1 }],
       paymentMethod: 'FREE',
+      clientContext,
     });
     if (data?.error) throw new Error(data.error);
     router.push('/minha-conta/downloads');

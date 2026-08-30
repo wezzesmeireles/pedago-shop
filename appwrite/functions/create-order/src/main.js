@@ -14,10 +14,68 @@ export default async ({ req, res, log, error }) => {
 
   function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
   function dtBR(iso) { try { return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { return iso } }
+  function cleanMeta(value, max = 200) {
+    return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max) : ''
+  }
+  function describeClient(raw, fallbackUserAgent = '') {
+    const ctx = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+    const ua = cleanMeta(ctx.userAgent || fallbackUserAgent, 350)
+    const androidModel = ua.match(/Android[^;)]*;\s*([^;)]+?)(?:\s+Build\/|;|\))/i)?.[1]?.trim()
+    const model = cleanMeta(ctx.model, 100)
+      || (androidModel && !/^(wv|[a-z]{2}[-_][a-z]{2})$/i.test(androidModel) ? cleanMeta(androidModel, 100) : '')
+      || (/iPad/i.test(ua) ? 'iPad' : /iPhone/i.test(ua) ? 'iPhone' : '')
+      || (/Windows/i.test(ua) ? 'Computador' : /Macintosh/i.test(ua) ? 'Mac' : /Linux/i.test(ua) ? 'Computador Linux' : 'Aparelho não informado')
+    const os = /Android\s+([\d.]+)/i.test(ua) ? `Android ${RegExp.$1}`
+      : /(?:iPhone|CPU) OS\s+([\d_]+)/i.test(ua) ? `iOS ${RegExp.$1.replace(/_/g, '.')}`
+      : /Windows NT 10/i.test(ua) ? 'Windows 10/11'
+      : /Mac OS X\s+([\d_]+)/i.test(ua) ? `macOS ${RegExp.$1.replace(/_/g, '.')}`
+      : cleanMeta(ctx.platform, 80) || 'Sistema não informado'
+    const browser = /Edg\/([\d.]+)/i.test(ua) ? `Edge ${RegExp.$1.split('.')[0]}`
+      : /CriOS\/([\d.]+)/i.test(ua) ? `Chrome ${RegExp.$1.split('.')[0]}`
+      : /FxiOS\/([\d.]+)/i.test(ua) ? `Firefox ${RegExp.$1.split('.')[0]}`
+      : /Chrome\/([\d.]+)/i.test(ua) ? `Chrome ${RegExp.$1.split('.')[0]}`
+      : /Firefox\/([\d.]+)/i.test(ua) ? `Firefox ${RegExp.$1.split('.')[0]}`
+      : /Version\/([\d.]+).*Safari/i.test(ua) ? `Safari ${RegExp.$1.split('.')[0]}`
+      : cleanMeta(ctx.brands, 120) || 'Navegador não informado'
+
+    return {
+      model,
+      os,
+      browser,
+      appMode: ctx.appMode === 'pwa' ? 'PWA instalado' : 'Navegador',
+      viewport: cleanMeta(ctx.viewport, 30),
+      screen: cleanMeta(ctx.screen, 30),
+      timezone: cleanMeta(ctx.timezone, 80),
+      language: cleanMeta(ctx.language, 30),
+    }
+  }
+  function validIp(value) {
+    const ip = cleanMeta(value, 64)
+    if (!ip || !/^[0-9a-f:.]+$/i.test(ip)) return ''
+    if (ip.includes(':')) return ip
+    const parts = ip.split('.')
+    return parts.length === 4 && parts.every(part => /^\d{1,3}$/.test(part) && Number(part) <= 255) ? ip : ''
+  }
+  function accessBlock(ip, location, info) {
+    const lines = [
+      `📍 ${esc(location || 'Localização indisponível')}`,
+      ip ? `🌐 IP: <code>${esc(ip)}</code>` : '🌐 IP não informado',
+      `📱 ${esc(info.model)} · ${esc(info.os)}`,
+      `🌍 ${esc(info.browser)} · ${esc(info.appMode)}`,
+    ]
+    if (info.screen || info.viewport) lines.push(`🖥 Tela: ${esc(info.screen || info.viewport)}`)
+    if (info.timezone) lines.push(`🕓 Fuso: ${esc(info.timezone)}`)
+    return `<b>ACESSO</b>\n${lines.join('\n')}`
+  }
   async function sendTelegram(token, chatId, html) {
+    const panelUrl = `${(process.env.FRONTEND_URL || 'https://www.sitepedagogico.com').replace(/\/$/, '')}/admin/pedidos`
+    const telegramOptions = {
+      link_preview_options: { is_disabled: true },
+      reply_markup: { inline_keyboard: [[{ text: '📦 Abrir pedidos', url: panelUrl }]] },
+    }
     const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML', ...telegramOptions }),
     })
     if (!r.ok) {
       const err = await r.text()
@@ -25,7 +83,7 @@ export default async ({ req, res, log, error }) => {
       const plain = html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: plain }),
+        body: JSON.stringify({ chat_id: chatId, text: plain, ...telegramOptions }),
       })
     }
   }
@@ -56,7 +114,7 @@ export default async ({ req, res, log, error }) => {
   // caller's ID regardless of what the body says, preventing IDOR attacks where
   // an attacker crafts a request with another user's ID in the body.
   const userId = req.headers['x-appwrite-user-id']
-  const { customerName, customerEmail, items, paymentMethod, guestPhone } = body
+  const { customerName, customerEmail, items, paymentMethod, guestPhone, clientContext } = body
   if (!userId) return res.json({ error: 'Usuário não autenticado.' }, 400)
   if (!Array.isArray(items) || items.length === 0) {
     return res.json({ error: 'O pedido precisa ter pelo menos um item.' }, 400)
@@ -89,7 +147,13 @@ export default async ({ req, res, log, error }) => {
     return res.json({ error: err.message }, 400)
   }
 
-  const buyerIp = (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.headers['x-real-ip'] || ''
+  const buyerIp = validIp(
+    clientContext?.publicIp
+      || req.headers['x-appwrite-client-ip']
+      || (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()
+      || req.headers['x-real-ip'],
+  )
+  const clientInfo = describeClient(clientContext, req.headers['user-agent'] || req.headers['x-appwrite-user-agent'])
   const geoTask = geolocate(buyerIp)
 
   // Resolve each product by its current document ID. Old carts can retain an
@@ -279,6 +343,7 @@ export default async ({ req, res, log, error }) => {
         checkoutUrl: mpResult.sandbox_init_point ?? mpResult.init_point,
       } : {}),
       buyerIp,
+      client: clientInfo,
     }),
     createdAt: now,
     updatedAt: now,
@@ -327,23 +392,27 @@ export default async ({ req, res, log, error }) => {
         : method === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
         : method === 'FREE' ? '🎁 Gratuito'
         : esc(method || '—')
-      const statusLabel = status === 'PAID' ? '✅ Pago' : '⏳ Aguardando pagamento'
+      const statusLabel = status === 'PAID' ? '✅ PAGAMENTO CONFIRMADO' : '⏳ AGUARDANDO PAGAMENTO'
       const itemsText = orderItems
-        .map(oi => `  • ${esc(oi.product.name)}${(oi.quantity > 1) ? ` (x${oi.quantity})` : ''}`)
+        .map((oi, index) => `${index + 1}. ${esc(oi.product.name)}${(oi.quantity > 1) ? ` × ${oi.quantity}` : ''}`)
         .join('\n') || '—'
+      const title = method === 'PIX' ? '💠 <b>NOVO PIX GERADO</b>'
+        : method === 'FREE' ? '🎁 <b>NOVO MATERIAL GRATUITO</b>'
+        : '🛒 <b>NOVO PEDIDO</b>'
       const msg =
-        `🛒 <b>Novo Pedido</b> — <b>${esc(orderNumber)}</b>\n\n` +
-        `👤 <b>${esc(customerName || 'Cliente')}</b>\n` +
-        `📧 ${esc(customerEmail || '—')}\n` +
-        (guestPhone ? `📱 ${esc(guestPhone)}\n🔰 Compra Rápida\n` : '') +
-        `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
-        `💰 <b>Total: R$ ${totalAmount.toFixed(2)}</b>   ${payLabel}\n` +
-        `📊 ${statusLabel}` +
-        (method === 'PIX' && mpResult?.date_of_expiration ? `\n⏰ Expira: ${dtBR(mpResult.date_of_expiration)}` : '') +
-        (mpPaymentId ? `\n🔑 ID MP: <code>${esc(mpPaymentId)}</code>` : '') +
-        (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
-        (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
-        `\n🕐 ${dtBR(now)}`
+        `${title}\n━━━━━━━━━━━━━━━━━━\n` +
+        `🧾 <b>${esc(orderNumber)}</b>\n` +
+        `💰 <b>R$ ${totalAmount.toFixed(2)}</b> · ${payLabel}\n` +
+        `${statusLabel}\n\n` +
+        `<b>CLIENTE</b>\n` +
+        `👤 ${esc(customerName || 'Cliente')}\n` +
+        `📧 ${esc(customerEmail || 'Não informado')}\n` +
+        (guestPhone ? `📞 ${esc(guestPhone)} · Compra rápida\n` : '🔐 Cliente com conta\n') +
+        `\n<b>ITENS</b>\n${itemsText}\n\n` +
+        `${accessBlock(buyerIp, buyerLocation, clientInfo)}\n\n` +
+        (method === 'PIX' && mpResult?.date_of_expiration ? `⏰ <b>Expira:</b> ${dtBR(mpResult.date_of_expiration)}\n` : '') +
+        (mpPaymentId ? `🔑 <b>ID Mercado Pago:</b> <code>${esc(mpPaymentId)}</code>\n` : '') +
+        `🕐 ${dtBR(now)}`
       for (const chatId of chatIds) {
         await sendTelegram(siteConfig.telegramBotToken, chatId, msg)
       }
