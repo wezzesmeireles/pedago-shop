@@ -19,6 +19,7 @@
       "name": "create-order",
       "runtime": "node-21.0",
       "entrypoint": "src/main.js",
+      "scopes": ["rows.read", "rows.write", "documents.read", "documents.write", "messages.write"],
       "execute": [],
       "events": [],
       "schedule": "",
