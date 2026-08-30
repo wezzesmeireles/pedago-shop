@@ -46,35 +46,93 @@ export default async ({ req, res, log, error }) => {
     return res.json({ error: 'Invalid JSON' }, 400)
   }
 
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return res.json({ error: 'Corpo da requisição inválido.' }, 400)
+  }
+
   // Use the user ID from the Appwrite-injected header — this is always the real
   // caller's ID regardless of what the body says, preventing IDOR attacks where
   // an attacker crafts a request with another user's ID in the body.
   const userId = req.headers['x-appwrite-user-id']
   const { customerName, customerEmail, items, paymentMethod, guestPhone } = body
-  if (!userId || !items?.length) return res.json({ error: 'userId and items required' }, 400)
+  if (!userId) return res.json({ error: 'Usuário não autenticado.' }, 400)
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.json({ error: 'O pedido precisa ter pelo menos um item.' }, 400)
+  }
+  if (items.length > 50) {
+    return res.json({ error: 'O pedido excede o limite de 50 itens.' }, 400)
+  }
+
+  let normalizedItems
+  try {
+    normalizedItems = items.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        throw new Error(`Item ${index + 1} inválido.`)
+      }
+
+      const productId = typeof item.productId === 'string' ? item.productId.trim() : ''
+      const slug = typeof item.slug === 'string' ? item.slug.trim() : ''
+      const quantity = Number(item.quantity ?? 1)
+
+      if (!productId && !slug) {
+        throw new Error(`Item ${index + 1} sem identificação de produto.`)
+      }
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
+        throw new Error(`Quantidade inválida no item ${index + 1}. Use um valor entre 1 e 10.`)
+      }
+
+      return { productId, slug, quantity }
+    })
+  } catch (err) {
+    return res.json({ error: err.message }, 400)
+  }
 
   const buyerIp = (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.headers['x-real-ip'] || ''
   const geoTask = geolocate(buyerIp)
 
-  // Fetch products with error handling
+  // Resolve each product by its current document ID. Old carts can retain an
+  // obsolete ID after catalog migrations, so a known slug is the safe fallback.
   let products
   try {
     products = await Promise.all(
-      items.map(i => db.getDocument(DB, 'products', i.productId))
+      normalizedItems.map(async (item, index) => {
+        if (item.productId) {
+          try {
+            return await db.getDocument(DB, 'products', item.productId)
+          } catch (err) {
+            log(`Product ID lookup failed for item ${index + 1}; trying slug fallback: ${err.message}`)
+          }
+        }
+
+        if (item.slug) {
+          try {
+            const bySlug = await db.listDocuments(DB, 'products', [
+              Query.equal('slug', item.slug),
+              Query.limit(1),
+            ])
+            if (bySlug.documents.length > 0) return bySlug.documents[0]
+          } catch (err) {
+            log(`Product slug lookup failed for item ${index + 1}: ${err.message}`)
+          }
+        }
+
+        throw new Error(`Produto do item ${index + 1} não encontrado.`)
+      })
     )
   } catch (err) {
-    return res.json({ error: `Product not found: ${err.message}` }, 404)
+    log('Product resolution failed: ' + err.message)
+    return res.json({
+      error: 'Não foi possível localizar um produto do pedido. Atualize o carrinho e tente novamente.',
+    }, 400)
   }
 
   let totalAmount = 0
   let orderItems
   try {
-    orderItems = items.map((item, idx) => {
+    orderItems = normalizedItems.map((item, idx) => {
       const p = products[idx]
       if (!p.isActive || p.deletedAt) throw new Error(`Product ${p.name} unavailable`)
-      // Clamp quantity to a safe range — negative or zero quantity would produce
-      // a zero/negative total, allowing free checkout of paid products.
-      const quantity = Math.max(1, Math.min(10, parseInt(String(item.quantity ?? 1)) || 1))
+      const quantity = item.quantity
       totalAmount += p.price * quantity
       return { product: p, quantity }
     })
@@ -94,6 +152,9 @@ export default async ({ req, res, log, error }) => {
   }
 
   const isFree = totalAmount === 0
+  if (!isFree && paymentMethod !== 'PIX' && paymentMethod !== 'CREDIT_CARD') {
+    return res.json({ error: 'Forma de pagamento inválida.' }, 400)
+  }
   const orderId = ID.unique()
   const now = new Date().toISOString()
 
@@ -122,25 +183,44 @@ export default async ({ req, res, log, error }) => {
     method = 'FREE'
   } else if (paymentMethod === 'PIX') {
     const idempotencyKey = `${orderId}-pix`
-    const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${mpToken}`,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': idempotencyKey,
-      },
-      body: JSON.stringify({
-        transaction_amount: Number(totalAmount.toFixed(2)),
-        payment_method_id: 'pix',
-        payer: { email: customerEmail || 'cliente@email.com' },
-        description: `Pedido ${orderNumber}`,
-        notification_url: webhookUrl,
-      }),
-    })
-    mpResult = await mpResponse.json()
+    let mpResponse
+    try {
+      mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${mpToken}`,
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify({
+          transaction_amount: Number(totalAmount.toFixed(2)),
+          payment_method_id: 'pix',
+          payer: { email: customerEmail || 'cliente@email.com' },
+          description: `Pedido ${orderNumber}`,
+          notification_url: webhookUrl,
+        }),
+      })
+    } catch (err) {
+      error(`MP PIX network failure: ${err.message}`)
+      return res.json({ error: 'Não foi possível conectar ao Mercado Pago. Tente novamente.' }, 502)
+    }
+    try {
+      mpResult = await mpResponse.json()
+    } catch {
+      error(`MP PIX returned invalid JSON (http=${mpResponse.status})`)
+      return res.json({ error: 'O provedor de pagamento retornou uma resposta inválida. Tente novamente.' }, 502)
+    }
     if (!mpResponse.ok) {
-      error('MP PIX error: ' + JSON.stringify(mpResult))
-      return res.json({ error: mpResult?.message || 'Erro ao gerar PIX no Mercado Pago.', mpError: mpResult }, 400)
+      error(`MP PIX request failed (http=${mpResponse.status}, code=${String(mpResult?.error || mpResult?.status || 'unknown').slice(0, 80)})`)
+      return res.json({ error: 'Não foi possível gerar o PIX no Mercado Pago. Tente novamente.' }, 400)
+    }
+
+    const pixData = mpResult?.point_of_interaction?.transaction_data
+    if (!pixData?.qr_code && !pixData?.qr_code_base64) {
+      error(`MP PIX response missing QR data (http=${mpResponse.status}, paymentId=${mpResult?.id ? 'present' : 'missing'})`)
+      return res.json({
+        error: 'O provedor de pagamento não retornou os dados do QR Code. Tente novamente.',
+      }, 502)
     }
   } else if (paymentMethod === 'CREDIT_CARD') {
     const frontendUrl = process.env.FRONTEND_URL || 'https://www.sitepedagogico.com'

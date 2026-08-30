@@ -424,7 +424,7 @@ async function claimFree() {
       userId: auth.user?.id,
       customerName: auth.user?.name ?? '',
       customerEmail: auth.user?.email ?? '',
-      items: [{ productId: product.value.id, quantity: 1 }],
+      items: [{ productId: product.value.id, slug: product.value.slug, quantity: 1 }],
       paymentMethod: 'FREE',
     });
     if (data?.error) throw new Error(data.error);

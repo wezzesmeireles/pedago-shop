@@ -141,7 +141,8 @@ const { optimizeImage } = useImageOptimizer();
 
 const props = defineProps<{
   product: {
-    id: string;
+    id?: string;
+    $id?: string;
     name: string;
     slug: string;
     price: number;
@@ -176,8 +177,13 @@ function addToCart() {
     router.push(`/produto/${props.product.slug}`);
     return;
   }
+  const productId = props.product.id || props.product.$id;
+  if (!productId) {
+    router.push(`/produto/${props.product.slug}`);
+    return;
+  }
   cart.add({
-    productId: props.product.id,
+    productId,
     name: props.product.name,
     price: Number(props.product.price),
     coverImageUrl: props.product.coverImageUrl,

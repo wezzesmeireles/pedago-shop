@@ -27,7 +27,11 @@ export const useCatalogStore = defineStore('catalog', () => {
         .filter((p) => p.isFeatured)
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
         .slice(0, 8)
-        .map((p) => ({ ...p, category: p.categoryId ? catMap[p.categoryId] ?? null : null }));
+        .map((p) => ({
+          ...p,
+          id: p.$id,
+          category: p.categoryId ? catMap[p.categoryId] ?? null : null,
+        }));
     } catch (err) {
       console.error('fetchFeatured failed:', err);
       featuredProducts.value = [];

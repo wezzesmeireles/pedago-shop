@@ -224,8 +224,9 @@
                   alt="QR Code PIX"
                   class="w-44 h-44 sm:w-52 sm:h-52 block"
                 />
-                <div v-else class="w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center">
-                  <div class="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full"></div>
+                <div v-else class="w-44 h-44 sm:w-52 sm:h-52 flex flex-col items-center justify-center px-5 text-center text-gray-500">
+                  <PixLogo class="w-12 h-12 mb-3" />
+                  <p class="text-sm font-bold">Use o PIX Copia e Cola abaixo</p>
                 </div>
 
                 <!-- Logo PIX centralizado no QR -->
@@ -323,6 +324,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
+import { normalizePixPayment } from '@/lib/pix-payment';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import PixLogo from '@/components/ui/PixLogo.vue';
@@ -395,7 +397,13 @@ async function createOrder() {
       userId: authUser?.id,
       customerName: guestData?.name ?? authUser?.name ?? '',
       customerEmail: authUser?.email ?? '',
-      items: cart.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      // Enviamos também o slug para o servidor conseguir recuperar carrinhos
+      // antigos quando um produto foi recriado e recebeu um novo ID no Appwrite.
+      items: cart.items.map((i) => ({
+        productId: i.productId,
+        slug: i.slug,
+        quantity: i.quantity,
+      })),
       paymentMethod,
       ...(guestData?.phone ? { guestPhone: guestData.phone } : {}),
     });
@@ -433,8 +441,12 @@ async function createOrder() {
       return;
     }
 
-    pixQrCode.value = funcData.payment?.qrCode ?? '';
-    pixQrBase64.value = funcData.payment?.qrCodeBase64 ?? '';
+    const pixPayment = normalizePixPayment(funcData);
+    if (!pixPayment.qrCode && !pixPayment.qrCodeBase64) {
+      throw new Error('O Mercado Pago não devolveu o QR Code. Tente gerar o PIX novamente.');
+    }
+    pixQrCode.value = pixPayment.qrCode;
+    pixQrBase64.value = pixPayment.qrCodeBase64;
     step.value = 'pix';
     startCountdown();
     startPolling();
