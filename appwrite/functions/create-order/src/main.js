@@ -80,14 +80,27 @@ export default async ({ req, res, log, error }) => {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML', ...telegramOptions }),
     })
+    if (r.ok) {
+      const delivered = await r.json()
+      const chat = delivered?.result?.chat ?? {}
+      log(`Telegram delivered to ${chat.type || 'chat'}:${chat.title || chat.username || chat.first_name || String(chat.id || '').slice(-4)} message=${delivered?.result?.message_id || 'unknown'}`)
+      return
+    }
     if (!r.ok) {
       const err = await r.text()
       log(`Telegram HTML error ${r.status}: ${err}`)
       const plain = html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      const fallback = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: chatId, text: plain, ...telegramOptions }),
       })
+      if (!fallback.ok) {
+        const fallbackError = await fallback.text()
+        throw new Error(`Telegram rejected message (${fallback.status}): ${fallbackError.slice(0, 300)}`)
+      }
+      const delivered = await fallback.json()
+      const chat = delivered?.result?.chat ?? {}
+      log(`Telegram fallback delivered to ${chat.type || 'chat'}:${chat.title || chat.username || chat.first_name || String(chat.id || '').slice(-4)} message=${delivered?.result?.message_id || 'unknown'}`)
     }
   }
   async function geolocate(ip) {
