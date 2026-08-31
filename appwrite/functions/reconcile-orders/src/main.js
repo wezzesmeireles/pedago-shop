@@ -190,6 +190,51 @@ export default async ({ req, res, log }) => {
     }
   }
 
+  async function claimStatusNotification(orderDocId, paymentStatus) {
+    try {
+      await db.createDocument(DB, 'webhook_events', `st_${String(paymentStatus).slice(0, 8)}_${orderDocId}`, {
+        source: 'telegram-status',
+        eventId: orderDocId,
+        eventType: `order.${paymentStatus}`,
+        status: 'notified',
+        createdAt: new Date().toISOString(),
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function notifyPaymentStatus(order, paymentStatus) {
+    if (!(await claimStatusNotification(order.$id, paymentStatus))) return
+    let orderMeta = {}, buyerLocation = ''
+    try {
+      orderMeta = order.metadata ? JSON.parse(order.metadata) : {}
+      if (orderMeta.buyerIp) buyerLocation = await geolocate(orderMeta.buyerIp)
+    } catch {}
+    const statusView = paymentStatus === 'expired'
+      ? { title: '⌛ <b>PIX EXPIRADO</b>', description: 'O cliente não concluiu o pagamento dentro do prazo.' }
+      : paymentStatus === 'rejected'
+        ? { title: '❌ <b>PAGAMENTO RECUSADO</b>', description: 'O Mercado Pago recusou a tentativa de pagamento.' }
+        : { title: '🚫 <b>PAGAMENTO CANCELADO</b>', description: 'A tentativa de pagamento foi cancelada.' }
+    await notifyTelegram(
+      `${statusView.title}\n━━━━━━━━━━━━━━━━━━\n` +
+      `🧾 <b>${esc(order.orderNumber)}</b>\n` +
+      `💰 R$ ${Number(order.totalAmount || 0).toFixed(2)} · ${order.paymentMethod === 'PIX' ? '💠 PIX' : '💳 Cartão'}\n\n` +
+      `👤 ${esc(order.customerName || 'Cliente')}\n` +
+      `📧 ${esc(order.customerEmail || 'Não informado')}\n` +
+      (order.guestPhone ? `📞 ${esc(order.guestPhone)}\n` : '') +
+      `\n${esc(statusView.description)}\n\n` +
+      `${accessBlock(orderMeta, buyerLocation)}\n\n` +
+      `🕐 ${dtBR(new Date().toISOString())}`
+    )
+    await sendAdminPush(
+      paymentStatus === 'expired' ? '⌛ PIX expirado' : '❌ Pagamento não concluído',
+      `${order.orderNumber} — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+      { route: '/admin/pedidos', orderId: order.$id },
+    )
+  }
+
   const now = new Date().toISOString()
   // Janela de 90 dias — cobre pedidos antigos que o webhook não confirmou.
   // PIX expirados/rejeitados viram CANCELLED abaixo, mantendo o pool pequeno.
@@ -350,6 +395,7 @@ export default async ({ req, res, log }) => {
           `O pagamento do pedido ${order.orderNumber} não foi concluído.`,
           { route: '/carrinho', orderId: order.$id },
         )
+        await notifyPaymentStatus(order, payment.status)
         log(`Order ${order.orderNumber} CANCELLED`)
       }
     } catch (err) {

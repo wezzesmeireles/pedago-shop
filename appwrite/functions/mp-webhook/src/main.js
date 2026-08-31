@@ -108,9 +108,10 @@ export default async ({ req, res, log, error }) => {
 
   // Read MP token from site_config
   let mpToken = process.env.MERCADO_PAGO_ACCESS_TOKEN
+  let siteConfig = {}
   try {
     const cfg = await db.getDocument(DB, 'site_config', 'global')
-    const siteConfig = JSON.parse(cfg.value)
+    siteConfig = JSON.parse(cfg.value)
     if (siteConfig.mercadoPagoAccessToken) mpToken = siteConfig.mercadoPagoAccessToken
   } catch {}
 
@@ -147,6 +148,51 @@ export default async ({ req, res, log, error }) => {
   if (!order) {
     log(`No order found for mpPaymentId ${paymentId}`)
     return res.json({ ok: true })
+  }
+
+  async function claimStatusNotification(paymentStatus) {
+    try {
+      await db.createDocument(DB, 'webhook_events', `st_${String(paymentStatus).slice(0, 8)}_${order.$id}`, {
+        source: 'telegram-status',
+        eventId: order.$id,
+        eventType: `order.${paymentStatus}`,
+        status: 'notified',
+        createdAt: now,
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async function notifyPaymentStatus(paymentStatus) {
+    if (!siteConfig.telegramBotToken || !(await claimStatusNotification(paymentStatus))) return
+    const recipients = siteConfig.telegramRecipients ?? []
+    const chatIds = recipients.length > 0
+      ? recipients.map(r => r.chatId)
+      : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
+    let orderMeta = {}, buyerLocation = ''
+    try {
+      orderMeta = order.metadata ? JSON.parse(order.metadata) : {}
+      if (orderMeta.buyerIp) buyerLocation = await geolocate(orderMeta.buyerIp)
+    } catch {}
+    const statusView = paymentStatus === 'refunded'
+      ? { title: '↩️ <b>PAGAMENTO REEMBOLSADO</b>', description: 'O valor foi devolvido e os downloads foram revogados.' }
+      : paymentStatus === 'rejected'
+        ? { title: '❌ <b>PAGAMENTO RECUSADO</b>', description: 'O Mercado Pago recusou a tentativa de pagamento.' }
+        : { title: '🚫 <b>PAGAMENTO CANCELADO</b>', description: 'A tentativa de pagamento foi cancelada.' }
+    const message =
+      `${statusView.title}\n━━━━━━━━━━━━━━━━━━\n` +
+      `🧾 <b>${esc(order.orderNumber)}</b>\n` +
+      `💰 R$ ${Number(order.totalAmount || 0).toFixed(2)} · ${order.paymentMethod === 'PIX' ? '💠 PIX' : '💳 Cartão'}\n\n` +
+      `👤 ${esc(order.customerName || 'Cliente')}\n` +
+      `📧 ${esc(order.customerEmail || 'Não informado')}\n` +
+      (order.guestPhone ? `📞 ${esc(order.guestPhone)}\n` : '') +
+      `\n${esc(statusView.description)}\n\n` +
+      `${accessBlock(orderMeta, buyerLocation)}\n\n` +
+      (order.mpPaymentId ? `🔑 <b>ID Mercado Pago:</b> <code>${esc(order.mpPaymentId)}</code>\n` : '') +
+      `🕐 ${dtBR(now)}`
+    for (const chatId of chatIds) await sendTelegram(siteConfig.telegramBotToken, chatId, message)
   }
 
   if (payment.status === 'approved' && order.status !== 'PAID') {
@@ -206,8 +252,6 @@ export default async ({ req, res, log, error }) => {
     } catch { /* already claimed (409) → skip duplicate notification */ }
 
     try {
-      const cfg = await db.getDocument(DB, 'site_config', 'global')
-      const siteConfig = JSON.parse(cfg.value)
       if (wonNotifyClaim && siteConfig.telegramBotToken) {
         const recipients = siteConfig.telegramRecipients ?? []
         const chatIds = recipients.length > 0
@@ -281,6 +325,7 @@ export default async ({ req, res, log, error }) => {
     await db.updateDocument(DB, 'orders', order.$id, {
       status: 'CANCELLED', mpStatus: payment.status, updatedAt: now,
     })
+    await notifyPaymentStatus(payment.status)
   } else if (payment.status === 'refunded') {
     await db.updateDocument(DB, 'orders', order.$id, {
       status: 'REFUNDED', mpStatus: 'refunded', updatedAt: now,
@@ -292,6 +337,7 @@ export default async ({ req, res, log, error }) => {
     for (const t of tokensResult.documents) {
       await db.updateDocument(DB, 'download_tokens', t.$id, { revokedAt: now })
     }
+    await notifyPaymentStatus('refunded')
   }
 
   await db.createDocument(DB, 'webhook_events', ID.unique(), {

@@ -75,6 +75,19 @@ export function publicSiteConfig(config: Record<string, unknown>) {
   return safe;
 }
 
+export function adminSiteConfig(config: Record<string, any>) {
+  const safe = publicSiteConfig(config) as Record<string, unknown>;
+  return {
+    ...safe,
+    telegramRecipients: Array.isArray(config.telegramRecipients) ? config.telegramRecipients : [],
+    telegramChatId: config.telegramChatId ?? '',
+    mercadoPagoConfigured: Boolean(config.mercadoPagoAccessToken),
+    mercadoPagoWebhookConfigured: Boolean(config.mercadoPagoWebhookSecret),
+    telegramConfigured: Boolean(config.telegramBotToken),
+    googleSecretConfigured: Boolean(config.googleClientSecret),
+  };
+}
+
 export function publicProduct(product: Record<string, unknown>) {
   const {
     fileKey: _fileKey,

@@ -1,4 +1,4 @@
-import { appwriteServer, getDocument, publicSiteConfig, requireAdmin, serverHeaders } from '../server/appwrite';
+import { adminSiteConfig, appwriteServer, getDocument, publicSiteConfig, requireAdmin, serverHeaders } from '../server/appwrite';
 
 const SENSITIVE_KEYS = new Set([
   'mercadoPagoAccessToken',
@@ -19,7 +19,7 @@ export default async function handler(req: any, res: any) {
       const isAdmin = await requireAdmin(req);
       const config = parseConfig(await getDocument('site_config', 'global'));
       res.setHeader('Cache-Control', isAdmin ? 'private, no-store' : 'public, max-age=60, s-maxage=300');
-      return res.json(isAdmin ? config : publicSiteConfig(config));
+      return res.json(isAdmin ? adminSiteConfig(config) : publicSiteConfig(config));
     }
 
     if (req.method === 'PUT') {
@@ -42,6 +42,8 @@ export default async function handler(req: any, res: any) {
         },
       );
       if (!response.ok) throw new Error(`Appwrite config update failed (${response.status})`);
+      // A resposta do PUT alimenta o cache público do frontend. Nunca devolva
+      // destinatários ou indicadores internos das integrações nesse caminho.
       return res.json(publicSiteConfig(JSON.parse(value)));
     }
 
