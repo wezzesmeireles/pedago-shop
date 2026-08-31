@@ -25,7 +25,10 @@ export default async ({ req, res, log, error }) => {
     return `<b>ACESSO</b>\n${lines.join('\n')}`
   }
   async function sendTelegram(token, chatId, html) {
-    const panelUrl = `${(process.env.FRONTEND_URL || 'https://www.sitepedagogico.com').replace(/\/$/, '')}/admin/pedidos`
+    const configuredFrontend = String(process.env.FRONTEND_URL || '').replace(/\/$/, '')
+    const publicFrontend = /^https:\/\/(?!localhost(?:[:/]|$)|127\.|0\.0\.0\.0)/i.test(configuredFrontend)
+      ? configuredFrontend : 'https://www.sitepedagogico.com'
+    const panelUrl = `${publicFrontend}/admin/pedidos`
     const telegramOptions = {
       link_preview_options: { is_disabled: true },
       reply_markup: { inline_keyboard: [[{ text: '📦 Abrir pedidos', url: panelUrl }]] },
@@ -38,10 +41,14 @@ export default async ({ req, res, log, error }) => {
       const err = await r.text()
       log(`Telegram HTML error ${r.status}: ${err}`)
       const plain = html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      const fallback = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chat_id: chatId, text: plain, ...telegramOptions }),
       })
+      if (!fallback.ok) {
+        const fallbackError = await fallback.text()
+        throw new Error(`Telegram rejected message (${fallback.status}): ${fallbackError.slice(0, 300)}`)
+      }
     }
   }
   async function geolocate(ip) {
@@ -87,22 +94,9 @@ export default async ({ req, res, log, error }) => {
     }
   }
 
-  const eventType = payload?.type
   const paymentId = payload?.data?.id?.toString()
 
   if (!paymentId) return res.json({ ok: true })
-
-  // Idempotency check — skip if already processed
-  const existingEvent = await db.listDocuments(DB, 'webhook_events', [
-    Query.equal('eventId', paymentId),
-    Query.equal('source', 'mercadopago'),
-    Query.equal('status', 'processed'),
-    Query.limit(1),
-  ])
-  if (existingEvent.total > 0) {
-    log(`Duplicate webhook for paymentId ${paymentId}, skipping`)
-    return res.json({ ok: true })
-  }
 
   const now = new Date().toISOString()
 
@@ -119,6 +113,26 @@ export default async ({ req, res, log, error }) => {
     headers: { 'Authorization': `Bearer ${mpToken}` },
   })
   const payment = await mpResp.json()
+  if (!mpResp.ok || !payment?.status) {
+    error(`Mercado Pago lookup failed for ${paymentId}: HTTP ${mpResp.status}`)
+    return res.json({ error: 'Payment lookup failed' }, 502)
+  }
+
+  // A PIX keeps the same payment ID while transitioning pending → approved.
+  // Deduplicate by payment + status, otherwise the initial pending event blocks
+  // the later approval event and no confirmation/Telegram alert is produced.
+  const processedEventType = `payment.${String(payment.status).slice(0, 40)}`
+  const existingEvent = await db.listDocuments(DB, 'webhook_events', [
+    Query.equal('eventId', paymentId),
+    Query.equal('source', 'mercadopago'),
+    Query.equal('eventType', processedEventType),
+    Query.equal('status', 'processed'),
+    Query.limit(1),
+  ])
+  if (existingEvent.total > 0) {
+    log(`Duplicate webhook for paymentId ${paymentId} status ${payment.status}, skipping`)
+    return res.json({ ok: true })
+  }
 
   let ordersResult = await db.listDocuments(DB, 'orders', [
     Query.equal('mpPaymentId', paymentId),
@@ -239,24 +253,35 @@ export default async ({ req, res, log, error }) => {
     // reconcile-orders (which also notifies, and runs concurrently via checkout
     // polling) never both message for the same order. createDocument with a
     // deterministic id is atomic: only the first caller succeeds, the rest 409.
+    const paidClaimDocumentId = `paid_${order.$id}`
     let wonNotifyClaim = false
     try {
-      await db.createDocument(DB, 'webhook_events', `paid_${order.$id}`, {
+      await db.createDocument(DB, 'webhook_events', paidClaimDocumentId, {
         source: 'telegram-paid',
         eventId: order.$id,
         eventType: 'order.paid',
-        status: 'notified',
+        status: 'processing',
         createdAt: now,
       })
       wonNotifyClaim = true
-    } catch { /* already claimed (409) → skip duplicate notification */ }
+    } catch {
+      try {
+        const existingClaim = await db.getDocument(DB, 'webhook_events', paidClaimDocumentId)
+        if (existingClaim.status === 'failed') {
+          await db.updateDocument(DB, 'webhook_events', paidClaimDocumentId, { status: 'processing', payload: null })
+          wonNotifyClaim = true
+        }
+      } catch { /* another execution owns the claim */ }
+    }
 
     try {
-      if (wonNotifyClaim && siteConfig.telegramBotToken) {
+      if (wonNotifyClaim) {
+        if (!siteConfig.telegramBotToken) throw new Error('Telegram bot token is not configured')
         const recipients = siteConfig.telegramRecipients ?? []
         const chatIds = recipients.length > 0
-          ? recipients.map(r => r.chatId)
+          ? recipients.map(r => r.chatId).filter(Boolean)
           : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
+        if (!chatIds.length) throw new Error('Telegram recipient is not configured')
         let orderMeta = {}, buyerLocation = ''
         try {
           orderMeta = order.metadata ? JSON.parse(order.metadata) : {}
@@ -286,8 +311,16 @@ export default async ({ req, res, log, error }) => {
         for (const chatId of chatIds) {
           await sendTelegram(siteConfig.telegramBotToken, chatId, msg)
         }
+        await db.updateDocument(DB, 'webhook_events', paidClaimDocumentId, { status: 'notified', payload: null })
       }
     } catch (err) {
+      if (wonNotifyClaim) {
+        try {
+          await db.updateDocument(DB, 'webhook_events', paidClaimDocumentId, {
+            status: 'failed', payload: String(err.message || err).slice(0, 1000),
+          })
+        } catch {}
+      }
       log('Telegram notification failed: ' + err.message)
     }
 
@@ -343,7 +376,7 @@ export default async ({ req, res, log, error }) => {
   await db.createDocument(DB, 'webhook_events', ID.unique(), {
     source: 'mercadopago',
     eventId: paymentId,
-    eventType: eventType ?? 'payment',
+    eventType: processedEventType,
     payload: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
     status: 'processed',
     createdAt: now,

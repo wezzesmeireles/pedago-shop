@@ -387,9 +387,7 @@ const mercadoPagoConfigured = ref(false);
 const googleSecretConfigured = ref(false);
 const appwriteEndpoint = ((import.meta as any).env?.VITE_APPWRITE_ENDPOINT || '').replace(/\/v1$/, '');
 const appwriteProjectId = (import.meta as any).env?.VITE_APPWRITE_PROJECT_ID || '';
-const apiUrl = appwriteEndpoint && appwriteProjectId
-  ? `${appwriteEndpoint}/v1/functions/mp-webhook/executions`
-  : '';
+const apiUrl = 'https://www.sitepedagogico.com/api/mp-webhook';
 
 interface TgRecipient { id: string; name: string; chatId: string; testing?: boolean; testResult?: string }
 

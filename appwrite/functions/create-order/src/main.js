@@ -68,7 +68,10 @@ export default async ({ req, res, log, error }) => {
     return `<b>ACESSO</b>\n${lines.join('\n')}`
   }
   async function sendTelegram(token, chatId, html) {
-    const panelUrl = `${(process.env.FRONTEND_URL || 'https://www.sitepedagogico.com').replace(/\/$/, '')}/admin/pedidos`
+    const configuredFrontend = String(process.env.FRONTEND_URL || '').replace(/\/$/, '')
+    const publicFrontend = /^https:\/\/(?!localhost(?:[:/]|$)|127\.|0\.0\.0\.0)/i.test(configuredFrontend)
+      ? configuredFrontend : 'https://www.sitepedagogico.com'
+    const panelUrl = `${publicFrontend}/admin/pedidos`
     const telegramOptions = {
       link_preview_options: { is_disabled: true },
       reply_markup: { inline_keyboard: [[{ text: '📦 Abrir pedidos', url: panelUrl }]] },
@@ -238,7 +241,11 @@ export default async ({ req, res, log, error }) => {
   let method = paymentMethod
 
   // Notification URL — must be publicly executable (function execute scope = any)
-  const webhookUrl = `${process.env.APPWRITE_ENDPOINT}/functions/mp-webhook/executions`
+  // The Appwrite REST execution endpoint requires project headers and cannot be
+  // called directly by Mercado Pago. The public Vercel relay authenticates the
+  // request server-side and forwards it to this function.
+  const webhookUrl = process.env.MERCADO_PAGO_WEBHOOK_URL
+    || 'https://www.sitepedagogico.com/api/mp-webhook'
 
   if (!mpToken && !isFree) {
     return res.json({ error: 'Mercado Pago não configurado. Configure o Access Token nas Integrações.' }, 400)
