@@ -1,0 +1,7 @@
+{
+  "name": "product-notifications",
+  "type": "module",
+  "dependencies": {
+    "node-appwrite": "^16.0.0"
+  }
+}

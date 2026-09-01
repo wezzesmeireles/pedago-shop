@@ -116,7 +116,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { databases, DB_ID, COLLECTIONS, account, functions } from '@/lib/appwrite';
+import { databases, DB_ID, COLLECTIONS, account } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
 import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';

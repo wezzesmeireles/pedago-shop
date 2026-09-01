@@ -123,8 +123,8 @@
             <p class="text-xs text-slate-500">Pagamentos via PIX e Cartão de Crédito</p>
           </div>
           <div class="ml-auto">
-            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', form.mercadoPagoAccessToken ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
-              {{ form.mercadoPagoAccessToken ? 'Configurado' : 'Não configurado' }}
+            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', mercadoPagoConfigured ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
+              {{ mercadoPagoConfigured ? 'Configurado' : 'Não configurado' }}
             </span>
           </div>
         </div>
@@ -137,7 +137,7 @@
             </label>
             <div class="relative">
               <input v-model="form.mercadoPagoAccessToken" :type="showMpToken ? 'text' : 'password'"
-                placeholder="APP_USR-xxxx... ou TEST-xxxx..."
+                :placeholder="mercadoPagoConfigured ? '•••••••••••• (deixe vazio para manter)' : 'APP_USR-xxxx... ou TEST-xxxx...'"
                 class="w-full border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono" />
               <button @click="showMpToken = !showMpToken" type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
                 <svg v-if="showMpToken" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
@@ -187,8 +187,8 @@
             <p class="text-xs text-slate-500">Notificações de vendas pelo bot</p>
           </div>
           <div class="ml-auto">
-            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', form.telegramBotToken && form.telegramRecipients.length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
-              {{ form.telegramBotToken && form.telegramRecipients.length ? `${form.telegramRecipients.length} destinatário${form.telegramRecipients.length > 1 ? 's' : ''}` : 'Não configurado' }}
+            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', telegramConfigured && form.telegramRecipients.length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
+              {{ telegramConfigured && form.telegramRecipients.length ? `${form.telegramRecipients.length} destinatário${form.telegramRecipients.length > 1 ? 's' : ''}` : 'Não configurado' }}
             </span>
           </div>
         </div>
@@ -214,7 +214,7 @@
             <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Bot Token</label>
             <div class="relative">
               <input v-model="form.telegramBotToken" :type="showTgToken ? 'text' : 'password'"
-                placeholder="123456789:AAF..."
+                :placeholder="telegramConfigured ? '•••••••••••• (deixe vazio para manter)' : '123456789:AAF...'"
                 class="w-full border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono" />
               <button @click="showTgToken = !showTgToken" type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
                 <svg v-if="showTgToken" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
@@ -249,7 +249,7 @@
                 <input v-model="r.chatId" type="text" placeholder="Chat ID"
                   class="flex-1 min-w-0 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm bg-white font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent" />
                 <!-- Test -->
-                <button @click="testRecipient(r)" :disabled="!form.telegramBotToken || !r.chatId || r.testing"
+                <button @click="testRecipient(r)" :disabled="!telegramConfigured || !r.chatId || r.testing"
                   class="flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-sky-300 text-sky-600 hover:bg-sky-50 transition-all disabled:opacity-40"
                   title="Testar este destinatário">
                   <svg v-if="r.testing" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -291,8 +291,8 @@
             <p class="text-xs text-slate-500">Login com conta Google</p>
           </div>
           <div class="ml-auto">
-            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', form.googleClientId && form.googleClientSecret ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
-              {{ form.googleClientId && form.googleClientSecret ? 'Configurado' : 'Não configurado' }}
+            <span :class="['text-xs px-2.5 py-1 rounded-full font-semibold', form.googleClientId && googleSecretConfigured ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500']">
+              {{ form.googleClientId && googleSecretConfigured ? 'Configurado' : 'Não configurado' }}
             </span>
           </div>
         </div>
@@ -369,6 +369,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import { authenticatedHeaders, publicApiUrl } from '@/lib/public-api';
 
 const siteConfigStore = useSiteConfigStore();
 
@@ -381,13 +382,12 @@ const showMpToken = ref(false);
 const showWebhookSecret = ref(false);
 const showTgToken = ref(false);
 const showGoogleSecret = ref(false);
-const testingTg = ref(false);
-
+const telegramConfigured = ref(false);
+const mercadoPagoConfigured = ref(false);
+const googleSecretConfigured = ref(false);
 const appwriteEndpoint = ((import.meta as any).env?.VITE_APPWRITE_ENDPOINT || '').replace(/\/v1$/, '');
 const appwriteProjectId = (import.meta as any).env?.VITE_APPWRITE_PROJECT_ID || '';
-const apiUrl = appwriteEndpoint && appwriteProjectId
-  ? `${appwriteEndpoint}/v1/functions/mp-webhook/executions`
-  : '';
+const apiUrl = 'https://www.sitepedagogico.com/api/mp-webhook';
 
 interface TgRecipient { id: string; name: string; chatId: string; testing?: boolean; testResult?: string }
 
@@ -413,17 +413,15 @@ async function testRecipient(r: TgRecipient) {
   r.testing = true;
   r.testResult = '';
   try {
-    const res = await fetch(`https://api.telegram.org/bot${form.value.telegramBotToken}/sendMessage`, {
+    const res = await fetch(publicApiUrl('/api/telegram-test'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authenticatedHeaders(),
       body: JSON.stringify({
-        chat_id: r.chatId,
-        text: `✅ *Teste de notificação*\n\nOlá${r.name ? ', ' + r.name : ''}! O bot está configurado corretamente.`,
-        parse_mode: 'Markdown',
+        chatId: r.chatId,
+        name: r.name,
       }),
     });
-    const json = await res.json();
-    r.testResult = json.ok ? 'ok' : 'erro';
+    r.testResult = res.ok ? 'ok' : 'erro';
   } catch {
     r.testResult = 'erro';
   } finally {
@@ -434,17 +432,20 @@ async function testRecipient(r: TgRecipient) {
 
 onMounted(async () => {
   try {
-    // Ensure config is loaded
-    if (!siteConfigStore.loaded) await siteConfigStore.fetch();
-    const v = siteConfigStore.config as any;
-    form.value.mercadoPagoAccessToken = v.mercadoPagoAccessToken ?? '';
-    form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';
-    form.value.mercadoPagoWebhookSecret = v.mercadoPagoWebhookSecret ?? '';
-    form.value.telegramBotToken = v.telegramBotToken ?? '';
-    form.value.googleClientId = v.googleClientId ?? '';
-    form.value.googleClientSecret = v.googleClientSecret ?? '';
+    const v = (await siteConfigStore.fetchPrivate()) as any;
+    // Secrets are loaded only for an authenticated administrator and never
+    // stored in the public Pinia/localStorage configuration cache.
+    form.value.mercadoPagoAccessToken = '';
+    form.value.mercadoPagoPixKey = v?.mercadoPagoPixKey ?? '';
+    form.value.mercadoPagoWebhookSecret = '';
+    form.value.telegramBotToken = '';
+    telegramConfigured.value = Boolean(v?.telegramConfigured);
+    mercadoPagoConfigured.value = Boolean(v?.mercadoPagoConfigured);
+    googleSecretConfigured.value = Boolean(v?.googleSecretConfigured);
+    form.value.googleClientId = v?.googleClientId ?? '';
+    form.value.googleClientSecret = '';
     // migrate old single chatId to recipients list
-    if (v.telegramRecipients?.length) {
+    if (v?.telegramRecipients?.length) {
       form.value.telegramRecipients = v.telegramRecipients.map((r: any) => ({ ...r, testing: false, testResult: '' }));
     } else if (v.telegramChatId) {
       form.value.telegramRecipients = [{ id: crypto.randomUUID(), name: 'Admin', chatId: v.telegramChatId, testing: false, testResult: '' }];
@@ -471,6 +472,13 @@ async function save() {
       googleClientId: form.value.googleClientId,
       googleClientSecret: form.value.googleClientSecret,
     } as any);
+    if (form.value.telegramBotToken) telegramConfigured.value = true;
+    if (form.value.mercadoPagoAccessToken) mercadoPagoConfigured.value = true;
+    if (form.value.googleClientSecret) googleSecretConfigured.value = true;
+    form.value.mercadoPagoAccessToken = '';
+    form.value.mercadoPagoWebhookSecret = '';
+    form.value.telegramBotToken = '';
+    form.value.googleClientSecret = '';
     savedAt.value = true;
     setTimeout(() => (savedAt.value = false), 3000);
   } catch {

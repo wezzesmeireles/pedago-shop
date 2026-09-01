@@ -263,11 +263,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useHead } from '@vueuse/head';
+import { useHead } from '@unhead/vue';
 import { useRoute, useRouter } from 'vue-router';
-import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { invokeFunction } from '@/services/api';
-import { Query } from 'appwrite';
+import { fetchPublicCatalog } from '@/lib/public-api';
+import { collectClientContext } from '@/lib/client-context';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -325,7 +325,7 @@ const included = computed(() => [
 useHead(computed(() => {
   const p = product.value;
   const cfg = siteConfig.config;
-  const title = p ? `${p.name} | ${cfg.storeName}` : (cfg.seoTitle || cfg.storeName);
+  const title = p ? `${p.name} em PDF | Site Pedagógico` : (cfg.seoTitle || cfg.storeName);
   const description = (p?.description || cfg.seoDescription || '').substring(0, 160);
   const image = p?.coverImageUrl || cfg.logoUrl || '';
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -421,12 +421,14 @@ async function claimFree() {
   claiming.value = true;
   claimError.value = '';
   try {
+    const clientContext = await collectClientContext();
     const data = await invokeFunction('create-order', {
       userId: auth.user?.id,
       customerName: auth.user?.name ?? '',
       customerEmail: auth.user?.email ?? '',
-      items: [{ productId: product.value.id, quantity: 1 }],
+      items: [{ productId: product.value.id, slug: product.value.slug, quantity: 1 }],
       paymentMethod: 'FREE',
+      clientContext,
     });
     if (data?.error) throw new Error(data.error);
     router.push('/minha-conta/downloads');
@@ -449,13 +451,8 @@ onUnmounted(() => {
 
 async function loadProduct() {
   try {
-    const result = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-      Query.equal('slug', route.params.slug as string),
-      Query.equal('isActive', true),
-      Query.isNull('deletedAt'),
-      Query.limit(1),
-    ]);
-    const data = result.documents[0];
+    const catalog = await fetchPublicCatalog();
+    const data = catalog.products.find((item: any) => item.slug === route.params.slug);
     if (data) {
       product.value = {
         ...data,
@@ -477,18 +474,13 @@ async function loadProduct() {
 
       // Nome real da categoria + produtos relacionados (mesma categoria)
       if (data.categoryId) {
-        databases.getDocument(DB_ID, COLLECTIONS.CATEGORIES, data.categoryId)
-          .then(cat => { if (product.value) product.value.category = { id: cat.$id, name: cat.name, slug: cat.slug }; })
-          .catch(() => {});
+        const category = catalog.categories.find((item: any) => item.$id === data.categoryId);
+        if (category && product.value) product.value.category = { id: category.$id, name: category.name, slug: category.slug };
 
-        const rel = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-          Query.equal('categoryId', data.categoryId),
-          Query.equal('isActive', true),
-          Query.isNull('deletedAt'),
-          Query.notEqual('$id', data.$id),
-          Query.limit(4),
-        ]);
-        related.value = rel.documents.map((p: any) => ({
+        related.value = catalog.products
+          .filter((item: any) => item.categoryId === data.categoryId && item.$id !== data.$id)
+          .slice(0, 4)
+          .map((p: any) => ({
           id: p.$id, name: p.name, slug: p.slug, price: p.price,
           comparePrice: p.comparePrice, coverImageUrl: p.coverImageUrl, isFeatured: p.isFeatured,
         }));

@@ -1,6 +1,12 @@
 import { Client, Users, Databases, ID, Query } from 'node-appwrite'
 
 export default async ({ req, res, log, error }) => {
+  const setupSecret = process.env.CREATE_ADMIN_SECRET
+  const suppliedSecret = req.headers['x-admin-setup-secret']
+  if (!setupSecret || suppliedSecret !== setupSecret) {
+    return res.json({ error: 'Forbidden' }, 403)
+  }
+
   const client = new Client()
     .setEndpoint(process.env.APPWRITE_ENDPOINT)
     .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)

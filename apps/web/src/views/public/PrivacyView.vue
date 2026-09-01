@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-const lastUpdated = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date('2026-04-01'));
+const lastUpdated = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date('2026-08-30'));
 
 const sections = [
   {
@@ -61,6 +61,7 @@ const sections = [
       'Histórico de pedidos e downloads',
       'Informações de pagamento processadas por parceiros certificados (Mercado Pago)',
       'Dados de navegação (cookies de sessão e preferências)',
+      'Endereço IP aproximado, sistema operacional, navegador, tipo ou modelo do aparelho e resolução de tela informados pelo dispositivo',
     ],
   },
   {
@@ -75,6 +76,7 @@ const sections = [
       'Comunicar atualizações sobre seus pedidos',
       'Enviar promoções e novidades (caso você opte por receber)',
       'Garantir a segurança da sua conta',
+      'Prevenir fraudes e auxiliar o suporte e a auditoria de pedidos e pagamentos',
       'Melhorar nossa plataforma com base no comportamento de uso',
     ],
   },
@@ -83,7 +85,7 @@ const sections = [
     title: '3. Compartilhamento de Dados',
     content: [
       'Não vendemos nem alugamos seus dados pessoais para terceiros.',
-      'Compartilhamos informações apenas com parceiros essenciais para a operação dos serviços, como processadores de pagamento (Mercado Pago) e provedores de infraestrutura e hospedagem, sempre sob acordos de confidencialidade e em conformidade com a LGPD.',
+      'Compartilhamos informações apenas com parceiros essenciais para a operação dos serviços, como processadores de pagamento (Mercado Pago), mensageria administrativa (Telegram) e provedores de infraestrutura e hospedagem, sempre de forma limitada à finalidade operacional e em conformidade com a LGPD.',
     ],
   },
   {

@@ -155,7 +155,7 @@ async function createProfiles() {
 
   await idempotent(`collection "${COL}"`, () =>
     db.createCollection(DB_ID, COL, 'Profiles', [
-      Permission.read(Role.any()),
+      Permission.read(Role.label('admin')),
       Permission.create(Role.users()),
     ])
   );
@@ -202,7 +202,10 @@ async function createProducts() {
 
   await idempotent(`collection "${COL}"`, () =>
     db.createCollection(DB_ID, COL, 'Products', [
-      Permission.read(Role.any()),
+      Permission.read(Role.label('admin')),
+      Permission.create(Role.label('admin')),
+      Permission.update(Role.label('admin')),
+      Permission.delete(Role.label('admin')),
     ])
   );
 
@@ -327,7 +330,10 @@ async function createSiteConfig() {
 
   await idempotent(`collection "${COL}"`, () =>
     db.createCollection(DB_ID, COL, 'Site Config', [
-      Permission.read(Role.any()),
+      Permission.read(Role.label('admin')),
+      Permission.create(Role.label('admin')),
+      Permission.update(Role.label('admin')),
+      Permission.delete(Role.label('admin')),
     ])
   );
 

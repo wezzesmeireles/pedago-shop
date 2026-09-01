@@ -5,26 +5,59 @@ export default async ({ req, res, log }) => {
   const client = new Client()
     .setEndpoint(process.env.APPWRITE_ENDPOINT)
     .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-    .setKey(process.env.APPWRITE_API_KEY)
+    .setKey(req.headers['x-appwrite-key'] || process.env.APPWRITE_API_KEY)
 
   const db = new Databases(client)
   const DB = process.env.APPWRITE_DATABASE_ID
 
   function esc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
   function dtBR(iso) { try { return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { return iso } }
+  function accessBlock(meta, location) {
+    const info = meta?.client && typeof meta.client === 'object' ? meta.client : {}
+    const lines = [
+      `📍 ${esc(location || 'Localização indisponível')}`,
+      meta?.buyerIp ? `🌐 IP: <code>${esc(meta.buyerIp)}</code>` : '🌐 IP não informado',
+      `📱 ${esc(info.model || 'Aparelho não informado')} · ${esc(info.os || 'Sistema não informado')}`,
+      `🌍 ${esc(info.browser || 'Navegador não informado')} · ${esc(info.appMode || 'Navegador')}`,
+    ]
+    if (info.screen || info.viewport) lines.push(`🖥 Tela: ${esc(info.screen || info.viewport)}`)
+    if (info.timezone) lines.push(`🕓 Fuso: ${esc(info.timezone)}`)
+    return `<b>ACESSO</b>\n${lines.join('\n')}`
+  }
   async function sendTelegram(token, chatId, html) {
+    const configuredFrontend = String(process.env.FRONTEND_URL || '').replace(/\/$/, '')
+    const publicFrontend = /^https:\/\/(?!localhost(?:[:/]|$)|127\.|0\.0\.0\.0)/i.test(configuredFrontend)
+      ? configuredFrontend : 'https://www.sitepedagogico.com'
+    const panelUrl = `${publicFrontend}/admin/pedidos`
+    const telegramOptions = {
+      link_preview_options: { is_disabled: true },
+      reply_markup: { inline_keyboard: [[{ text: '📦 Abrir pedidos', url: panelUrl }]] },
+    }
     const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text: html, parse_mode: 'HTML', ...telegramOptions }),
     })
+    if (r.ok) {
+      const delivered = await r.json()
+      const chat = delivered?.result?.chat ?? {}
+      log(`Telegram delivered to ${chat.type || 'chat'}:${chat.title || chat.username || chat.first_name || String(chat.id || '').slice(-4)} message=${delivered?.result?.message_id || 'unknown'}`)
+      return
+    }
     if (!r.ok) {
       const err = await r.text()
       log(`Telegram HTML error ${r.status}: ${err}`)
       const plain = html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      const fallback = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: plain }),
+        body: JSON.stringify({ chat_id: chatId, text: plain, ...telegramOptions }),
       })
+      if (!fallback.ok) {
+        const fallbackError = await fallback.text()
+        throw new Error(`Telegram rejected message (${fallback.status}): ${fallbackError.slice(0, 300)}`)
+      }
+      const delivered = await fallback.json()
+      const chat = delivered?.result?.chat ?? {}
+      log(`Telegram fallback delivered to ${chat.type || 'chat'}:${chat.title || chat.username || chat.first_name || String(chat.id || '').slice(-4)} message=${delivered?.result?.message_id || 'unknown'}`)
     }
   }
   async function geolocate(ip) {
@@ -55,7 +88,7 @@ export default async ({ req, res, log }) => {
     // Verify the caller is the user they claim to be — prevent one user from
     // hijacking another user's guest orders by crafting the linkUserId field.
     const callerId = req.headers['x-appwrite-user-id']
-    if (callerId && callerId !== linkUserId) {
+    if (!callerId || callerId !== linkUserId) {
       return res.json({ error: 'Unauthorized' }, 403)
     }
     let linked = 0
@@ -113,16 +146,15 @@ export default async ({ req, res, log }) => {
   // Most payments are confirmed here (the MP webhook rarely fires), so send the
   // Telegram notification from this path too — otherwise no one gets notified.
   async function notifyTelegram(text) {
-    try {
-      if (!siteConfig.telegramBotToken) return
-      const recipients = siteConfig.telegramRecipients ?? []
-      const chatIds = recipients.length > 0
-        ? recipients.map(r => r.chatId)
-        : (siteConfig.telegramChatId ? [siteConfig.telegramChatId] : [])
-      for (const chatId of chatIds) {
-        await sendTelegram(siteConfig.telegramBotToken, chatId, text)
-      }
-    } catch (err) { log('Telegram failed: ' + err.message) }
+    if (!siteConfig.telegramBotToken) throw new Error('Telegram bot token is not configured')
+    const recipients = siteConfig.telegramRecipients ?? []
+    const chatIds = recipients.length > 0
+      ? recipients.map(r => r.chatId).filter(Boolean)
+      : (siteConfig.telegramChatId ? [siteConfig.telegramChatId] : [])
+    if (!chatIds.length) throw new Error('Telegram recipient is not configured')
+    for (const chatId of chatIds) {
+      await sendTelegram(siteConfig.telegramBotToken, chatId, text)
+    }
   }
 
   // Push nativo pro app do admin (FCM via Appwrite Messaging). Espelha o
@@ -142,6 +174,16 @@ export default async ({ req, res, log }) => {
     } catch (err) { log('Push failed: ' + err.message) }
   }
 
+  async function sendCustomerPush(userId, title, pushBody, data) {
+    if (!userId) return
+    try {
+      const messaging = new Messaging(client)
+      await messaging.createPush(
+        ID.unique(), title, pushBody, [], [userId], [], data || {},
+      )
+    } catch (err) { log('Customer push failed: ' + err.message) }
+  }
+
   // Atomic "paid notification" claim. This path runs concurrently (checkout
   // polls reconcile every 5s without awaiting, plus the cron and the MP
   // webhook), so the `status !== 'PAID'` guard alone races: several in-flight
@@ -149,18 +191,79 @@ export default async ({ req, res, log }) => {
   // createDocument with a deterministic id is atomic in Appwrite: exactly one
   // concurrent caller wins, the rest get a 409. Whoever wins sends the message.
   async function claimPaidNotification(orderDocId) {
+    const claimId = `paid_${orderDocId}`
     try {
-      await db.createDocument(DB, 'webhook_events', `paid_${orderDocId}`, {
+      await db.createDocument(DB, 'webhook_events', claimId, {
         source: 'telegram-paid',
         eventId: orderDocId,
         eventType: 'order.paid',
+        status: 'processing',
+        createdAt: new Date().toISOString(),
+      })
+      return claimId
+    } catch {
+      try {
+        const existing = await db.getDocument(DB, 'webhook_events', claimId)
+        if (existing.status !== 'failed') return null
+        await db.updateDocument(DB, 'webhook_events', claimId, { status: 'processing', payload: null })
+        return claimId
+      } catch {
+        return null
+      }
+    }
+  }
+
+  async function finishPaidNotification(claimId, deliveryError = null) {
+    if (!claimId) return
+    await db.updateDocument(DB, 'webhook_events', claimId, {
+      status: deliveryError ? 'failed' : 'notified',
+      payload: deliveryError ? String(deliveryError.message || deliveryError).slice(0, 1000) : null,
+    })
+  }
+
+  async function claimStatusNotification(orderDocId, paymentStatus) {
+    try {
+      await db.createDocument(DB, 'webhook_events', `st_${String(paymentStatus).slice(0, 8)}_${orderDocId}`, {
+        source: 'telegram-status',
+        eventId: orderDocId,
+        eventType: `order.${paymentStatus}`,
         status: 'notified',
         createdAt: new Date().toISOString(),
       })
       return true
     } catch {
-      return false // already claimed (409) → skip duplicate notification
+      return false
     }
+  }
+
+  async function notifyPaymentStatus(order, paymentStatus) {
+    if (!(await claimStatusNotification(order.$id, paymentStatus))) return
+    let orderMeta = {}, buyerLocation = ''
+    try {
+      orderMeta = order.metadata ? JSON.parse(order.metadata) : {}
+      if (orderMeta.buyerIp) buyerLocation = await geolocate(orderMeta.buyerIp)
+    } catch {}
+    const statusView = paymentStatus === 'expired'
+      ? { title: '⌛ <b>PIX EXPIRADO</b>', description: 'O cliente não concluiu o pagamento dentro do prazo.' }
+      : paymentStatus === 'rejected'
+        ? { title: '❌ <b>PAGAMENTO RECUSADO</b>', description: 'O Mercado Pago recusou a tentativa de pagamento.' }
+        : { title: '🚫 <b>PAGAMENTO CANCELADO</b>', description: 'A tentativa de pagamento foi cancelada.' }
+    await notifyTelegram(
+      `${statusView.title}\n━━━━━━━━━━━━━━━━━━\n` +
+      `🧾 <b>${esc(order.orderNumber)}</b>\n` +
+      `💰 R$ ${Number(order.totalAmount || 0).toFixed(2)} · ${order.paymentMethod === 'PIX' ? '💠 PIX' : '💳 Cartão'}\n\n` +
+      `👤 ${esc(order.customerName || 'Cliente')}\n` +
+      `📧 ${esc(order.customerEmail || 'Não informado')}\n` +
+      (order.guestPhone ? `📞 ${esc(order.guestPhone)}\n` : '') +
+      `\n${esc(statusView.description)}\n\n` +
+      `${accessBlock(orderMeta, buyerLocation)}\n\n` +
+      `🕐 ${dtBR(new Date().toISOString())}`
+    )
+    await sendAdminPush(
+      paymentStatus === 'expired' ? '⌛ PIX expirado' : '❌ Pagamento não concluído',
+      `${order.orderNumber} — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+      { route: '/admin/pedidos', orderId: order.$id },
+    )
   }
 
   const now = new Date().toISOString()
@@ -169,16 +272,17 @@ export default async ({ req, res, log }) => {
   const recentCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
 
   let pendingOrders = []
+  const seen = new Set()
   if (specificOrderId) {
     const r = await db.listDocuments(DB, 'orders', [
       Query.equal('$id', specificOrderId),
       Query.limit(1),
     ])
     pendingOrders = r.documents
+    for (const order of pendingOrders) seen.add(order.$id)
   } else {
     // Duas passagens para cobrir PIX (mpPaymentId definido) e cartão onde o
     // webhook não disparou (mpPreferenceId definido, mpPaymentId ainda null).
-    const seen = new Set()
     const passes = [
       { extra: [Query.isNotNull('mpPaymentId')] },
       { extra: [Query.isNotNull('mpPreferenceId'), Query.isNull('mpPaymentId')] },
@@ -200,6 +304,30 @@ export default async ({ req, res, log }) => {
         if (r.documents.length < 100) break
         offset += 100
       }
+    }
+
+    // Telegram delivery is independent from payment fulfillment. If Telegram
+    // was temporarily unavailable, the order is already PAID and would no
+    // longer appear in the normal reconciliation query. Revisit only recent
+    // paid orders whose deterministic delivery claim is missing or failed.
+    const notificationCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+    const paidForNotificationRecovery = await db.listDocuments(DB, 'orders', [
+      Query.equal('status', 'PAID'),
+      Query.isNotNull('mpPaymentId'),
+      Query.greaterThan('createdAt', notificationCutoff),
+      Query.orderAsc('createdAt'),
+      Query.limit(100),
+    ])
+    for (const order of paidForNotificationRecovery.documents) {
+      if (seen.has(order.$id)) continue
+      try {
+        const delivery = await db.getDocument(DB, 'webhook_events', `paid_${order.$id}`)
+        if (delivery.status !== 'failed') continue
+      } catch {
+        // Missing claim means the paid notification was never attempted.
+      }
+      seen.add(order.$id)
+      pendingOrders.push(order)
     }
   }
 
@@ -240,10 +368,8 @@ export default async ({ req, res, log }) => {
       const payment = await mpResp.json()
 
       if (payment.status === 'approved') {
-        // Only treat this as a NEW confirmation if it wasn't already PAID — this
-        // path gets called repeatedly per order (checkout polling), so notifying
-        // every time would spam. Token creation below is already idempotent.
-        const alreadyPaid = order.status === 'PAID'
+        // Fulfillment and notification delivery are independently idempotent.
+        // A PAID order can re-enter here only to retry a failed Telegram alert.
         await db.updateDocument(DB, 'orders', order.$id, {
           status: 'PAID', mpStatus: 'approved', paidAt: now, updatedAt: now,
         })
@@ -272,39 +398,51 @@ export default async ({ req, res, log }) => {
           }
         }
         log(`Order ${order.orderNumber} marked PAID`)
-        if (!alreadyPaid && await claimPaidNotification(order.$id)) {
-          let buyerIp = '', buyerLocation = ''
+        const paidClaimId = await claimPaidNotification(order.$id)
+        if (paidClaimId) {
+          let orderMeta = {}, buyerLocation = ''
           try {
-            const meta = order.metadata ? JSON.parse(order.metadata) : {}
-            buyerIp = meta.buyerIp || ''
-            if (buyerIp) buyerLocation = await geolocate(buyerIp)
+            orderMeta = order.metadata ? JSON.parse(order.metadata) : {}
+            if (orderMeta.buyerIp) buyerLocation = await geolocate(orderMeta.buyerIp)
           } catch {}
           const payLabel = order.paymentMethod === 'PIX' ? '💠 PIX'
             : order.paymentMethod === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
             : esc(order.paymentMethod || '—')
           const itemsText = itemsResult.documents
-            .map(it => `  • ${esc(it.productName)}${((it.quantity || 1) > 1) ? ` (x${it.quantity})` : ''}`)
+            .map((it, index) => `${index + 1}. ${esc(it.productName)}${((it.quantity || 1) > 1) ? ` × ${it.quantity}` : ''}`)
             .join('\n') || '—'
           let when = ''
           try { when = new Date(now).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { when = now }
-          await notifyTelegram(
-            `✅ <b>Pagamento Aprovado!</b>\n\n` +
-            `🧾 <b>${esc(order.orderNumber)}</b>\n` +
-            `👤 <b>${esc(order.customerName || 'Cliente')}</b>\n` +
-            `📧 ${esc(order.customerEmail || '—')}\n` +
-            (order.guestPhone ? `📱 ${esc(order.guestPhone)}\n🔰 Compra Rápida\n` : '') +
-            `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
-            `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b>   ${payLabel}` +
-            (payment.date_approved ? `\n✅ Pago em: ${dtBR(payment.date_approved)}` : '') +
-            (order.mpPaymentId ? `\n🔑 ID MP: <code>${esc(order.mpPaymentId)}</code>` : '') +
-            (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
-            (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
-            `\n🕐 ${when}`
-          )
+          try {
+            await notifyTelegram(
+              `🎉 <b>PAGAMENTO APROVADO</b>\n━━━━━━━━━━━━━━━━━━\n` +
+              `🧾 <b>${esc(order.orderNumber)}</b>\n` +
+              `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b> · ${payLabel}\n` +
+              (payment.date_approved ? `✅ Pago em ${dtBR(payment.date_approved)}\n` : '') +
+              `\n<b>CLIENTE</b>\n` +
+              `👤 ${esc(order.customerName || 'Cliente')}\n` +
+              `📧 ${esc(order.customerEmail || 'Não informado')}\n` +
+              (order.guestPhone ? `📞 ${esc(order.guestPhone)} · Compra rápida\n` : '🔐 Cliente com conta\n') +
+              `\n<b>ITENS LIBERADOS</b>\n${itemsText}\n\n` +
+              `${accessBlock(orderMeta, buyerLocation)}\n\n` +
+              (order.mpPaymentId ? `🔑 <b>ID Mercado Pago:</b> <code>${esc(order.mpPaymentId)}</code>\n` : '') +
+              `🕐 ${when}`
+            )
+            await finishPaidNotification(paidClaimId)
+          } catch (deliveryError) {
+            await finishPaidNotification(paidClaimId, deliveryError)
+            log(`Telegram paid notification failed for ${order.orderNumber}: ${deliveryError.message}`)
+          }
           await sendAdminPush(
             `🎉 Nova venda — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
             `Pedido ${order.orderNumber} — ${(order.customerName || 'Cliente').split(' ')[0]}`,
             { route: '/admin/pedidos', orderId: order.$id },
+          )
+          await sendCustomerPush(
+            order.userId,
+            '✅ Pagamento aprovado!',
+            `O pedido ${order.orderNumber} já está disponível para baixar.`,
+            { route: '/minha-conta/downloads', orderId: order.$id },
           )
         }
 
@@ -312,6 +450,13 @@ export default async ({ req, res, log }) => {
         await db.updateDocument(DB, 'orders', order.$id, {
           status: 'CANCELLED', mpStatus: payment.status, updatedAt: now,
         })
+        await sendCustomerPush(
+          order.userId,
+          payment.status === 'expired' ? 'Seu PIX expirou' : 'Pagamento não concluído',
+          `O pagamento do pedido ${order.orderNumber} não foi concluído.`,
+          { route: '/carrinho', orderId: order.$id },
+        )
+        await notifyPaymentStatus(order, payment.status)
         log(`Order ${order.orderNumber} CANCELLED`)
       }
     } catch (err) {

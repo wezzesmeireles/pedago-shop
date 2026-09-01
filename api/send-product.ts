@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { requireAdmin } from '../server/appwrite';
 
 const SITE = 'https://www.sitepedagogico.com';
 const APPWRITE = 'https://appwrite.wsgestao.digital/v1';
@@ -13,9 +14,13 @@ function authHeaders() {
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
+  if (!(await requireAdmin(req))) return res.status(403).json({ error: 'Acesso negado' });
 
-  const { productId, email, message } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email é obrigatório' });
+  const { productId, email, message } = req.body ?? {};
+  const normalizedEmail = String(email ?? '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ error: 'Email inválido' });
+  }
 
   if (!API_KEY) {
     console.error('[send-product] APPWRITE_API_KEY não configurada');
@@ -24,14 +29,14 @@ export default async function handler(req: any, res: any) {
 
   try {
     // Lookup user (optional — permite enviar para emails não cadastrados)
-    const qs = 'queries[]=' + encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'email', values: [email.toLowerCase().trim()] })) + '&queries[]=' + encodeURIComponent(JSON.stringify({ method: 'limit', values: [1] }));
+    const qs = 'queries[]=' + encodeURIComponent(JSON.stringify({ method: 'equal', attribute: 'email', values: [normalizedEmail] })) + '&queries[]=' + encodeURIComponent(JSON.stringify({ method: 'limit', values: [1] }));
     const userRes = await fetch(`${APPWRITE}/users?${qs}`, { headers: authHeaders() });
     const userData = userRes.ok ? await userRes.json() : { users: [] };
     const user = userData.users?.[0] ?? null;
 
     // Lookup-only mode
     if (productId === '__lookup__') {
-      if (!user) return res.json({ ok: true, notRegistered: true, name: '', email });
+      if (!user) return res.json({ ok: true, notRegistered: true, name: '', email: normalizedEmail });
       return res.json({ ok: true, name: user.name || '', email: user.email });
     }
 
@@ -50,7 +55,7 @@ export default async function handler(req: any, res: any) {
     const productImage = product.coverImageUrl || '';
     const productDesc = product.description || '';
     const deliveryType = product.deliveryType || 'file';
-    const deliveryLink = product.deliveryLink || '';
+    const deliveryLink = safeHttpUrl(product.deliveryLink || '');
 
     // Create download token
     const token = randomUUID();
@@ -87,7 +92,7 @@ export default async function handler(req: any, res: any) {
 
     const downloadLink = `${SITE}/api/download?token=${token}`;
     const userName = user?.name || user?.email || email;
-    const customMsg = message || '';
+    const customMsg = String(message || '').slice(0, 2000);
 
     // Fetch product file for attachment (file-type only)
     let attachment: any = null;
@@ -110,7 +115,7 @@ export default async function handler(req: any, res: any) {
     // Build email payload
     const emailPayload: any = {
       from: 'Site Pedagógico <noreply@sitepedagogico.com>',
-      to: [email],
+      to: [normalizedEmail],
       subject: `Seu download - ${productName}`,
       html: buildHtml({ downloadLink, productName, productImage, productDesc, userName, logoUrl, customMsg, deliveryType, deliveryLink: deliveryType === 'link' ? deliveryLink : '' }),
     };
@@ -136,13 +141,38 @@ export default async function handler(req: any, res: any) {
   }
 }
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function safeHttpUrl(value: unknown): string {
+  try {
+    const url = new URL(String(value ?? ''));
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
 function buildHtml({ downloadLink, productName, productImage, productDesc, userName, logoUrl, customMsg, deliveryType, deliveryLink }: {
   downloadLink: string; productName: string; productImage: string; productDesc: string; userName: string; logoUrl: string; customMsg: string;
   deliveryType: string; deliveryLink: string;
 }): string {
-  const logoSrc = logoUrl || 'https://www.sitepedagogico.com/favicon-192.png';
-  const previewImg = productImage
-    ? `<div class="preview-img"><img src="${productImage}" alt="${productName}" /></div>`
+  const safeProductName = escapeHtml(productName);
+  const safeProductDesc = escapeHtml(productDesc);
+  const safeUserName = escapeHtml(userName);
+  const safeMessage = escapeHtml(customMsg).replace(/\n/g, '<br>');
+  const safeDeliveryLink = safeHttpUrl(deliveryLink);
+  const safeDownloadLink = safeHttpUrl(downloadLink);
+  const logoSrc = safeHttpUrl(logoUrl) || 'https://www.sitepedagogico.com/favicon-192.png';
+  const safeProductImage = safeHttpUrl(productImage);
+  const previewImg = safeProductImage
+    ? `<div class="preview-img"><img src="${escapeHtml(safeProductImage)}" alt="${safeProductName}" /></div>`
     : '';
   return `
 <!DOCTYPE html>
@@ -185,19 +215,19 @@ function buildHtml({ downloadLink, productName, productImage, productDesc, userN
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
       Seu material chegou!
     </div>
-    <h1>Ol\u00e1, ${userName}!</h1>
+    <h1>Ol\u00e1, ${safeUserName}!</h1>
     <p>Disponibilizamos o material abaixo para voc\u00ea.</p>
-    ${customMsg ? `<div class="custom-msg">${customMsg}</div>` : ''}
+    ${safeMessage ? `<div class="custom-msg">${safeMessage}</div>` : ''}
     ${previewImg}
-    <h2 style="font-size:18px;font-weight:700;color:#0f172a;text-align:center">${productName}</h2>
-    ${productDesc ? `<div class="desc">${productDesc}</div>` : ''}
-    ${deliveryType === 'link'
-      ? `<div class="btn-wrap"><a href="${deliveryLink}" class="btn">Acessar Material</a></div>
+    <h2 style="font-size:18px;font-weight:700;color:#0f172a;text-align:center">${safeProductName}</h2>
+    ${safeProductDesc ? `<div class="desc">${safeProductDesc}</div>` : ''}
+    ${deliveryType === 'link' && safeDeliveryLink
+      ? `<div class="btn-wrap"><a href="${escapeHtml(safeDeliveryLink)}" class="btn">Acessar Material</a></div>
          <div class="fallback-wrap"><div class="fallback-label">Se o bot\u00e3o n\u00e3o funcionar:</div>
-         <div class="fallback-link">${deliveryLink}</div></div>`
-      : `<div class="btn-wrap"><a href="${downloadLink}" class="btn">Baixar Agora</a></div>
+         <div class="fallback-link">${escapeHtml(safeDeliveryLink)}</div></div>`
+      : `<div class="btn-wrap"><a href="${escapeHtml(safeDownloadLink)}" class="btn">Baixar Agora</a></div>
          <div class="fallback-wrap"><div class="fallback-label">Se o bot\u00e3o n\u00e3o funcionar, copie o link:</div>
-         <div class="fallback-link">${downloadLink}</div></div>`
+         <div class="fallback-link">${escapeHtml(safeDownloadLink)}</div></div>`
     }
     <div class="divider"></div>
     <div class="info-text">Este link expira em <strong>30 dias</strong> e pode ser usado at\u00e9 <strong>99 vezes</strong>.</div>

@@ -764,11 +764,6 @@ function formatTimeShort(d: string) {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-function formatPriceShort(p: number) {
-  if (p >= 1000) return `R$${(p / 1000).toFixed(1)}k`;
-  return `R$${p.toFixed(0)}`;
-}
-
 const sum = (docs: any[]) => (docs ?? []).reduce((s: number, r: any) => s + Number(r.totalAmount), 0);
 
 // ── Storage monitoring ──────────────────────────────────────
