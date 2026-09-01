@@ -1,62 +1,147 @@
+type ErrorPayload = {
+  type: string;
+  message: string;
+  context?: string;
+  stack?: string;
+  severity?: 'warning' | 'critical';
+};
+
+const PRODUCTION_HOSTS = new Set(['sitepedagogico.com', 'www.sitepedagogico.com']);
+const DEDUPE_MS = 10 * 60_000;
+const MAX_PER_MINUTE = 3;
+const MAX_PER_SESSION = 12;
+
+function clean(value: unknown, max: number) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function errorMessage(value: unknown): string {
+  if (value instanceof Error) return value.message;
+  if (value && typeof value === 'object' && 'message' in value) {
+    return String((value as { message?: unknown }).message ?? '');
+  }
+  return String(value ?? '');
+}
+
+function isExpectedBrowserError(value: unknown): boolean {
+  const name = value && typeof value === 'object' && 'name' in value
+    ? String((value as { name?: unknown }).name ?? '')
+    : '';
+  const message = errorMessage(value).toLowerCase();
+
+  if (name === 'AbortError' || name === 'CanceledError') return true;
+  if (!message) return true;
+  if (/\b(cancelled|canceled|aborted)\b/.test(message)) return true;
+  if (message.includes('resizeobserver loop')) return true;
+  if (message.includes('chrome-extension://') || message.includes('moz-extension://')) return true;
+  if (message.includes('plugin') && message.includes('error')) return true;
+
+  const networkFailure = /failed to fetch|networkerror|network request failed|load failed/.test(message);
+  return networkFailure && navigator.onLine === false;
+}
+
+function stableFingerprint(payload: ErrorPayload): string {
+  const normalized = payload.message
+    .toLowerCase()
+    .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
+    .replace(/\b\d{4,}\b/g, ':n')
+    .replace(/https?:\/\/\S+/g, ':url');
+  return `${payload.type}|${normalized}|${window.location.pathname}`;
+}
+
+function reportingEnabled(): boolean {
+  if (import.meta.env.VITE_ENABLE_ERROR_REPORTING === 'true') return true;
+  return import.meta.env.PROD && PRODUCTION_HOSTS.has(window.location.hostname);
+}
+
 export function initTelegramLogger(app: any) {
-  const sendToTelegram = async (message: string) => {
+  if (!reportingEnabled()) {
+    console.info('[Error Reporter] Desativado neste ambiente.');
+    return;
+  }
+
+  const recent = new Map<string, number>();
+  let minuteStartedAt = Date.now();
+  let sentThisMinute = 0;
+  let sentThisSession = 0;
+
+  const sendToTelegram = async (payload: ErrorPayload) => {
     try {
-      // Tenta pegar do .env, senão pega do painel Admin salvo no localStorage
-      let botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
-      let chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+      if (isExpectedBrowserError(payload.message)) return;
 
-      if (!botToken || !chatId) {
-        try {
-          const raw = localStorage.getItem('sp_site_cfg_v1');
-          if (raw) {
-            const cfg = JSON.parse(raw);
-            botToken = botToken || cfg.telegramBotToken;
-            chatId = chatId || (cfg.telegramRecipients && cfg.telegramRecipients.length > 0 ? cfg.telegramRecipients[0].chatId : null);
-          }
-        } catch (e) {}
+      const now = Date.now();
+      if (now - minuteStartedAt >= 60_000) {
+        minuteStartedAt = now;
+        sentThisMinute = 0;
       }
+      if (sentThisMinute >= MAX_PER_MINUTE || sentThisSession >= MAX_PER_SESSION) return;
 
-      if (!botToken || !chatId) {
-        console.warn('[Telegram Logger] Bot não configurado. Erro não enviado.');
-        return;
-      }
+      const fingerprint = stableFingerprint(payload);
+      const previous = recent.get(fingerprint) || 0;
+      if (now - previous < DEDUPE_MS) return;
+      recent.set(fingerprint, now);
+      sentThisMinute += 1;
+      sentThisSession += 1;
 
-      const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-      const text = `🚨 *Alerta de Erro no Site*\n\n<pre>${message}</pre>\n\n*Navegador:* ${navigator.userAgent}\n*URL:* ${window.location.href}`;
-      
-      await fetch(url, {
+      const response = await fetch('/api/client-error', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'HTML',
-        })
+          type: clean(payload.type, 60),
+          message: clean(payload.message, 1200),
+          context: clean(payload.context, 300),
+          stack: clean(payload.stack, 1200),
+          severity: payload.severity || 'warning',
+          url: `${window.location.origin}${window.location.pathname}`,
+          online: navigator.onLine,
+          device: clean(`${navigator.platform || ''} · ${navigator.userAgent}`, 220),
+        }),
+        keepalive: true,
       });
-    } catch (e) {
-      console.error('[Telegram Logger] Falha ao enviar erro para o Telegram', e);
+
+      if (!response.ok && response.status !== 202) {
+        recent.delete(fingerprint);
+        console.warn(`[Error Reporter] Servidor respondeu ${response.status}.`);
+      }
+    } catch (error) {
+      console.warn('[Error Reporter] Falha ao enviar alerta', error);
     }
   };
 
-  // 1. Captura erros internos do Vue (componentes, ciclo de vida)
-  app.config.errorHandler = (err: any, instance: any, info: string) => {
-    console.error('[Vue Error]', err, info);
-    sendToTelegram(`[Vue Error]\nInfo: ${info}\nMessage: ${err?.message || err}\nStack: ${err?.stack || ''}`);
+  app.config.errorHandler = (error: any, _instance: any, info: string) => {
+    console.error('[Vue Error]', error, info);
+    if (isExpectedBrowserError(error)) return;
+    void sendToTelegram({
+      type: 'Erro interno do Vue',
+      message: errorMessage(error),
+      context: info,
+      stack: error?.stack || '',
+      severity: 'critical',
+    });
   };
 
-  // 2. Captura promessas rejeitadas (ex: erro de rede não tratado)
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
-    // Ignora erros de plugin ou "cancelled" que são normais
-    if (reason && (reason === 'cancelled' || String(reason.message).includes('plugin'))) return;
-    
-    sendToTelegram(`[Unhandled Rejection]\nReason: ${reason?.message || reason}`);
+    if (isExpectedBrowserError(reason)) return;
+    void sendToTelegram({
+      type: 'Promise rejeitada',
+      message: errorMessage(reason),
+      stack: reason?.stack || '',
+      severity: 'warning',
+    });
   });
 
-  // 3. Captura erros globais de script (fora do Vue)
   window.addEventListener('error', (event) => {
-    sendToTelegram(`[Global Error]\nMessage: ${event.message}\nFile: ${event.filename}:${event.lineno}:${event.colno}\nStack: ${event.error?.stack || ''}`);
+    if (!event.message || event.message === 'Script error.' || isExpectedBrowserError(event.error || event.message)) return;
+    if (event.filename?.startsWith('chrome-extension://') || event.filename?.startsWith('moz-extension://')) return;
+    void sendToTelegram({
+      type: 'Erro global de JavaScript',
+      message: event.message,
+      context: `${event.filename || 'script'}:${event.lineno || 0}:${event.colno || 0}`,
+      stack: event.error?.stack || '',
+      severity: 'critical',
+    });
   });
 
-  console.log('[Telegram Logger] Inicializado com sucesso.');
+  console.info('[Error Reporter] Ativo para erros reais em produção.');
 }
