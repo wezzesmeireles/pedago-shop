@@ -6,6 +6,7 @@ const MAX_PER_WINDOW = 5;
 const DEDUPE_MS = 15 * 60_000;
 const buckets = new Map<string, { startedAt: number; count: number }>();
 const recentFingerprints = new Map<string, number>();
+const globalBuckets = new Map<string, { startedAt: number; count: number }>();
 
 function clean(value: unknown, max: number): string {
   if (typeof value !== 'string') return '';
@@ -66,6 +67,19 @@ function allowRate(ip: string): boolean {
   return bucket.count <= MAX_PER_WINDOW;
 }
 
+function allowGlobalRate(severity: 'warning' | 'critical'): boolean {
+  const now = Date.now();
+  const windowMs = severity === 'critical' ? 10 * 60_000 : 30 * 60_000;
+  const maxInWindow = severity === 'critical' ? 3 : 1;
+  const bucket = globalBuckets.get(severity);
+  if (!bucket || now - bucket.startedAt > windowMs) {
+    globalBuckets.set(severity, { startedAt: now, count: 1 });
+    return true;
+  }
+  bucket.count += 1;
+  return bucket.count <= maxInWindow;
+}
+
 function safePath(value: unknown): string {
   try {
     const url = new URL(clean(value, 700));
@@ -107,6 +121,7 @@ export default async function handler(req: any, res: any) {
   if (!message) return res.status(400).end();
 
   const pageUrl = safePath(body.url);
+  const severity = body.severity === 'critical' ? 'critical' : 'warning';
   const fingerprint = createHash('sha256')
     .update(`${type}|${normalizedFingerprint(message)}|${pageUrl}`)
     .digest('hex');
@@ -114,6 +129,7 @@ export default async function handler(req: any, res: any) {
   const previous = recentFingerprints.get(fingerprint) || 0;
   if (Date.now() - previous < DEDUPE_MS) return res.status(202).end();
   recentFingerprints.set(fingerprint, Date.now());
+  if (!allowGlobalRate(severity)) return res.status(202).end();
 
   try {
     const configDocument: any = await getDocument('site_config', 'global');
@@ -126,7 +142,6 @@ export default async function handler(req: any, res: any) {
       : [clean(config.telegramChatId, 80)].filter(Boolean))];
     if (!chatIds.length) throw new Error('Nenhum destinatário do Telegram configurado');
 
-    const severity = body.severity === 'critical' ? 'critical' : 'warning';
     const title = severity === 'critical' ? '🚨 ERRO CRÍTICO NO SITE' : '⚠️ ALERTA NO SITE';
     const stack = scrub(body.stack, 900).split(/\bat\s+/).slice(0, 5).join('\nat ');
     const text =
