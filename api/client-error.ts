@@ -3,6 +3,7 @@ import { getDocument } from '../server/appwrite';
 
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 5;
+const DEDUPE_MS = 15 * 60_000;
 const buckets = new Map<string, { startedAt: number; count: number }>();
 const recentFingerprints = new Map<string, number>();
 
@@ -19,8 +20,21 @@ function clean(value: unknown, max: number): string {
     .slice(0, max);
 }
 
+function scrub(value: unknown, max: number): string {
+  return clean(value, max)
+    .replace(/([?&](?:token|key|secret|code|authorization)=)[^&\s]+/gi, '$1[PROTEGIDO]')
+    .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi, 'Bearer [PROTEGIDO]')
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[TOKEN PROTEGIDO]');
+}
+
 function html(value: unknown, max = 500): string {
-  return clean(value, max).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  let escaped = '';
+  for (const character of scrub(value, max)) {
+    const encoded = character === '&' ? '&amp;' : character === '<' ? '&lt;' : character === '>' ? '&gt;' : character;
+    if (escaped.length + encoded.length > max) break;
+    escaped += encoded;
+  }
+  return escaped;
 }
 
 function requestIp(req: any): string {
@@ -52,66 +66,115 @@ function allowRate(ip: string): boolean {
   return bucket.count <= MAX_PER_WINDOW;
 }
 
+function safePath(value: unknown): string {
+  try {
+    const url = new URL(clean(value, 700));
+    return `${url.origin}${url.pathname}`.slice(0, 500);
+  } catch {
+    return clean(value, 500).split(/[?#]/)[0];
+  }
+}
+
+function normalizedFingerprint(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
+    .replace(/\b\d{4,}\b/g, ':n')
+    .replace(/https?:\/\/\S+/g, ':url');
+}
+
+function parseBody(body: unknown): Record<string, unknown> {
+  if (body && typeof body === 'object') return body as Record<string, unknown>;
+  if (typeof body === 'string') {
+    try { return JSON.parse(body); } catch { return {}; }
+  }
+  return {};
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!allowedOrigin(req)) return res.status(403).end();
 
   const ip = requestIp(req);
-  if (!allowRate(ip)) return res.status(429).end();
+  if (!allowRate(ip)) {
+    res.setHeader('Retry-After', '60');
+    return res.status(429).end();
+  }
 
-  const body = req.body && typeof req.body === 'object' ? req.body : {};
-  const type = clean(body.type, 60) || 'Erro no navegador';
-  const message = clean(body.message, 1200);
+  const body = parseBody(req.body);
+  const type = scrub(body.type, 60) || 'Erro no navegador';
+  const message = scrub(body.message, 1200);
   if (!message) return res.status(400).end();
 
+  const pageUrl = safePath(body.url);
   const fingerprint = createHash('sha256')
-    .update(`${type}|${message}|${clean(body.url, 500)}`)
+    .update(`${type}|${normalizedFingerprint(message)}|${pageUrl}`)
     .digest('hex');
+  const incidentId = fingerprint.slice(0, 8).toUpperCase();
   const previous = recentFingerprints.get(fingerprint) || 0;
-  if (Date.now() - previous < 5 * 60_000) return res.status(202).end();
+  if (Date.now() - previous < DEDUPE_MS) return res.status(202).end();
   recentFingerprints.set(fingerprint, Date.now());
 
   try {
     const configDocument: any = await getDocument('site_config', 'global');
     const config = typeof configDocument.value === 'string' ? JSON.parse(configDocument.value) : configDocument.value;
-    if (!config?.telegramBotToken) return res.status(204).end();
+    if (!config?.telegramBotToken) throw new Error('Telegram bot não configurado');
 
     const recipients = Array.isArray(config.telegramRecipients) ? config.telegramRecipients : [];
-    const chatIds = recipients.length
+    const chatIds = [...new Set(recipients.length
       ? recipients.map((recipient: any) => clean(recipient?.chatId, 80)).filter(Boolean)
-      : [clean(config.telegramChatId, 80)].filter(Boolean);
-    if (!chatIds.length) return res.status(204).end();
+      : [clean(config.telegramChatId, 80)].filter(Boolean))];
+    if (!chatIds.length) throw new Error('Nenhum destinatário do Telegram configurado');
 
-    const pageUrl = clean(body.url, 500).split('#')[0];
+    const severity = body.severity === 'critical' ? 'critical' : 'warning';
+    const title = severity === 'critical' ? '🚨 ERRO CRÍTICO NO SITE' : '⚠️ ALERTA NO SITE';
+    const stack = scrub(body.stack, 900).split(/\bat\s+/).slice(0, 5).join('\nat ');
     const text =
-      `🚨 <b>ERRO NO SITE</b>\n━━━━━━━━━━━━━━━━━━\n` +
-      `⚠️ <b>${html(type, 60)}</b>\n` +
-      `<pre>${html(message, 1200)}</pre>\n\n` +
+      `<b>${title}</b>  •  <code>#${incidentId}</code>\n` +
+      `━━━━━━━━━━━━━━━━━━\n` +
+      `<b>${html(type, 60)}</b>\n` +
+      `<pre>${html(message, 1100)}</pre>\n\n` +
       `<b>CONTEXTO</b>\n` +
-      `🔗 ${html(pageUrl || 'URL não informada', 500)}\n` +
+      `🔗 ${html(pageUrl || 'Rota não informada', 500)}\n` +
       `🌐 IP: <code>${html(ip, 64)}</code>\n` +
-      `📱 ${html(body.device || 'Aparelho não informado', 180)}\n` +
+      `📶 ${body.online === false ? 'Aparelho offline' : 'Aparelho online'}\n` +
+      `📱 ${html(body.device || 'Aparelho não informado', 220)}\n` +
       (body.context ? `🧩 ${html(body.context, 300)}\n` : '') +
-      (body.stack ? `\n<b>RESUMO TÉCNICO</b>\n<pre>${html(body.stack, 1200)}</pre>\n` : '') +
+      (stack ? `\n<b>RESUMO TÉCNICO</b>\n<pre>${html(stack, 900)}</pre>\n` : '') +
       `🕐 ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`;
 
     const panelUrl = 'https://www.sitepedagogico.com/admin/dashboard';
-    await Promise.allSettled(chatIds.map((chatId: string) => fetch(
-      `https://api.telegram.org/bot${config.telegramBotToken}/sendMessage`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'HTML',
-          link_preview_options: { is_disabled: true },
-          reply_markup: { inline_keyboard: [[{ text: '🛠 Abrir painel', url: panelUrl }]] },
-        }),
-      },
-    )));
+    const deliveries = await Promise.all(chatIds.map(async (chatId: string) => {
+      try {
+        const response = await fetch(`https://api.telegram.org/bot${config.telegramBotToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text,
+            parse_mode: 'HTML',
+            link_preview_options: { is_disabled: true },
+            reply_markup: { inline_keyboard: [[{ text: '🛠 Abrir painel', url: panelUrl }]] },
+          }),
+        });
+        const result: any = await response.json().catch(() => ({}));
+        return { chat: chatId.slice(-4), ok: response.ok && result?.ok === true, status: response.status };
+      } catch {
+        return { chat: chatId.slice(-4), ok: false, status: 0 };
+      }
+    }));
+
+    const succeeded = deliveries.filter((delivery) => delivery.ok);
+    const failed = deliveries.filter((delivery) => !delivery.ok);
+    if (failed.length) console.error('[client-error] Telegram falhou', { incidentId, failed });
+    if (!succeeded.length) {
+      recentFingerprints.delete(fingerprint);
+      return res.status(502).end();
+    }
+    console.info('[client-error] Alerta entregue', { incidentId, delivered: succeeded.length, failed: failed.length });
     return res.status(204).end();
   } catch (error) {
+    recentFingerprints.delete(fingerprint);
     console.error('[client-error]', error instanceof Error ? error.message : 'unknown error');
     return res.status(503).end();
   }
