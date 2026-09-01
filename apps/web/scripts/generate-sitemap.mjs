@@ -75,8 +75,7 @@ async function generateSitemap() {
     fs.writeFileSync(path.join(publicDir, 'sitemap.xml'), xml);
     console.log(`Sitemap successfully generated at public/sitemap.xml with ${products.length} products and ${categories.length} categories.`);
   } catch (err) {
-    console.error('Error generating sitemap:', err);
-    process.exit(1);
+    console.warn('Catalog API unavailable during build; preserving the existing sitemap.', err);
   }
 }
 
