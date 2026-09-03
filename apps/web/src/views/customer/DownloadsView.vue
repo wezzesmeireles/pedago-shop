@@ -127,6 +127,7 @@ import { ref, onMounted } from 'vue';
 import { databases, DB_ID, COLLECTIONS, account, functions } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { detectInAppBrowser } from '@/lib/inAppBrowser';
+import { startTokenDownload } from '@/lib/download';
 import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 interface DownloadEntry {
@@ -162,11 +163,11 @@ function formatExpiry(dateStr: string): string {
 async function downloadFile(d: DownloadEntry) {
   if (d.expired) return;
   downloadError.value = '';
-  // Abre em nova aba — evita navegar para fora do app se o download falhar
-  const w = window.open(`/api/download?token=${encodeURIComponent(d.token)}`, '_blank');
-  if (!w) {
-    // Popup bloqueado — fallback para navegação direta
-    window.location.href = `/api/download?token=${encodeURIComponent(d.token)}`;
+  try {
+    await startTokenDownload(d.token);
+  } catch (error) {
+    console.error('[download] não foi possível iniciar o download', error);
+    downloadError.value = 'Não foi possível iniciar o download. Abra esta página no Chrome ou Safari e tente novamente.';
   }
 }
 
