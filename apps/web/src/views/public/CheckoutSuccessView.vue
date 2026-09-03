@@ -25,6 +25,15 @@
 
       <OpenInBrowserModal v-model="showOpenInBrowser" :name="inApp.name" />
 
+      <transition name="fade">
+        <div v-if="downloadError" class="mb-6 flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-4" role="alert">
+          <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/>
+          </svg>
+          <span class="text-sm text-red-700">{{ downloadError }}</span>
+        </div>
+      </transition>
+
       <!-- Loading -->
       <div v-if="loading" class="space-y-3 mb-6">
         <div class="h-4 shimmer rounded"></div>
@@ -122,6 +131,7 @@ import { Query } from 'appwrite';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { detectInAppBrowser } from '@/lib/inAppBrowser';
+import { startTokenDownload } from '@/lib/download';
 import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 const route = useRoute();
@@ -134,16 +144,21 @@ const isGuest = computed(() => !auth.user?.email && auth.isLoggedIn);
 const order = ref<any>(null);
 const loading = ref(true);
 const awaitingPayment = ref(false);
+const downloadError = ref('');
 
 const inApp = detectInAppBrowser();
 const showOpenInBrowser = ref(false);
 
 let pollInterval: ReturnType<typeof setInterval>;
 
-function downloadFile(_item: any, token: any) {
-  const url = `/api/download?token=${encodeURIComponent(token.token)}`;
-  const w = window.open(url, '_blank');
-  if (!w) window.location.href = url;
+async function downloadFile(_item: any, token: any) {
+  downloadError.value = '';
+  try {
+    await startTokenDownload(token.token);
+  } catch (error) {
+    console.error('[download] não foi possível iniciar o download', error);
+    downloadError.value = 'Não foi possível iniciar o download. Abra esta página no Chrome ou Safari e tente novamente.';
+  }
 }
 
 async function loadOrder() {
