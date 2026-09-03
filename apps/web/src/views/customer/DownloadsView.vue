@@ -15,6 +15,12 @@
       </div>
     </transition>
 
+    <transition name="fade">
+      <div v-if="downloadNotice" class="mb-5 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-4" role="status">
+        <span class="text-sm text-blue-700">{{ downloadNotice }}</span>
+      </div>
+    </transition>
+
     <!-- In-app browser info -->
     <button v-if="inApp.inApp" @click="showOpenInBrowser = true"
       class="w-full text-left mb-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100/70 transition-colors">
@@ -97,13 +103,17 @@
                   <span>Acessar</span>
                 </a>
                 <!-- PDF delivery — unlimited downloads -->
-                <a v-else href="#" @click.prevent="downloadFile(download)"
-                  class="inline-flex items-center gap-1.5 bg-primary-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary-700 transition-colors whitespace-nowrap">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button v-else type="button" @click="downloadFile(download)" :disabled="preparingToken === download.token"
+                  class="inline-flex items-center gap-1.5 bg-primary-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-primary-700 disabled:opacity-60 disabled:cursor-wait transition-colors whitespace-nowrap">
+                  <svg v-if="preparingToken === download.token" class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                   </svg>
-                  <span>Baixar</span>
-                </a>
+                  <span>{{ downloadButtonLabel(download.token) }}</span>
+                </button>
               </div>
             </div>
 
@@ -127,7 +137,7 @@ import { ref, onMounted } from 'vue';
 import { databases, DB_ID, COLLECTIONS, account, functions } from '@/lib/appwrite';
 import { Query } from 'appwrite';
 import { detectInAppBrowser } from '@/lib/inAppBrowser';
-import { startTokenDownload } from '@/lib/download';
+import { prepareTokenDownload, savePreparedFile, startTokenDownload, supportsIosFileSave } from '@/lib/download';
 import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
 
 interface DownloadEntry {
@@ -147,6 +157,9 @@ const loading = ref(true);
 const syncing = ref(false);
 const allDownloads = ref<DownloadEntry[]>([]);
 const downloadError = ref('');
+const downloadNotice = ref('');
+const preparingToken = ref('');
+const preparedFiles = ref<Record<string, File>>({});
 
 const inApp = detectInAppBrowser();
 const showOpenInBrowser = ref(false);
@@ -163,12 +176,35 @@ function formatExpiry(dateStr: string): string {
 async function downloadFile(d: DownloadEntry) {
   if (d.expired) return;
   downloadError.value = '';
+  downloadNotice.value = '';
   try {
+    if (supportsIosFileSave()) {
+      const prepared = preparedFiles.value[d.token];
+      if (prepared) {
+        await savePreparedFile(prepared);
+        return;
+      }
+
+      preparingToken.value = d.token;
+      const file = await prepareTokenDownload(d.token, d.productName);
+      preparedFiles.value = { ...preparedFiles.value, [d.token]: file };
+      downloadNotice.value = 'PDF pronto. Toque em “Salvar no dispositivo” para escolher “Salvar em Arquivos”.';
+      return;
+    }
     await startTokenDownload(d.token);
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return;
     console.error('[download] não foi possível iniciar o download', error);
     downloadError.value = 'Não foi possível iniciar o download. Abra esta página no Chrome ou Safari e tente novamente.';
+  } finally {
+    preparingToken.value = '';
   }
+}
+
+function downloadButtonLabel(token: string): string {
+  if (preparingToken.value === token) return 'Preparando...';
+  if (preparedFiles.value[token]) return 'Salvar no dispositivo';
+  return supportsIosFileSave() ? 'Preparar PDF' : 'Baixar';
 }
 
 // Fetch all documents where `field` is in `ids`, batching ids into chunks
