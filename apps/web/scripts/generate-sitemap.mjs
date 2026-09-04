@@ -13,6 +13,16 @@ const client = new Client()
 
 const databases = new Databases(client);
 
+function categorySeoSlug(value) {
+  return String(value || '')
+    .trim()
+    .toLocaleLowerCase('pt-BR')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 async function generateSitemap() {
   console.log('Generating sitemap...');
   try {
@@ -45,7 +55,7 @@ async function generateSitemap() {
     for (const cat of categories) {
       if (cat.isActive === false) continue;
       xml += `  <url>
-    <loc>${BASE_URL}/catalogo?categoria=${encodeURIComponent(cat.slug || cat.$id)}</loc>
+    <loc>${BASE_URL}/atividades/${encodeURIComponent(categorySeoSlug(cat.slug || cat.$id))}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

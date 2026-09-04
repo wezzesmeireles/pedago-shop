@@ -142,7 +142,7 @@
           class="flex-shrink-0 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors whitespace-nowrap">
           🔥 Mais Vendidos
         </RouterLink>
-        <RouterLink v-for="cat in categories" :key="cat.id" :to="`/catalogo?categoria=${encodeURIComponent(cat.slug)}`"
+        <RouterLink v-for="cat in categories" :key="cat.id" :to="categoryPath(cat.slug)"
           :class="['flex-shrink-0 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-full transition-colors whitespace-nowrap', cat.slug === 'gratis' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700']">
           <span v-if="cat.slug === 'gratis'">🎁 </span>{{ cat.name }}
         </RouterLink>
@@ -285,7 +285,7 @@
             <span :class="['w-1.5 h-7 rounded-full inline-block', cat.slug === 'gratis' ? 'bg-gradient-to-b from-emerald-400 to-teal-500' : 'bg-gradient-to-b from-violet-500 to-pink-500']"></span>
             <span v-if="cat.slug === 'gratis'">🎁 </span>{{ cat.name }}
           </h2>
-          <RouterLink :to="`/catalogo?categoria=${cat.slug}`"
+          <RouterLink :to="categoryPath(cat.slug)"
             :class="['text-sm font-semibold transition-colors flex items-center gap-1 group px-3 py-1.5 rounded-full',
               cat.slug === 'gratis' ? 'text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100' : 'text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100']">
             Ver todos
@@ -458,6 +458,7 @@ import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import { ID } from 'appwrite';
 import { fetchPublicCatalog } from '@/lib/public-api';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import { categoryPath } from '@/lib/seo';
 
 const { optimizeImage } = useImageOptimizer();
 const siteConfigStore = useSiteConfigStore();

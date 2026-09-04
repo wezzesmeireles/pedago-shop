@@ -12,32 +12,32 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.sitepedagogico.com/catalogo?categoria=DESTAQUES</loc>
+    <loc>https://www.sitepedagogico.com/atividades/destaques</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.sitepedagogico.com/catalogo?categoria=GRUPO</loc>
+    <loc>https://www.sitepedagogico.com/atividades/grupo</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.sitepedagogico.com/catalogo?categoria=a</loc>
+    <loc>https://www.sitepedagogico.com/atividades/a</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.sitepedagogico.com/catalogo?categoria=FESTA%20JUNINA</loc>
+    <loc>https://www.sitepedagogico.com/atividades/festa-junina</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.sitepedagogico.com/catalogo?categoria=gratis</loc>
+    <loc>https://www.sitepedagogico.com/atividades/gratis</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.sitepedagogico.com/catalogo?categoria=folclore</loc>
+    <loc>https://www.sitepedagogico.com/atividades/folclore</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

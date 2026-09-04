@@ -341,7 +341,7 @@
             <ul class="space-y-2.5">
               <li><RouterLink to="/" class="text-purple-300 hover:text-white text-sm transition-colors">Início</RouterLink></li>
               <li><RouterLink to="/catalogo" class="text-purple-300 hover:text-white text-sm transition-colors">Todas as atividades</RouterLink></li>
-              <li><RouterLink to="/catalogo?gratis=1" class="text-purple-300 hover:text-white text-sm transition-colors">Atividades grátis</RouterLink></li>
+              <li><RouterLink to="/atividades/gratis" class="text-purple-300 hover:text-white text-sm transition-colors">Atividades grátis</RouterLink></li>
               <li><RouterLink to="/quem-somos" class="text-purple-300 hover:text-white text-sm transition-colors">Quem somos</RouterLink></li>
             </ul>
           </div>

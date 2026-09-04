@@ -2,8 +2,12 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <div class="mb-5 flex items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Catálogo de Atividades</h1>
-        <p class="text-gray-500 text-sm mt-0.5">{{ pagination.total }} atividades disponíveis</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
+          {{ selectedCategory ? `Atividades de ${selectedCategory.name}` : 'Catálogo de Atividades' }}
+        </h1>
+        <p class="text-gray-500 text-sm mt-0.5">
+          {{ pagination.total }} atividades pedagógicas em PDF{{ selectedCategory ? ` sobre ${selectedCategory.name}` : '' }}
+        </p>
       </div>
       <!-- Mobile filter toggle -->
       <button
@@ -67,8 +71,8 @@
                   @click="setCategory(cat.slug)"
                   :class="['w-full text-left px-3 py-1.5 rounded-xl text-sm transition-all flex justify-between items-center gap-1.5',
                     isGratis(cat)
-                      ? (filters.category === cat.slug && !filters.featured ? 'bg-emerald-500 text-white' : 'hover:bg-emerald-50 text-emerald-700 border border-emerald-200')
-                      : (filters.category === cat.slug && !filters.featured ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 text-gray-700')]">
+                      ? (filters.category === normalizedCategory(cat.slug) && !filters.featured ? 'bg-emerald-500 text-white' : 'hover:bg-emerald-50 text-emerald-700 border border-emerald-200')
+                      : (filters.category === normalizedCategory(cat.slug) && !filters.featured ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 text-gray-700')]">
                   <span class="flex items-center gap-1.5"><span v-if="isGratis(cat)">🎁</span>{{ cat.name }}</span>
                   <span class="text-xs opacity-70">{{ cat._count?.products }}</span>
                 </button>
@@ -145,22 +149,54 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useHead } from '@vueuse/head';
 import { fetchPublicCatalog } from '@/lib/public-api';
 import { useCatalogStore } from '@/stores/catalog.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import { categoryPath, categorySeoSlug } from '@/lib/seo';
 import ProductCard from '@/components/catalog/ProductCard.vue';
 
 const route = useRoute();
+const router = useRouter();
 const catalogStore = useCatalogStore();
 const siteConfigStore = useSiteConfigStore();
+
+function normalizedCategory(value: unknown) {
+  return categorySeoSlug(value);
+}
+
+function categoryFromRoute() {
+  return normalizedCategory(route.params.categoria || route.query.categoria);
+}
+
+const products = ref<any[]>([]);
+const loading = ref(true);
+const fetchError = ref('');
+const filtersOpen = ref(false);
+const isDesktop = ref(window.innerWidth >= 1024);
+const pagination = ref({ page: 1, limit: 12, total: 0, totalPages: 1 });
+
+const filters = reactive({
+  search: (route.query.busca as string) || '',
+  category: categoryFromRoute(),
+  sort: 'newest',
+  onlyFree: false,
+  featured: route.query.destaque === '1',
+});
+
+const categories = computed(() => catalogStore.categories);
+const selectedCategory = computed(() =>
+  categories.value.find((category: any) => normalizedCategory(category.slug) === filters.category)
+);
 
 // ── SEO dinâmico ──────────────────────────────────────────
 useHead(computed(() => {
   const cfg = siteConfigStore.config;
   const store = cfg.storeName || 'Loja';
-  const catName = catalogStore.categories.find((c: any) => c.slug === route.query.categoria)?.name;
+  const categorySlug = categoryFromRoute();
+  const category = catalogStore.categories.find((c: any) => normalizedCategory(c.slug) === categorySlug);
+  const catName = category?.name;
   const busca = route.query.busca as string;
   let title: string;
   if (busca) title = `Busca: ${busca} | ${store}`;
@@ -170,7 +206,47 @@ useHead(computed(() => {
   const description = catName
     ? `Atividades pedagógicas de ${catName} em PDF, prontas para imprimir. Download imediato após o pagamento.`
     : (cfg.seoDescription || 'Compre atividades pedagógicas digitais em PDF. Entrega automática após o pagamento.');
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const origin = 'https://www.sitepedagogico.com';
+  const canonicalUrl = categorySlug
+    ? `${origin}${categoryPath(categorySlug)}`
+    : `${origin}/catalogo`;
+  const itemList = products.value.map((product: any, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    url: `${origin}/produto/${encodeURIComponent(product.slug)}`,
+    item: {
+      '@type': 'Product',
+      name: product.name,
+      image: product.coverImageUrl || undefined,
+      offers: {
+        '@type': 'Offer',
+        priceCurrency: 'BRL',
+        price: Number(product.price || 0).toFixed(2),
+        availability: 'https://schema.org/InStock',
+        url: `${origin}/produto/${encodeURIComponent(product.slug)}`,
+      },
+    },
+  }));
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        name: title,
+        description,
+        url: canonicalUrl,
+        mainEntity: { '@type': 'ItemList', numberOfItems: pagination.value.total, itemListElement: itemList },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Início', item: origin },
+          { '@type': 'ListItem', position: 2, name: 'Atividades', item: `${origin}/catalogo` },
+          ...(catName ? [{ '@type': 'ListItem', position: 3, name: catName, item: canonicalUrl }] : []),
+        ],
+      },
+    ],
+  };
   return {
     title,
     meta: [
@@ -179,28 +255,12 @@ useHead(computed(() => {
       { property: 'og:description', content: description },
       { property: 'og:type', content: 'website' },
       { property: 'og:image', content: cfg.logoUrl || '' },
-      { property: 'og:url', content: `${origin}${route.fullPath}` },
+      { property: 'og:url', content: canonicalUrl },
       { name: 'twitter:card', content: 'summary_large_image' },
     ],
+    script: [{ type: 'application/ld+json', children: JSON.stringify(structuredData) }],
   };
 }));
-
-const products = ref([]);
-const loading = ref(true);
-const fetchError = ref('');
-const filtersOpen = ref(false);
-const isDesktop = ref(window.innerWidth >= 1024);
-const pagination = ref({ page: 1, limit: 12, total: 0, totalPages: 1 });
-
-const filters = reactive({
-  search: (route.query.busca as string) || '',
-  category: (route.query.categoria as string) || '',
-  sort: 'newest',
-  onlyFree: false,
-  featured: route.query.destaque === '1',
-});
-
-const categories = computed(() => catalogStore.categories);
 
 // The "Grátis" category gets a distinct green styling (it replaces the old
 // auto price=0 filter — now it's a normal, reorderable category).
@@ -238,7 +298,7 @@ async function fetchProducts(page = 1) {
 
     const catalog = await fetchPublicCatalog();
     const categoryId = filters.category
-      ? catalog.categories.find((category: any) => category.slug === filters.category)?.$id
+      ? catalog.categories.find((category: any) => normalizedCategory(category.slug) === filters.category)?.$id
       : null;
     const search = filters.search.trim().toLocaleLowerCase('pt-BR');
     let filtered = catalog.products.filter((product: any) =>
@@ -273,11 +333,11 @@ async function fetchProducts(page = 1) {
 }
 
 function setCategory(slug: string) {
-  filters.category = slug;
   filters.onlyFree = false;
   filters.featured = false;
   filtersOpen.value = false;
-  fetchProducts();
+  const category = normalizedCategory(slug);
+  void router.push(categoryPath(category));
 }
 
 function toggleFree() {
@@ -289,11 +349,11 @@ function toggleFree() {
 }
 
 function toggleFeatured() {
-  filters.featured = !filters.featured;
+  const featured = !filters.featured;
   filters.category = '';
   filters.onlyFree = false;
   filtersOpen.value = false;
-  fetchProducts();
+  void router.push(featured ? { name: 'catalog', query: { destaque: '1' } } : { name: 'catalog' });
 }
 
 function goToPage(page: number) {
@@ -307,12 +367,14 @@ function clearFilters() {
   filters.sort = 'newest';
   filters.onlyFree = false;
   filters.featured = false;
-  fetchProducts();
+  void router.push({ name: 'catalog' });
 }
 
-watch(() => route.query, (q) => {
+watch(() => [route.params.categoria, route.query.busca, route.query.categoria, route.query.destaque], () => {
+  const q = route.query;
   if (q.busca !== undefined) filters.search = (q.busca as string) || '';
-  if (q.categoria !== undefined) filters.category = (q.categoria as string) || '';
+  else filters.search = '';
+  filters.category = categoryFromRoute();
   filters.featured = q.destaque === '1';
   fetchProducts();
 });

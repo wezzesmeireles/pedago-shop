@@ -21,6 +21,7 @@ const router = createRouter({
       children: [
         { path: '', name: 'home', component: () => import('@/views/public/HomeView.vue') },
         { path: 'catalogo', name: 'catalog', component: () => import('@/views/public/CatalogView.vue') },
+        { path: 'atividades/:categoria', name: 'category', component: () => import('@/views/public/CatalogView.vue') },
         { path: 'produto/:slug', name: 'product', component: () => import('@/views/public/ProductView.vue') },
         { path: 'checkout', name: 'checkout', component: () => import('@/views/public/CheckoutView.vue'), meta: { requiresAuth: true } },
         { path: 'checkout/success/:orderId', name: 'checkout-success', component: () => import('@/views/public/CheckoutSuccessView.vue'), meta: { requiresAuth: true } },

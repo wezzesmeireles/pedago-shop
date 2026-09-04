@@ -25,7 +25,7 @@
       <!-- Info -->
       <div class="flex flex-col stagger-item" style="--i:1">
         <div class="flex items-center gap-2 mb-2">
-          <RouterLink :to="`/catalogo?categoria=${product.category?.slug}`" class="text-sm text-primary-600 font-medium hover:underline">
+          <RouterLink :to="categoryPath(product.category?.slug)" class="text-sm text-primary-600 font-medium hover:underline">
             {{ product.category?.name }}
           </RouterLink>
           <span v-if="product.isFeatured" class="text-xs bg-yellow-100 text-yellow-700 font-medium px-2 py-0.5 rounded-full">★ Destaque</span>
@@ -270,6 +270,7 @@ import { fetchPublicCatalog } from '@/lib/public-api';
 import { useCartStore } from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import { categoryPath } from '@/lib/seo';
 import ProductCard from '@/components/catalog/ProductCard.vue';
 
 const route = useRoute();

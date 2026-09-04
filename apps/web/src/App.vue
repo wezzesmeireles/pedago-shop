@@ -19,6 +19,7 @@ import { onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useHead } from '@vueuse/head';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import { categoryPath } from '@/lib/seo';
 import PhoneRequiredModal from '@/components/ui/PhoneRequiredModal.vue';
 import PwaInstallPrompt from '@/components/pwa/PwaInstallPrompt.vue';
 import PwaNotificationPrompt from '@/components/pwa/PwaNotificationPrompt.vue';
@@ -28,13 +29,20 @@ import PwaPullToRefresh from '@/components/pwa/PwaPullToRefresh.vue';
 const siteConfig = useSiteConfigStore();
 const route = useRoute();
 
+const canonicalUrl = computed(() => {
+  const queryCategory = typeof route.query.categoria === 'string' ? route.query.categoria : '';
+  const category = route.params.categoria || queryCategory;
+  const path = category ? categoryPath(category) : route.path;
+  return `https://www.sitepedagogico.com${path}`;
+});
+
 // Canonical SEMPRE no domínio de produção (.com), por rota — evita o Google
 // indexar/mostrar o domínio antigo (.com.br) ou variações (apex/localhost).
 useHead({
   link: [
     {
       rel: 'canonical',
-      href: computed(() => `https://www.sitepedagogico.com${route.path}`),
+      href: canonicalUrl,
     },
   ],
 });

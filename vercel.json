@@ -31,6 +31,7 @@
     { "src": "/sitemap.xml", "dest": "/api/sitemap" },
     { "src": "/(.*)", "has": [{ "type": "host", "value": "www.sitepedagogico.com.br" }], "status": 301, "headers": { "Location": "https://www.sitepedagogico.com/$1" } },
     { "src": "/(.*)", "has": [{ "type": "host", "value": "sitepedagogico.com.br" }],     "status": 301, "headers": { "Location": "https://www.sitepedagogico.com/$1" } },
+    { "src": "/atividades/(?<category>[^/]+)", "dest": "/api/og?category=$category" },
     { "src": "/produto/(?<slug>[^/]+)", "dest": "/api/og?slug=$slug" },
     { "src": "/", "dest": "/api/og" },
     { "handle": "filesystem" },
