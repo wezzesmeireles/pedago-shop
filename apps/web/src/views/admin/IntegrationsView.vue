@@ -438,7 +438,7 @@ async function testRecipient(r: TgRecipient) {
 onMounted(async () => {
   try {
     // Ensure config is loaded
-    if (!siteConfigStore.loaded) await siteConfigStore.fetch();
+    await siteConfigStore.fetchAdmin();
     const v = siteConfigStore.config as any;
     form.value.mercadoPagoAccessToken = v.mercadoPagoAccessToken ?? '';
     form.value.mercadoPagoPixKey = v.mercadoPagoPixKey ?? '';

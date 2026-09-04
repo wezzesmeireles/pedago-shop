@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import type { SiteConfigData } from '@sitepedagogico/shared';
 import { DEFAULT_SITE_CONFIG } from '@sitepedagogico/shared';
+import { publicApiUrl } from '@/lib/public-api';
 
 const CACHE_KEY = 'sp_site_cfg_v1';
 
@@ -35,6 +36,12 @@ async function fetchFromAppwrite(): Promise<SiteConfigData | null> {
   return raw;
 }
 
+async function fetchPublicConfig(): Promise<SiteConfigData | null> {
+  const response = await fetch(publicApiUrl('/api/config'));
+  if (!response.ok) throw new Error(`Configuração pública indisponível (${response.status})`);
+  return response.json();
+}
+
 async function saveConfig(config: object) {
   const value = JSON.stringify(config);
   const now = new Date().toISOString();
@@ -62,9 +69,10 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
       loaded.value = true;
     }
 
-    // 2. Appwrite → atualiza em background (first visit bloqueia até ter dados)
+    // 2. API pública no mesmo domínio → funciona também em WebViews do Instagram
+    // e nunca entrega tokens de pagamento, Telegram ou Google ao navegador.
     try {
-      const data = await fetchFromAppwrite();
+      const data = await fetchPublicConfig();
       if (data) {
         const merged = mergeConfig(data);
         config.value = merged;
@@ -76,6 +84,16 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     } finally {
       loaded.value = true;
     }
+  }
+
+  async function fetchAdmin() {
+    const data = await fetchFromAppwrite();
+    if (data) {
+      const merged = mergeConfig(data);
+      config.value = merged;
+      applyTheme(merged);
+    }
+    loaded.value = true;
   }
 
   async function update(data: Partial<SiteConfigData>) {
@@ -99,5 +117,5 @@ export const useSiteConfigStore = defineStore('siteConfig', () => {
     if (cfg.storeName) document.title = cfg.storeName;
   }
 
-  return { config, loaded, fetch, update };
+  return { config, loaded, fetch, fetchAdmin, update };
 });

@@ -400,7 +400,14 @@ async function saveConfig() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // O cache público não contém credenciais. Antes de salvar a aparência, carrega
+  // a configuração completa autenticada para preservar integrações existentes.
+  try {
+    await siteConfigStore.fetchAdmin();
+  } catch (error) {
+    console.error('[CustomizeView config]', error);
+  }
   Object.assign(form, JSON.parse(JSON.stringify(siteConfigStore.config)));
   form.socialLinks = { ...siteConfigStore.config.socialLinks };
 });
