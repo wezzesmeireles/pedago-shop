@@ -7,9 +7,9 @@
 // browser (Chrome/Safari). We detect the known social webviews conservatively so
 // we never block a download that would actually work.
 
-export function detectInAppBrowser(): { inApp: boolean; name: string } {
-  if (typeof navigator === 'undefined') return { inApp: false, name: '' }
-  const ua = navigator.userAgent || (navigator as any).vendor || ''
+export function detectInAppBrowser(userAgent?: string): { inApp: boolean; name: string } {
+  if (userAgent === undefined && typeof navigator === 'undefined') return { inApp: false, name: '' }
+  const ua = userAgent ?? navigator.userAgent ?? (navigator as any).vendor ?? ''
   const rules: [RegExp, string][] = [
     [/Instagram/i, 'Instagram'],
     [/FBAN|FBAV|FB_IAB|FBIOS|FBSV/i, 'Facebook'],

@@ -5,6 +5,17 @@
     <h2 class="login-title text-gray-900 mb-2">Que bom ter você aqui!</h2>
     <p class="text-gray-500 text-sm mb-7 leading-relaxed">Entre para acessar seus materiais, pedidos e downloads.</p>
 
+    <button v-if="inApp.inApp" type="button" @click="showOpenInBrowser = true"
+      class="w-full text-left mb-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100/70 transition-colors">
+      <span aria-hidden="true">⚠️</span>
+      <span class="text-sm text-amber-900">
+        O login com Google não funciona dentro do {{ inApp.name || 'aplicativo' }}.
+        <strong class="underline">Abra no Chrome ou Safari.</strong>
+      </span>
+    </button>
+
+    <OpenInBrowserModal v-model="showOpenInBrowser" :name="inApp.name" />
+
     <form @submit.prevent="handleLogin" class="space-y-4">
       <AppInput v-model="form.email" label="Email" type="email" placeholder="seu@email.com" required :error="errors.email" />
       <div>
@@ -78,6 +89,8 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import AppInput from '@/components/ui/AppInput.vue';
 import AppButton from '@/components/ui/AppButton.vue';
+import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
+import { detectInAppBrowser } from '@/lib/inAppBrowser';
 
 const auth = useAuthStore();
 const router = useRouter();
@@ -87,10 +100,16 @@ const isMobile = import.meta.env.VITE_TARGET === 'mobile';
 const loading = ref(false);
 const googleLoading = ref(false);
 const showPassword = ref(false);
+const inApp = detectInAppBrowser();
+const showOpenInBrowser = ref(false);
 const form = reactive({ email: '', password: '' });
 const errors = reactive({ email: '', password: '', general: '' });
 
 async function loginGoogle() {
+  if (inApp.inApp) {
+    showOpenInBrowser.value = true;
+    return;
+  }
   // Web: createOAuth2Token redireciona a página (sai daqui). App: resolve quando
   // a sessão é criada pelo deep link, então navegamos nós mesmos.
   if (!isMobile) {

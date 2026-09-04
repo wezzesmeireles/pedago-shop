@@ -1,5 +1,5 @@
 <template>
-  <AppModal :model-value="modelValue" title="Abra no navegador para baixar" @update:model-value="$emit('update:modelValue', $event)">
+  <AppModal :model-value="modelValue" title="Abra no navegador do celular" @update:model-value="$emit('update:modelValue', $event)">
     <div class="space-y-4">
       <div class="flex items-start gap-3">
         <div class="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -9,7 +9,7 @@
         </div>
         <p class="text-sm text-slate-600 leading-relaxed">
           Você está no navegador {{ name ? `do ${name}` : 'do app' }}.
-          Prefere baixar no Chrome ou Safari? Siga os passos abaixo para abrir a página no seu navegador.
+          Para entrar com Google, instalar o aplicativo e baixar arquivos com segurança, abra esta página no Chrome ou Safari.
         </p>
       </div>
 
@@ -35,7 +35,7 @@
             <li>Toque no menu <strong>⋯</strong> (canto {{ isIOS ? 'inferior' : 'superior' }} da tela)</li>
             <li>Escolha <strong>"Abrir no {{ isIOS ? 'Safari' : 'Chrome' }}"</strong></li>
           </template>
-          <li>Na nova aba, toque em <strong>Baixar</strong> novamente</li>
+          <li>Continue normalmente na página que abrir</li>
         </ol>
       </div>
 

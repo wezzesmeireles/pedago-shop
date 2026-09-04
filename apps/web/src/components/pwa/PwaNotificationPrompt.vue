@@ -22,6 +22,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
+import { isInAppBrowser } from '@/lib/inAppBrowser';
 import {
   canUseWebPush,
   enableWebPush,
@@ -70,6 +71,7 @@ const primaryLabel = computed(() => {
 
 function schedule(userId?: string): void {
   const isLocalTest = import.meta.env.DEV;
+  if (isInAppBrowser()) return;
   if (!isLocalTest && !canUseWebPush() && !needsIosInstall.value) return;
   if (!isLocalTest && !userId) return;
   if (!isLocalTest && !needsIosInstall.value && Notification.permission !== 'default') return;

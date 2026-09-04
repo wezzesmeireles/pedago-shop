@@ -1,5 +1,3 @@
-import { account } from './appwrite';
-
 const apiOrigin = (() => {
   if (typeof window === 'undefined') return '';
   // Native mobile builds do not have a Vercel server alongside the app.
@@ -15,6 +13,9 @@ export function publicApiUrl(path: string) {
 }
 
 export async function authenticatedHeaders() {
+  // Importação tardia mantém os utilitários públicos independentes da
+  // configuração do Appwrite e evita inicializar o SDK em rotas que não usam login.
+  const { account } = await import('./appwrite');
   const { jwt } = await account.createJWT();
   return { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' };
 }

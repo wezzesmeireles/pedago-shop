@@ -33,6 +33,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { isInAppBrowser } from '@/lib/inAppBrowser';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -57,6 +58,7 @@ function isDismissed(): boolean {
 function canShowHere(): boolean {
   return import.meta.env.VITE_TARGET !== 'mobile' &&
     !location.pathname.startsWith('/admin') &&
+    !isInAppBrowser() &&
     !isStandalone() &&
     !isDismissed();
 }

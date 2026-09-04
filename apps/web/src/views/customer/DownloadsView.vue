@@ -28,7 +28,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/>
       </svg>
       <span class="text-sm text-amber-800">
-        Você está no navegador {{ inApp.name ? `do ${inApp.name}` : 'do app' }}. O download funciona normalmente — <strong class="underline">toque aqui</strong> se preferir abrir no Chrome/Safari.
+        O navegador {{ inApp.name ? `do ${inApp.name}` : 'deste aplicativo' }} pode bloquear o download. <strong class="underline">Abra no Chrome ou Safari para baixar.</strong>
       </span>
     </button>
 
@@ -95,7 +95,7 @@
                   Expirado
                 </span>
                 <!-- Link delivery -->
-                <a v-else-if="download.deliveryLink" :href="download.deliveryLink" target="_blank" rel="noopener"
+                <a v-else-if="download.deliveryLink" :href="download.deliveryLink" target="_blank" rel="noopener" @click="guardExternalLink"
                   class="inline-flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
@@ -175,6 +175,10 @@ function formatExpiry(dateStr: string): string {
 
 async function downloadFile(d: DownloadEntry) {
   if (d.expired) return;
+  if (inApp.inApp) {
+    showOpenInBrowser.value = true;
+    return;
+  }
   downloadError.value = '';
   downloadNotice.value = '';
   try {
@@ -205,6 +209,12 @@ function downloadButtonLabel(token: string): string {
   if (preparingToken.value === token) return 'Preparando...';
   if (preparedFiles.value[token]) return 'Salvar no dispositivo';
   return supportsIosFileSave() ? 'Preparar PDF' : 'Baixar';
+}
+
+function guardExternalLink(event: MouseEvent) {
+  if (!inApp.inApp) return;
+  event.preventDefault();
+  showOpenInBrowser.value = true;
 }
 
 // Fetch all documents where `field` is in `ids`, batching ids into chunks
