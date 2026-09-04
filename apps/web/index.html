@@ -41,6 +41,49 @@
     <script>
       (function () {
         var shown = false;
+        var reported = {};
+        var productionHosts = { 'sitepedagogico.com': true, 'www.sitepedagogico.com': true };
+        var reporting = productionHosts[window.location.hostname] === true;
+        var userAgent = navigator.userAgent || '';
+        var isInstagram = /Instagram/i.test(userAgent);
+        var isAndroid = /Android/i.test(userAgent);
+
+        function clean(value, max) {
+          return String(value || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+        }
+
+        function report(type, message, context, severity) {
+          message = clean(message, 1200);
+          if (!reporting || !message) return;
+          var key = clean(type + '|' + message + '|' + window.location.pathname, 500);
+          if (reported[key]) return;
+          reported[key] = true;
+          try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/client-error', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify({
+              type: clean(type, 60),
+              message: message,
+              context: clean(context, 300),
+              severity: severity || 'critical',
+              url: window.location.origin + window.location.pathname,
+              online: navigator.onLine,
+              client: (isInstagram ? 'WebView do Instagram' : 'Navegador') + ' · ' + (isAndroid ? 'Android' : 'Outro sistema'),
+              device: clean((navigator.platform || '') + ' · ' + userAgent, 220)
+            }));
+          } catch (_) {}
+        }
+
+        function ignored(message, source) {
+          var value = (String(message || '') + ' ' + String(source || '')).toLowerCase();
+          return value.indexOf('plugin') !== -1 ||
+            value.indexOf('chrome-extension://') !== -1 ||
+            value.indexOf('moz-extension://') !== -1 ||
+            value.indexOf('resizeobserver loop') !== -1 ||
+            value.indexOf('www.aliven.digital/track.js') !== -1;
+        }
+
         function show(msg) {
           if (shown) return; shown = true;
           var el = document.getElementById('app');
@@ -53,18 +96,33 @@
             String(msg).replace(/</g, '&lt;') + '\n\nNavegador: ' + navigator.userAgent + '</code></div>';
         }
         window.addEventListener('error', function (e) {
-          show((e && e.message ? e.message : 'Erro de script') + (e && e.filename ? '  @ ' + e.filename + ':' + (e.lineno || '?') : ''));
+          var target = e && e.target;
+          var resource = target && (target.src || target.href) ? String(target.src || target.href) : '';
+          var source = e && e.filename ? e.filename : resource;
+          var message = e && e.message ? e.message : (resource ? 'Falha ao carregar recurso' : 'Erro de script');
+          if (ignored(message, source)) return;
+
+          // Depois que o Vue montou, o logger principal cuida do erro. O fallback
+          // não pode substituir todo o site por causa de uma falha não fatal.
+          if (!document.getElementById('boot-msg')) return;
+          var context = (source || 'script') + ':' + (e && e.lineno ? e.lineno : '?');
+          report('Falha ao iniciar o site', message, context, 'critical');
+          show(message + (source ? '  @ ' + context : ''));
         });
         window.addEventListener('unhandledrejection', function (e) {
           var r = e && e.reason;
           var m = r ? (typeof r === 'string' ? r : (r.message ? String(r.message) : String(r))) : '';
-          if (m.indexOf('plugin') !== -1 || m.indexOf('Plugin') !== -1) { e.preventDefault(); return; }
+          if (ignored(m, '')) { e.preventDefault(); return; }
           if (!document.getElementById('boot-msg')) { e.preventDefault(); return; }
+          report('Falha ao iniciar o site', 'Promise rejeitada: ' + m, 'bootstrap', 'critical');
           show('Promise rejeitada: ' + m);
         });
         // App didn't mount within 12s and no error fired → show timeout notice.
         setTimeout(function () {
-          if (document.getElementById('boot-msg')) show('Tempo esgotado: o aplicativo não inicializou (12s).');
+          if (document.getElementById('boot-msg')) {
+            report('Tempo esgotado ao iniciar', 'O aplicativo não inicializou em 12 segundos.', isInstagram && isAndroid ? 'Instagram · Android' : 'bootstrap', 'critical');
+            show('Tempo esgotado: o aplicativo não inicializou (12s).');
+          }
         }, 12000);
       })();
     </script>

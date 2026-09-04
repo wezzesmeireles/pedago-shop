@@ -1,3 +1,5 @@
+import { detectInAppBrowser, isAndroid, isIOS } from './inAppBrowser';
+
 type ErrorPayload = {
   type: string;
   message: string;
@@ -83,6 +85,8 @@ export function initTelegramLogger(app: any) {
       sentThisMinute += 1;
       sentThisSession += 1;
 
+      const browser = detectInAppBrowser();
+      const operatingSystem = isAndroid() ? 'Android' : isIOS() ? 'iOS/iPadOS' : 'Outro sistema';
       const response = await fetch('/api/client-error', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,6 +98,7 @@ export function initTelegramLogger(app: any) {
           severity: payload.severity || 'warning',
           url: `${window.location.origin}${window.location.pathname}`,
           online: navigator.onLine,
+          client: clean(`${browser.inApp ? `WebView do ${browser.name}` : 'Navegador externo'} · ${operatingSystem}`, 100),
           device: clean(`${navigator.platform || ''} · ${navigator.userAgent}`, 220),
         }),
         keepalive: true,

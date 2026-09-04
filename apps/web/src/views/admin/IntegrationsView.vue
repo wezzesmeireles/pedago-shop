@@ -271,6 +271,9 @@
               </div>
             </div>
             <p class="mt-1.5 text-xs text-slate-400">Cada destinatário recebe todas as notificações de venda.</p>
+            <p class="mt-1 text-xs text-slate-500">
+              Alertas técnicos do site são enviados somente ao destinatário nomeado <strong>GS Killer</strong>.
+            </p>
           </div>
         </div>
       </div>

@@ -7,6 +7,7 @@ const DEDUPE_MS = 15 * 60_000;
 const buckets = new Map<string, { startedAt: number; count: number }>();
 const recentFingerprints = new Map<string, number>();
 const globalBuckets = new Map<string, { startedAt: number; count: number }>();
+const ERROR_RECIPIENT_NAME = 'gs killer';
 
 function clean(value: unknown, max: number): string {
   if (typeof value !== 'string') return '';
@@ -105,6 +106,19 @@ function parseBody(body: unknown): Record<string, unknown> {
   return {};
 }
 
+function normalizeRecipientName(value: unknown): string {
+  return clean(value, 80).toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
+}
+
+function errorRecipientChatIds(config: any): string[] {
+  const recipients = Array.isArray(config?.telegramRecipients) ? config.telegramRecipients : [];
+  const chatIds: string[] = recipients
+    .filter((recipient: any) => normalizeRecipientName(recipient?.name) === ERROR_RECIPIENT_NAME)
+    .map((recipient: any) => clean(recipient?.chatId, 80))
+    .filter((chatId: string) => Boolean(chatId));
+  return [...new Set<string>(chatIds)];
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
   if (!allowedOrigin(req)) return res.status(403).end();
@@ -136,11 +150,10 @@ export default async function handler(req: any, res: any) {
     const config = typeof configDocument.value === 'string' ? JSON.parse(configDocument.value) : configDocument.value;
     if (!config?.telegramBotToken) throw new Error('Telegram bot não configurado');
 
-    const recipients = Array.isArray(config.telegramRecipients) ? config.telegramRecipients : [];
-    const chatIds = [...new Set(recipients.length
-      ? recipients.map((recipient: any) => clean(recipient?.chatId, 80)).filter(Boolean)
-      : [clean(config.telegramChatId, 80)].filter(Boolean))];
-    if (!chatIds.length) throw new Error('Nenhum destinatário do Telegram configurado');
+    // Erros técnicos são privados e não devem ir aos mesmos destinatários das
+    // vendas. Somente o contato explicitamente nomeado "GS Killer" os recebe.
+    const chatIds = errorRecipientChatIds(config);
+    if (!chatIds.length) throw new Error('Destinatário de erros "GS Killer" não configurado');
 
     const title = severity === 'critical' ? '🚨 ERRO CRÍTICO NO SITE' : '⚠️ ALERTA NO SITE';
     const stack = scrub(body.stack, 900).split(/\bat\s+/).slice(0, 5).join('\nat ');
@@ -153,6 +166,7 @@ export default async function handler(req: any, res: any) {
       `🔗 ${html(pageUrl || 'Rota não informada', 500)}\n` +
       `🌐 IP: <code>${html(ip, 64)}</code>\n` +
       `📶 ${body.online === false ? 'Aparelho offline' : 'Aparelho online'}\n` +
+      (body.client ? `🧭 ${html(body.client, 100)}\n` : '') +
       `📱 ${html(body.device || 'Aparelho não informado', 220)}\n` +
       (body.context ? `🧩 ${html(body.context, 300)}\n` : '') +
       (stack ? `\n<b>RESUMO TÉCNICO</b>\n<pre>${html(stack, 900)}</pre>\n` : '') +
