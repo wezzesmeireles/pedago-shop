@@ -455,7 +455,8 @@ import { useImageOptimizer } from '@/composables/useImageOptimizer';
 import ProductCard from '@/components/catalog/ProductCard.vue';
 import { useHead } from '@vueuse/head';
 import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
-import { ID, Query } from 'appwrite';
+import { ID } from 'appwrite';
+import { fetchPublicCatalog } from '@/lib/public-api';
 import { useSiteConfigStore } from '@/stores/site-config.store';
 
 const { optimizeImage } = useImageOptimizer();
@@ -640,76 +641,44 @@ onMounted(async () => {
   resetBannerTimer();
   setupReveal();
 
-  await Promise.allSettled([
-    (async () => {
-      try {
-        const catResult = await databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [
-          Query.equal('isActive', true),
-          Query.orderAsc('sortOrder'),
-          Query.limit(100),
-        ]);
-        const catDocs = catResult.documents;
-        categories.value = catDocs.map((c: any) => ({ ...c, id: c.$id }));
-        const catMap = new Map<string, any>();
-        for (const cat of catDocs) {
-          catMap.set(cat.$id, { ...cat, id: cat.$id, products: [] });
-        }
+  try {
+    // A página inicial usa o mesmo endpoint da Vercel que o catálogo. Além de
+    // evitar três viagens iguais, isso impede que WebViews do Instagram Android
+    // precisem acessar o domínio do Appwrite diretamente (CORS/TLS/cookies).
+    const catalog = await fetchPublicCatalog();
+    const catDocs = [...catalog.categories]
+      .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    const products = [...catalog.products]
+      .sort((a: any, b: any) => new Date(b.$createdAt ?? 0).getTime() - new Date(a.$createdAt ?? 0).getTime());
 
-        const prodResult = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-          Query.equal('isActive', true),
-          Query.isNull('deletedAt'),
-          Query.orderDesc('$createdAt'),
-          Query.limit(300),
-        ]);
-        for (const p of prodResult.documents) {
-          const mapped = {
-            ...p,
-            id: p.$id,
-            coverImageUrl: p.coverImageUrl,
-            comparePrice: p.comparePrice,
-          };
-          const catId = p.categoryId;
-          if (!catId || !catMap.has(catId)) continue;
-          if (catMap.get(catId)!.products.length < 6) catMap.get(catId)!.products.push(mapped);
-        }
-        categoriesWithProducts.value = Array.from(catMap.values())
-          .filter((c) => c.products.length >= 1)
-          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-      } catch (e) { console.error('categories section error:', e); }
-    })(),
-    (async () => {
-      try {
-        const result = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-          Query.equal('isActive', true),
-          Query.isNull('deletedAt'),
-          Query.orderDesc('salesCount'),
-          Query.limit(50),
-        ]);
-        const found = result.documents.find((p: any) =>
-          p.name?.toLowerCase().includes('grupo')
-        );
-        if (found) {
-          groupProduct.value = { ...found, id: found.$id, coverImageUrl: found.coverImageUrl, comparePrice: found.comparePrice, offerExpiresAt: found.offerExpiresAt };
-        }
-      } catch (e) { console.error('group product error:', e); }
-    })(),
-    (async () => {
-      try {
-        const mapP = (p: any) => ({ ...p, id: p.$id, coverImageUrl: p.coverImageUrl, comparePrice: p.comparePrice });
-        let best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-          Query.equal('isActive', true), Query.isNull('deletedAt'),
-          Query.equal('isFeatured', true), Query.orderDesc('salesCount'), Query.limit(12),
-        ]);
-        if (best.documents.length === 0) {
-          best = await databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [
-            Query.equal('isActive', true), Query.isNull('deletedAt'),
-            Query.greaterThan('salesCount', 0), Query.orderDesc('salesCount'), Query.limit(6),
-          ]);
-        }
-        bestSellers.value = best.documents.map(mapP);
-      } catch (e) { console.error('best sellers error:', e); }
-    })(),
-  ]);
+    categories.value = catDocs.map((category: any) => ({ ...category, id: category.$id }));
+    const catMap = new Map<string, any>();
+    for (const category of catDocs) {
+      catMap.set(category.$id, { ...category, id: category.$id, products: [] });
+    }
+    for (const product of products) {
+      const category = catMap.get(product.categoryId);
+      if (!category || category.products.length >= 6) continue;
+      category.products.push({ ...product, id: product.$id });
+    }
+    categoriesWithProducts.value = Array.from(catMap.values())
+      .filter((category) => category.products.length >= 1);
+
+    const bySales = [...products]
+      .sort((a: any, b: any) => Number(b.salesCount ?? 0) - Number(a.salesCount ?? 0));
+    const found = bySales.find((product: any) =>
+      String(product.name ?? '').toLocaleLowerCase('pt-BR').includes('grupo')
+    );
+    groupProduct.value = found ? { ...found, id: found.$id } : null;
+
+    const featured = bySales.filter((product: any) => product.isFeatured === true);
+    bestSellers.value = (featured.length > 0
+      ? featured.slice(0, 12)
+      : bySales.filter((product: any) => Number(product.salesCount ?? 0) > 0).slice(0, 6))
+      .map((product: any) => ({ ...product, id: product.$id }));
+  } catch (error) {
+    console.error('[HomeView catalog]', error);
+  }
 });
 
 onUnmounted(() => {

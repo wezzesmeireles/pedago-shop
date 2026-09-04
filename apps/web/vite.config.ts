@@ -121,6 +121,11 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       host: true,
       proxy: {
+        '/api': {
+          target: 'https://www.sitepedagogico.com',
+          changeOrigin: true,
+          secure: true,
+        },
         '/v1': {
           target: 'https://appwrite.wsgestao.digital',
           changeOrigin: true,
