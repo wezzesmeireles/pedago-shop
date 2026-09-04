@@ -14,7 +14,10 @@
       <div class="pwa-copy">
         <p class="pwa-eyebrow">Leve o aprendizado com você</p>
         <h2>Instale o Site Pedagógico</h2>
-        <p v-if="!showIosInstructions">Acesso rápido, tela cheia e novidades dos seus materiais.</p>
+        <p v-if="inApp.inApp">
+          O navegador do {{ inApp.name || 'aplicativo' }} não instala PWAs. Abra no Chrome ou Safari para instalar.
+        </p>
+        <p v-else-if="!showIosInstructions">Acesso rápido, tela cheia e novidades dos seus materiais.</p>
         <p v-else>
           Toque em <strong>Compartilhar</strong> e depois em
           <strong>Adicionar à Tela de Início</strong>. Abra pelo novo ícone para
@@ -22,18 +25,24 @@
         </p>
       </div>
 
-      <button v-if="!showIosInstructions" class="pwa-install-button" type="button" @click="install">
+      <button v-if="inApp.inApp" class="pwa-install-button" type="button" @click="showOpenInBrowser = true">
+        Abrir navegador
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4L10 14M5 7v12h12v-5" /></svg>
+      </button>
+      <button v-else-if="!showIosInstructions" class="pwa-install-button" type="button" @click="install">
         Instalar
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" /></svg>
       </button>
       <button v-else class="pwa-understood-button" type="button" @click="dismiss()">Entendi</button>
     </aside>
   </Transition>
+  <OpenInBrowserModal v-model="showOpenInBrowser" :name="inApp.name" />
 </template>
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { isInAppBrowser } from '@/lib/inAppBrowser';
+import OpenInBrowserModal from '@/components/ui/OpenInBrowserModal.vue';
+import { detectInAppBrowser } from '@/lib/inAppBrowser';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -43,6 +52,8 @@ interface BeforeInstallPromptEvent extends Event {
 const DISMISS_KEY = 'pedago-pwa-install-dismissed-until';
 const visible = ref(false);
 const showIosInstructions = ref(false);
+const showOpenInBrowser = ref(false);
+const inApp = detectInAppBrowser();
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 let showTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -58,7 +69,6 @@ function isDismissed(): boolean {
 function canShowHere(): boolean {
   return import.meta.env.VITE_TARGET !== 'mobile' &&
     !location.pathname.startsWith('/admin') &&
-    !isInAppBrowser() &&
     !isStandalone() &&
     !isDismissed();
 }
@@ -111,6 +121,11 @@ onMounted(() => {
   if (!canShowHere()) return;
   window.addEventListener('beforeinstallprompt', onBeforeInstall);
   window.addEventListener('appinstalled', onInstalled);
+
+  if (inApp.inApp) {
+    scheduleShow(1200);
+    return;
+  }
 
   const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   if (isiOS) {
