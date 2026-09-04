@@ -11,6 +11,7 @@
   <PwaInstallPrompt />
   <PwaNotificationPrompt />
   <PwaConnectionStatus />
+  <PwaPullToRefresh />
 </template>
 
 <script setup lang="ts">
@@ -22,6 +23,7 @@ import PhoneRequiredModal from '@/components/ui/PhoneRequiredModal.vue';
 import PwaInstallPrompt from '@/components/pwa/PwaInstallPrompt.vue';
 import PwaNotificationPrompt from '@/components/pwa/PwaNotificationPrompt.vue';
 import PwaConnectionStatus from '@/components/pwa/PwaConnectionStatus.vue';
+import PwaPullToRefresh from '@/components/pwa/PwaPullToRefresh.vue';
 
 const siteConfig = useSiteConfigStore();
 const route = useRoute();
