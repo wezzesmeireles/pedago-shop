@@ -71,6 +71,26 @@ function onTouchEnd(): void {
   reset();
 }
 
+function onMouseDown(event: MouseEvent): void {
+  if (event.button !== 0 || !enabled.value || refreshing.value || window.scrollY > 0 || isInteractiveTarget(event.target)) return;
+  startX = event.clientX;
+  startY = event.clientY;
+  pulling.value = true;
+  distance.value = 0;
+}
+
+function onMouseMove(event: MouseEvent): void {
+  if (!pulling.value || event.buttons !== 1) return;
+  const deltaX = Math.abs(event.clientX - startX);
+  const deltaY = event.clientY - startY;
+  if (deltaY <= 0 || deltaX > deltaY) {
+    reset();
+    return;
+  }
+  distance.value = dampedPullDistance(deltaY);
+  if (distance.value > 0) event.preventDefault();
+}
+
 function reset(): void {
   pulling.value = false;
   distance.value = 0;
@@ -98,6 +118,11 @@ onMounted(() => {
   document.addEventListener('touchmove', onTouchMove, { passive: false });
   document.addEventListener('touchend', onTouchEnd, { passive: true });
   document.addEventListener('touchcancel', reset, { passive: true });
+  if (import.meta.env.DEV) {
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onTouchEnd);
+  }
 });
 
 onBeforeUnmount(() => {
@@ -105,6 +130,9 @@ onBeforeUnmount(() => {
   document.removeEventListener('touchmove', onTouchMove);
   document.removeEventListener('touchend', onTouchEnd);
   document.removeEventListener('touchcancel', reset);
+  document.removeEventListener('mousedown', onMouseDown);
+  document.removeEventListener('mousemove', onMouseMove);
+  document.removeEventListener('mouseup', onTouchEnd);
 });
 </script>
 

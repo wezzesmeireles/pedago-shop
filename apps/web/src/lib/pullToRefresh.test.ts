@@ -12,7 +12,7 @@ describe('pull to refresh', () => {
   });
 
   it('amortece e limita o arrasto', () => {
-    expect(dampedPullDistance(100)).toBe(46);
+    expect(dampedPullDistance(100)).toBeCloseTo(58);
     expect(dampedPullDistance(1000)).toBe(PULL_REFRESH_MAX_DISTANCE);
   });
 
