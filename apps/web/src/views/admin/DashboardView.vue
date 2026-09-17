@@ -598,6 +598,10 @@ const dateLabel = computed(() =>
   new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 );
 
+function getOrderDate(o: any): string | null {
+  return o?.paidAt || o?.createdAt || o?.$createdAt || null;
+}
+
 function parseDate(iso: string | null | undefined): Date | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -635,8 +639,9 @@ const chartData = computed(() => {
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
     let revenue = 0, orders = 0;
     for (const o of paidOrders.value) {
-      if (o.paidAt) {
-        const pd = parseDate(o.paidAt);
+      const dateStr = getOrderDate(o);
+      if (dateStr) {
+        const pd = parseDate(dateStr);
         if (pd && pd <= now && pd >= start && pd <= end) {
           revenue += Number(o.totalAmount || 0);
           orders++;
@@ -735,8 +740,9 @@ const paymentMethodSegments = computed(() => {
   const now = new Date();
   
   for (const o of paidOrders.value) {
-    if (o.paidAt) {
-      const pd = parseDate(o.paidAt);
+    const dateStr = getOrderDate(o);
+    if (dateStr) {
+      const pd = parseDate(dateStr);
       if (pd && pd > now) continue;
     }
     if (o.paymentMethod === 'PIX') items[0].count++;
@@ -764,8 +770,9 @@ const weekdaySales = computed(() => {
   const now = new Date();
   
   for (const o of paidOrders.value) {
-    if (o.paidAt) {
-      const pd = parseDate(o.paidAt);
+    const dateStr = getOrderDate(o);
+    if (dateStr) {
+      const pd = parseDate(dateStr);
       if (pd && pd <= now) {
         const d = pd.getDay();
         counts[d]++;
@@ -891,7 +898,7 @@ async function loadDashboard() {
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.greaterThanEqual('$createdAt', startOfMonth), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'AWAITING_PAYMENT'), Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'CANCELLED'), Query.limit(1)]),
-      databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.equal('role', 'CUSTOMER'), Query.limit(1)]),
+      databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [Query.limit(1)]),
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.orderDesc('$createdAt'), Query.limit(10), Query.select(['$id', 'orderNumber', 'totalAmount', 'customerName', 'status', 'paidAt', 'paymentMethod', 'guestPhone', '$createdAt'])]),
       databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
     ]);
@@ -919,7 +926,7 @@ async function loadDashboard() {
   loadStorage(); // independent, non-blocking
   loadCategorySales(); // independent, non-blocking
 
-  // ── Phase 2: revenue dataset — heavier, but fetch ONLY the 2 fields we sum ──
+  // ── Phase 2: revenue dataset — heavier, fetch date and total fields ──
   revenueLoading.value = true;
   try {
     const paid: any[] = [];
@@ -929,9 +936,9 @@ async function loadDashboard() {
     while (hasMore) {
       const queries = [
         Query.equal('status', 'PAID'),
-        Query.orderDesc('paidAt'),
+        Query.orderDesc('$createdAt'),
         Query.limit(500),
-        Query.select(['totalAmount', 'paidAt']),
+        Query.select(['totalAmount', 'paidAt', 'createdAt', '$createdAt', 'paymentMethod']),
       ];
       if (cursor) queries.push(Query.cursorAfter(cursor));
       
@@ -947,7 +954,7 @@ async function loadDashboard() {
     
     const currentDate = new Date();
     const sumIf = (pred: (d: Date) => boolean) => paid.reduce((s, o) => {
-      const d = parseDate(o.paidAt);
+      const d = parseDate(getOrderDate(o));
       if (!d || d > currentDate) return s; // ignore invalid or future dates
       return pred(d) ? s + Number(o.totalAmount || 0) : s;
     }, 0);
@@ -956,7 +963,7 @@ async function loadDashboard() {
       ...stats.value,
       revenue: {
         total: paid.reduce((s, o) => {
-          const d = parseDate(o.paidAt);
+          const d = parseDate(getOrderDate(o));
           if (d && d > currentDate) return s; // ignore future dates in total
           return s + Number(o.totalAmount || 0);
         }, 0),

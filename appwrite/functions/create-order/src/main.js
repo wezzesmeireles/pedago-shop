@@ -189,6 +189,7 @@ export default async ({ req, res, log, error }) => {
     mpPaymentId,
     mpPreferenceId,
     mpStatus,
+    paidAt: isFree ? now : null,
     expiresAt: mpResult?.date_of_expiration ?? null,
     metadata: JSON.stringify({
       ...(mpResult ? {
