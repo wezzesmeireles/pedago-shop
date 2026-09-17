@@ -843,7 +843,7 @@ function formatBytes(bytes: number): string {
 
 async function getBucketSize(bucketId: string): Promise<{ bytes: number; count: number }> {
   try {
-    const result = await storage.listFiles(bucketId, [Query.limit(500)]);
+    const result = await storage.listFiles(bucketId, [Query.limit(100)]);
     const bytes = result.files.reduce((s, f) => s + (f.sizeOriginal ?? 0), 0);
     return { bytes, count: result.total };
   } catch {
@@ -869,7 +869,7 @@ async function loadStorage() {
 async function loadCategorySales() {
   try {
     const [prods, cats] = await Promise.all([
-      databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.limit(500), Query.select(['$id', 'price', 'salesCount', 'categoryId'])]),
+      databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.limit(100), Query.select(['$id', 'price', 'salesCount', 'categoryId'])]),
       databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.limit(100)]),
     ]);
     const catName: Record<string, string> = Object.fromEntries(cats.documents.map((c: any) => [c.$id, c.name]));
@@ -937,7 +937,7 @@ async function loadDashboard() {
       const queries = [
         Query.equal('status', 'PAID'),
         Query.orderDesc('$createdAt'),
-        Query.limit(500),
+        Query.limit(100),
         Query.select(['totalAmount', 'paidAt', 'createdAt', '$createdAt', 'paymentMethod']),
       ];
       if (cursor) queries.push(Query.cursorAfter(cursor));
@@ -945,7 +945,7 @@ async function loadDashboard() {
       const batchRes = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
       paid.push(...batchRes.documents);
       
-      if (batchRes.documents.length < 500 || paid.length >= 5000) {
+      if (batchRes.documents.length < 100 || paid.length >= 5000) {
         hasMore = false;
       } else {
         cursor = batchRes.documents[batchRes.documents.length - 1].$id;

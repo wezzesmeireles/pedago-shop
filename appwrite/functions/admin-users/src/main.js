@@ -92,17 +92,28 @@ export default async ({ req, res, log, error }) => {
   let orderCountMap = {}
   if (profiles.length > 0) {
     try {
-      const ordersResult = await db.listDocuments(DB, 'orders', [
-        Query.limit(5000),
-        Query.select(['$id', 'userId', 'customerEmail', 'guestPhone']),
-      ])
+      const allOrders = []
+      let cursor = null
+      for (let i = 0; i < 5; i++) {
+        const q = [
+          Query.orderDesc('$createdAt'),
+          Query.limit(100),
+          Query.select(['$id', 'userId', 'customerEmail', 'guestPhone']),
+        ]
+        if (cursor) q.push(Query.cursorAfter(cursor))
+        const batch = await db.listDocuments(DB, 'orders', q)
+        allOrders.push(...batch.documents)
+        if (batch.documents.length < 100) break
+        cursor = batch.documents[batch.documents.length - 1].$id
+      }
+
       for (const p of profiles) {
         const pId = p.userId || p.$id
         const pEmail = p.email ? String(p.email).toLowerCase().trim() : null
         const pPhone = p.phone ? String(p.phone).replace(/\D/g, '') : null
 
         let count = 0
-        for (const o of ordersResult.documents) {
+        for (const o of allOrders) {
           const oUserId = o.userId
           const oEmail = o.customerEmail ? String(o.customerEmail).toLowerCase().trim() : null
           const oPhone = o.guestPhone ? String(o.guestPhone).replace(/\D/g, '') : null
