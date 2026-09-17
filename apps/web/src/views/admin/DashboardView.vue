@@ -604,7 +604,11 @@ function getOrderDate(o: any): string | null {
 
 function parseDate(iso: string | null | undefined): Date | null {
   if (!iso) return null;
-  const d = new Date(iso);
+  let s = String(iso).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    s += 'T12:00:00';
+  }
+  const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -930,25 +934,25 @@ async function loadDashboard() {
   revenueLoading.value = true;
   try {
     const paid: any[] = [];
+    let offset = 0;
     let hasMore = true;
-    let cursor: string | null = null;
     
-    while (hasMore) {
+    while (hasMore && offset < 3000) {
       const queries = [
         Query.equal('status', 'PAID'),
         Query.orderDesc('$createdAt'),
         Query.limit(100),
+        Query.offset(offset),
         Query.select(['totalAmount', 'paidAt', 'createdAt', '$createdAt', 'paymentMethod']),
       ];
-      if (cursor) queries.push(Query.cursorAfter(cursor));
       
       const batchRes = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
       paid.push(...batchRes.documents);
       
-      if (batchRes.documents.length < 100 || paid.length >= 5000) {
+      if (batchRes.documents.length < 100) {
         hasMore = false;
       } else {
-        cursor = batchRes.documents[batchRes.documents.length - 1].$id;
+        offset += 100;
       }
     }
     
