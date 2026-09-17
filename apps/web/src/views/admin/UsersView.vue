@@ -109,17 +109,17 @@
             <div class="flex-shrink-0">
               <img v-if="user.avatarUrl" :src="user.avatarUrl" referrerpolicy="no-referrer" loading="lazy" @error="user.avatarUrl = ''" class="w-11 h-11 rounded-full object-cover ring-2 ring-slate-100" />
               <div v-else class="w-11 h-11 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white font-black text-base">
-                {{ user.name?.[0]?.toUpperCase() ?? '?' }}
+                {{ (user.name || user.email || user.phone || '?')[0]?.toUpperCase() }}
               </div>
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap mb-0.5">
-                <p class="text-sm font-bold text-slate-900 truncate">{{ user.name }}</p>
+                <p class="text-sm font-bold text-slate-900 truncate">{{ user.name || user.email || user.phone || 'Cliente' }}</p>
                 <span :class="['text-[10px] font-bold px-1.5 py-0.5 rounded-full', user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500']">
                   {{ user.role === 'ADMIN' ? 'Admin' : 'Cliente' }}
                 </span>
               </div>
-              <p class="text-xs text-slate-400 truncate mb-1">{{ user.email }}</p>
+              <p class="text-xs text-slate-400 truncate mb-1">{{ user.email || (user.phone ? '📱 ' + user.phone : 'Sem e-mail') }}</p>
               <div class="flex items-center gap-2 flex-wrap">
                 <span :class="['inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full', user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-500']">
                   <span :class="['w-1 h-1 rounded-full', user.isActive ? 'bg-emerald-500' : 'bg-red-400']"></span>
@@ -231,12 +231,12 @@
                   <div class="flex-shrink-0">
                     <img v-if="user.avatarUrl" :src="user.avatarUrl" referrerpolicy="no-referrer" loading="lazy" @error="user.avatarUrl = ''" class="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
                     <div v-else class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-black">
-                      {{ user.name?.[0]?.toUpperCase() ?? '?' }}
+                      {{ (user.name || user.email || user.phone || '?')[0]?.toUpperCase() }}
                     </div>
                   </div>
                   <div class="min-w-0">
-                    <p class="text-sm font-semibold text-slate-900 truncate max-w-[180px]">{{ user.name }}</p>
-                    <p class="text-xs text-slate-400 truncate max-w-[180px]">{{ user.email }}</p>
+                    <p class="text-sm font-semibold text-slate-900 truncate max-w-[180px]">{{ user.name || user.email || user.phone || 'Cliente' }}</p>
+                    <p class="text-xs text-slate-400 truncate max-w-[180px]">{{ user.email || (user.phone ? '📱 ' + user.phone : 'Sem e-mail') }}</p>
                   </div>
                 </div>
               </td>
@@ -633,8 +633,8 @@ async function loadUsers(page = 1) {
       total = res.total;
       userList = res.documents.map((p: any) => ({
         id: p.userId || p.$id,
-        email: p.email,
-        name: p.name,
+        email: p.email ?? '',
+        name: (p.name && String(p.name).trim()) ? String(p.name).trim() : (p.email ? String(p.email) : (p.phone ? `Cliente ${p.phone}` : 'Cliente Compra Rápida')),
         phone: p.phone ?? '',
         role: p.role ?? 'CUSTOMER',
         isActive: p.isActive ?? true,
@@ -722,11 +722,27 @@ async function openOrders(user: any) {
   userOrders.value = [];
   try {
     const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
-      Query.equal('userId', user.id),
       Query.orderDesc('$createdAt'),
-      Query.limit(50),
+      Query.limit(200),
     ]);
-    const withItems = await Promise.all(result.documents.map(async (o: any) => {
+
+    const uId = user.id;
+    const uEmail = user.email ? String(user.email).toLowerCase().trim() : null;
+    const uPhone = user.phone ? String(user.phone).replace(/\D/g, '') : null;
+
+    const userDocs = result.documents.filter((o: any) => {
+      const oUserId = o.userId;
+      const oEmail = o.customerEmail ? String(o.customerEmail).toLowerCase().trim() : null;
+      const oPhone = o.guestPhone ? String(o.guestPhone).replace(/\D/g, '') : null;
+
+      return (
+        (uId && oUserId && uId === oUserId) ||
+        (uEmail && oEmail && uEmail === oEmail) ||
+        (uPhone && oPhone && uPhone === oPhone)
+      );
+    });
+
+    const withItems = await Promise.all(userDocs.map(async (o: any) => {
       let items: any[] = [];
       try {
         const ir = await databases.listDocuments(DB_ID, COLLECTIONS.ORDER_ITEMS, [

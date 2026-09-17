@@ -87,32 +87,61 @@ export default async ({ req, res, log, error }) => {
     ])
   }
   const profiles = profilesResult.documents
-  const userIds = profiles.map(p => p.userId)
 
-  // Count orders per user (this page only)
+  // Count orders per user (matching by userId, customerEmail, or guestPhone)
   let orderCountMap = {}
-  if (userIds.length > 0) {
-    const ordersResult = await db.listDocuments(DB, 'orders', [
-      Query.equal('userId', userIds),
-      Query.limit(5000),
-    ])
-    for (const o of ordersResult.documents) {
-      orderCountMap[o.userId] = (orderCountMap[o.userId] ?? 0) + 1
+  if (profiles.length > 0) {
+    try {
+      const ordersResult = await db.listDocuments(DB, 'orders', [
+        Query.limit(5000),
+        Query.select(['$id', 'userId', 'customerEmail', 'guestPhone']),
+      ])
+      for (const p of profiles) {
+        const pId = p.userId || p.$id
+        const pEmail = p.email ? String(p.email).toLowerCase().trim() : null
+        const pPhone = p.phone ? String(p.phone).replace(/\D/g, '') : null
+
+        let count = 0
+        for (const o of ordersResult.documents) {
+          const oUserId = o.userId
+          const oEmail = o.customerEmail ? String(o.customerEmail).toLowerCase().trim() : null
+          const oPhone = o.guestPhone ? String(o.guestPhone).replace(/\D/g, '') : null
+
+          if (
+            (pId && oUserId && pId === oUserId) ||
+            (pEmail && oEmail && pEmail === oEmail) ||
+            (pPhone && oPhone && pPhone === oPhone)
+          ) {
+            count++
+          }
+        }
+        orderCountMap[pId] = count
+      }
+    } catch (orderErr) {
+      log('Failed to fetch order counts: ' + orderErr.message)
     }
   }
 
-  const result = profiles.map(p => ({
-    id: p.userId,            // === profile.$id; the admin edits/toggles by this
-    email: p.email,
-    name: p.name,
-    phone: p.phone ?? '',
-    role: p.role ?? 'CUSTOMER',
-    isActive: p.isActive ?? true,
-    avatarUrl: p.avatarUrl ?? '',
-    orderCount: orderCountMap[p.userId] ?? 0,
-    createdAt: p.createdAt ?? p.$createdAt,
-    labels: [],
-  }))
+  const result = profiles.map(p => {
+    const pId = p.userId || p.$id
+    const displayName = (p.name && String(p.name).trim())
+      ? String(p.name).trim()
+      : (p.email ? String(p.email) : (p.phone ? `Cliente ${p.phone}` : 'Cliente Compra Rápida'))
+
+    return {
+      id: pId,
+      email: p.email ?? '',
+      name: displayName,
+      phone: p.phone ?? '',
+      role: p.role ?? 'CUSTOMER',
+      isActive: p.isActive ?? true,
+      avatarUrl: p.avatarUrl ?? '',
+      orderCount: orderCountMap[pId] ?? 0,
+      createdAt: p.createdAt ?? p.$createdAt,
+      labels: [],
+    }
+  })
 
   return res.json({ users: result, total: profilesResult.total })
 }
+

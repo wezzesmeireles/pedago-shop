@@ -97,11 +97,59 @@ export default async ({ req, res, log, error }) => {
   const orderId = ID.unique()
   const now = new Date().toISOString()
 
+  // Auto-link or create profile for buyer (including Compra Rápida / guest checkout)
+  let effectiveUserId = userId
+  try {
+    let targetProfile = null
+    if (userId) {
+      const pByUid = await db.listDocuments(DB, 'profiles', [Query.equal('userId', userId), Query.limit(1)])
+      targetProfile = pByUid.documents[0]
+    }
+    if (!targetProfile && customerEmail) {
+      const pByEmail = await db.listDocuments(DB, 'profiles', [Query.equal('email', String(customerEmail).trim()), Query.limit(1)])
+      targetProfile = pByEmail.documents[0]
+    }
+    if (!targetProfile && guestPhone) {
+      const cleanPhone = String(guestPhone).replace(/\D/g, '')
+      if (cleanPhone) {
+        const pByPhone = await db.listDocuments(DB, 'profiles', [Query.equal('phone', cleanPhone), Query.limit(1)])
+        targetProfile = pByPhone.documents[0]
+      }
+    }
+
+    if (targetProfile) {
+      effectiveUserId = targetProfile.userId || targetProfile.$id
+      const updates = {}
+      if (!targetProfile.phone && guestPhone) updates.phone = String(guestPhone).replace(/\D/g, '')
+      if (!targetProfile.name && customerName) updates.name = String(customerName).trim()
+      if (Object.keys(updates).length > 0) {
+        updates.updatedAt = now
+        await db.updateDocument(DB, 'profiles', targetProfile.$id, updates)
+      }
+    } else {
+      const profId = userId || ID.unique()
+      effectiveUserId = profId
+      const cleanPhone = guestPhone ? String(guestPhone).replace(/\D/g, '') : ''
+      await db.createDocument(DB, 'profiles', profId, {
+        userId: profId,
+        name: customerName ? String(customerName).trim() : 'Cliente Compra Rápida',
+        email: customerEmail ? String(customerEmail).trim() : '',
+        phone: cleanPhone,
+        role: 'CUSTOMER',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+  } catch (profErr) {
+    log('Profile auto-link/creation warning: ' + profErr.message)
+  }
+
   // Per-document read for the buyer. The collections only grant collection-level
   // read to label:admin, so without this the customer can't read their own
   // order/items/tokens — breaking "Meus Pedidos", "Meus Downloads" and the
   // checkout-success page. Admin still reads everything via the admin label.
-  const ownerRead = [Permission.read(Role.user(userId))]
+  const ownerRead = [Permission.read(Role.user(effectiveUserId))]
 
   const countResult = await db.listDocuments(DB, 'orders', [Query.limit(1)])
   const orderNumber = `ORD-${new Date().getFullYear()}-${String(countResult.total + 1).padStart(6, '0')}`
@@ -179,7 +227,8 @@ export default async ({ req, res, log, error }) => {
 
   const order = await db.createDocument(DB, 'orders', orderId, {
     orderNumber,
-    userId,
+    userId: effectiveUserId,
+
     customerName: customerName ?? '',
     customerEmail: customerEmail ?? '',
     guestPhone: guestPhone ?? null,
