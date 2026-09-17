@@ -603,57 +603,111 @@ async function loadUsers(page = 1) {
     let userList: any[] = [];
     let total = 0;
 
-    try {
-      const data = await invokeFunction('admin-users', {
-        limit, offset,
-        search: search.value || undefined,
-        role: roleFilter.value || undefined,
-        status: statusFilter.value || undefined,
-      });
-      if (data && Array.isArray((data as any).users)) {
-        userList = (data as any).users;
-        total = (data as any).total ?? userList.length;
+    // Direct Database Query (bypassing edge function to ensure latest logic without deployment)
+    const queries: any[] = [
+      Query.orderDesc('createdAt'),
+      Query.limit(limit),
+      Query.offset(offset),
+    ];
+    if (roleFilter.value) queries.push(Query.equal('role', roleFilter.value));
+    if (statusFilter.value === 'active') queries.push(Query.equal('isActive', true));
+    if (statusFilter.value === 'inactive') queries.push(Query.equal('isActive', false));
+    if (statusFilter.value === 'phone') {
+      queries.push(Query.isNotNull('phone'));
+      queries.push(Query.notEqual('phone', ''));
+    }
+    if (statusFilter.value === 'today') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      queries.push(Query.greaterThanEqual('createdAt', todayStart.toISOString()));
+    }
+    if (search.value) {
+      if (search.value.includes('@')) {
+        queries.push(Query.equal('email', search.value.trim()));
+      } else {
+        queries.push(Query.startsWith('name', search.value.trim()));
       }
-    } catch (fnErr) {
-      console.warn('[UsersView] Edge function failed, using direct DB fallback:', fnErr);
     }
 
-    // Direct Database Fallback if function fails or returns empty
-    if (!userList.length) {
-      const queries: any[] = [
-        Query.orderDesc('createdAt'),
-        Query.limit(limit),
-        Query.offset(offset),
-      ];
-      if (roleFilter.value) queries.push(Query.equal('role', roleFilter.value));
-      if (statusFilter.value === 'active') queries.push(Query.equal('isActive', true));
-      if (statusFilter.value === 'inactive') queries.push(Query.equal('isActive', false));
+    let res;
+    try {
+      res = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, queries);
+    } catch (e) {
+      console.warn('[UsersView] Search failed, falling back to basic list', e);
+      res = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, [
+        Query.orderDesc('createdAt'), Query.limit(limit), Query.offset(offset)
+      ]);
+    }
 
-      const res = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, queries);
-      total = res.total;
-      userList = res.documents.map((p: any) => ({
-        id: p.userId || p.$id,
+    total = res.total;
+    const profiles = res.documents;
+
+    // Fetch recent orders to count purchases
+    let orderCountMap: Record<string, number> = {};
+    if (profiles.length > 0) {
+      try {
+        const allOrders: any[] = [];
+        let cursor = null;
+        for (let i = 0; i < 5; i++) {
+          const q = [
+            Query.orderDesc('$createdAt'),
+            Query.limit(100),
+            // Select causes cursor issues in Web SDK if $id is omitted, but here we include it.
+            // Actually, to be completely safe with Web SDK, let's omit select to ensure cursor works.
+            // Orders are small enough.
+          ];
+          if (cursor) q.push(Query.cursorAfter(cursor));
+          const batch = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, q);
+          allOrders.push(...batch.documents);
+          if (batch.documents.length < 100) break;
+          cursor = batch.documents[batch.documents.length - 1].$id;
+        }
+
+        for (const p of profiles) {
+          const pId = p.userId || p.$id;
+          const pEmail = p.email ? String(p.email).toLowerCase().trim() : null;
+          const pPhone = p.phone ? String(p.phone).replace(/\D/g, '') : null;
+          let count = 0;
+          for (const o of allOrders) {
+            const oUserId = o.userId;
+            const oEmail = o.customerEmail ? String(o.customerEmail).toLowerCase().trim() : null;
+            const oPhone = o.guestPhone ? String(o.guestPhone).replace(/\D/g, '') : null;
+            if (
+              (pId && oUserId && pId === oUserId) ||
+              (pEmail && oEmail && pEmail === oEmail) ||
+              (pPhone && oPhone && pPhone === oPhone)
+            ) {
+              count++;
+            }
+          }
+          orderCountMap[pId] = count;
+        }
+      } catch (e) {
+        console.warn('[UsersView] Failed to fetch orders for counts', e);
+      }
+    }
+
+    userList = profiles.map((p: any) => {
+      const pId = p.userId || p.$id;
+      return {
+        id: pId,
         email: p.email ?? '',
         name: (p.name && String(p.name).trim()) ? String(p.name).trim() : (p.email ? String(p.email) : (p.phone ? `Cliente ${p.phone}` : 'Cliente Compra Rápida')),
         phone: p.phone ?? '',
         role: p.role ?? 'CUSTOMER',
         isActive: p.isActive ?? true,
         avatarUrl: p.avatarUrl ?? p.avatar_url ?? '',
-        orderCount: 0,
+        orderCount: orderCountMap[pId] ?? 0,
         createdAt: p.createdAt ?? p.$createdAt,
-      }));
-    }
+      };
+    });
 
     totalCount.value = total;
     totalPages.value = Math.max(1, Math.ceil(total / limit));
     currentPage.value = page;
     users.value = userList.map((u: any) => ({
       ...u,
-      avatarUrl: u.avatarUrl ?? u.avatar_url,
-      isActive: u.isActive ?? u.is_active,
-      createdAt: u.createdAt ?? u.created_at,
-      ordersCount: Number(u.orderCount ?? u.ordersCount ?? 0),
-      phone: u.phone ?? null,
+      ordersCount: Number(u.orderCount ?? 0),
     })) as any;
   } catch (err) {
     console.error('[UsersView] Error loading users:', err);
