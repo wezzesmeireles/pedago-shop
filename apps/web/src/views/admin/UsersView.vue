@@ -599,25 +599,64 @@ async function loadUsers(page = 1) {
   try {
     const limit = 20;
     const offset = (page - 1) * limit;
-    const data = await invokeFunction('admin-users', {
-      limit, offset,
-      search: search.value || undefined,
-      role: roleFilter.value || undefined,
-      status: statusFilter.value || undefined,
-    });
-    const total = (data as any).total ?? 0;
+
+    let userList: any[] = [];
+    let total = 0;
+
+    try {
+      const data = await invokeFunction('admin-users', {
+        limit, offset,
+        search: search.value || undefined,
+        role: roleFilter.value || undefined,
+        status: statusFilter.value || undefined,
+      });
+      if (data && Array.isArray((data as any).users)) {
+        userList = (data as any).users;
+        total = (data as any).total ?? userList.length;
+      }
+    } catch (fnErr) {
+      console.warn('[UsersView] Edge function failed, using direct DB fallback:', fnErr);
+    }
+
+    // Direct Database Fallback if function fails or returns empty
+    if (!userList.length) {
+      const queries: any[] = [
+        Query.orderDesc('createdAt'),
+        Query.limit(limit),
+        Query.offset(offset),
+      ];
+      if (roleFilter.value) queries.push(Query.equal('role', roleFilter.value));
+      if (statusFilter.value === 'active') queries.push(Query.equal('isActive', true));
+      if (statusFilter.value === 'inactive') queries.push(Query.equal('isActive', false));
+
+      const res = await databases.listDocuments(DB_ID, COLLECTIONS.PROFILES, queries);
+      total = res.total;
+      userList = res.documents.map((p: any) => ({
+        id: p.userId || p.$id,
+        email: p.email,
+        name: p.name,
+        phone: p.phone ?? '',
+        role: p.role ?? 'CUSTOMER',
+        isActive: p.isActive ?? true,
+        avatarUrl: p.avatarUrl ?? p.avatar_url ?? '',
+        orderCount: 0,
+        createdAt: p.createdAt ?? p.$createdAt,
+      }));
+    }
+
     totalCount.value = total;
     totalPages.value = Math.max(1, Math.ceil(total / limit));
     currentPage.value = page;
-    users.value = ((data as any).users ?? []).map((u: any) => ({
+    users.value = userList.map((u: any) => ({
       ...u,
       avatarUrl: u.avatarUrl ?? u.avatar_url,
       isActive: u.isActive ?? u.is_active,
       createdAt: u.createdAt ?? u.created_at,
       ordersCount: Number(u.orderCount ?? u.ordersCount ?? 0),
       phone: u.phone ?? null,
-    }));
-  } catch {
+    })) as any;
+  } catch (err) {
+    console.error('[UsersView] Error loading users:', err);
     users.value = [] as any;
     totalCount.value = 0;
     totalPages.value = 1;

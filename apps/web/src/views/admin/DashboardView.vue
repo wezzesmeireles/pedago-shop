@@ -598,17 +598,50 @@ const dateLabel = computed(() =>
   new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 );
 
+function parseDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function isSameDay(d: Date, now: Date): boolean {
+  return d.getFullYear() === now.getFullYear() &&
+         d.getMonth() === now.getMonth() &&
+         d.getDate() === now.getDate();
+}
+
+function isSameMonth(d: Date, now: Date): boolean {
+  return d.getFullYear() === now.getFullYear() &&
+         d.getMonth() === now.getMonth();
+}
+
+function isSameYear(d: Date, now: Date): boolean {
+  return d.getFullYear() === now.getFullYear();
+}
+
+function isSameWeek(d: Date, now: Date): boolean {
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay(), 0, 0, 0, 0);
+  const endOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + 6, 23, 59, 59, 999);
+  return d >= startOfWeek && d <= endOfWeek;
+}
+
 // ── Receita/Pedidos por mês (área interativa) ───────────────
 const chartData = computed(() => {
   const now = new Date();
   const n = chartRange.value;
   return Array.from({ length: n }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (n - 1 - i), 1);
-    const start = d.toISOString();
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString();
+    const start = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
     let revenue = 0, orders = 0;
     for (const o of paidOrders.value) {
-      if (o.paidAt && o.paidAt >= start && o.paidAt < end) { revenue += Number(o.totalAmount || 0); orders++; }
+      if (o.paidAt) {
+        const pd = parseDate(o.paidAt);
+        if (pd && pd <= now && pd >= start && pd <= end) {
+          revenue += Number(o.totalAmount || 0);
+          orders++;
+        }
+      }
     }
     return {
       label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
@@ -699,8 +732,13 @@ const paymentMethodSegments = computed(() => {
     { label: 'Cartão', count: 0, color: '#3b82f6' }, // blue
     { label: 'Grátis', count: 0, color: '#8b5cf6' }, // violet
   ];
+  const now = new Date();
   
   for (const o of paidOrders.value) {
+    if (o.paidAt) {
+      const pd = parseDate(o.paidAt);
+      if (pd && pd > now) continue;
+    }
     if (o.paymentMethod === 'PIX') items[0].count++;
     else if (o.paymentMethod === 'CREDIT_CARD') items[1].count++;
     else if (o.paymentMethod === 'FREE' || o.totalAmount === 0) items[2].count++;
@@ -723,11 +761,15 @@ const paymentMethodSegments = computed(() => {
 const weekdaySales = computed(() => {
   const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   const counts = new Array(7).fill(0);
+  const now = new Date();
   
   for (const o of paidOrders.value) {
     if (o.paidAt) {
-      const d = new Date(o.paidAt).getDay();
-      counts[d]++;
+      const pd = parseDate(o.paidAt);
+      if (pd && pd <= now) {
+        const d = pd.getDay();
+        counts[d]++;
+      }
     }
   }
   
@@ -769,7 +811,7 @@ function formatPriceShort(p: number) {
   return `R$${p.toFixed(0)}`;
 }
 
-const sum = (docs: any[]) => (docs ?? []).reduce((s: number, r: any) => s + Number(r.totalAmount), 0);
+const sum = (docs: any[]) => (docs ?? []).reduce((s: number, r: any) => s + Number(r.totalAmount || 0), 0);
 
 // ── Storage monitoring ──────────────────────────────────────
 const PLAN_LIMIT_BYTES = 1073741824; // 1 GB free tier
@@ -821,8 +863,6 @@ async function loadCategorySales() {
   try {
     const [prods, cats] = await Promise.all([
       databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.limit(500), Query.select(['$id', 'price', 'salesCount', 'categoryId'])]),
-      // No select here: Query.select omits $id unless you ask for it, and we key
-      // the category map by $id. (7 categories — nothing to optimise anyway.)
       databases.listDocuments(DB_ID, COLLECTIONS.CATEGORIES, [Query.limit(100)]),
     ]);
     const catName: Record<string, string> = Object.fromEntries(cats.documents.map((c: any) => [c.$id, c.name]));
@@ -842,14 +882,9 @@ async function loadCategorySales() {
 
 async function loadDashboard() {
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString();
 
   // ── Phase 1: cheap counts + lists — shows the cards/lists immediately ──
-  // (counts are limit(1) queries that return only `.total`; recent orders
-  // fetch just the 8 rows we render, selecting only the needed fields.)
   try {
     const [paidCount, monthOrders, pending, cancelled, usersRes, recentRes, topProds] = await Promise.all([
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.equal('status', 'PAID'), Query.limit(1)]),
@@ -860,7 +895,6 @@ async function loadDashboard() {
       databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [Query.orderDesc('$createdAt'), Query.limit(10), Query.select(['$id', 'orderNumber', 'totalAmount', 'customerName', 'status', 'paidAt', 'paymentMethod', 'guestPhone', '$createdAt'])]),
       databases.listDocuments(DB_ID, COLLECTIONS.PRODUCTS, [Query.isNull('deletedAt'), Query.orderDesc('salesCount'), Query.limit(5)]),
     ]);
-    // keep any revenue we already have (e.g. on KeepAlive revisit) so it doesn't flash to 0
     stats.value = {
       revenue: stats.value.revenue,
       orders: { total: paidCount.total, month: monthOrders.total, pending: pending.total, cancelled: cancelled.total },
@@ -892,7 +926,6 @@ async function loadDashboard() {
     let hasMore = true;
     let cursor: string | null = null;
     
-    // Batch fetch to avoid timeout/slowness on large datasets in Appwrite
     while (hasMore) {
       const queries = [
         Query.equal('status', 'PAID'),
@@ -912,20 +945,29 @@ async function loadDashboard() {
       }
     }
     
-    const sumIf = (pred: (o: any) => boolean) => paid.reduce((s, o) => s + (pred(o) ? Number(o.totalAmount || 0) : 0), 0);
+    const currentDate = new Date();
+    const sumIf = (pred: (d: Date) => boolean) => paid.reduce((s, o) => {
+      const d = parseDate(o.paidAt);
+      if (!d || d > currentDate) return s; // ignore invalid or future dates
+      return pred(d) ? s + Number(o.totalAmount || 0) : s;
+    }, 0);
 
     stats.value = {
       ...stats.value,
       revenue: {
-        total: sum(paid),
-        day: sumIf(o => o.paidAt >= startOfDay),
-        week: sumIf(o => o.paidAt >= startOfWeek),
-        month: sumIf(o => o.paidAt >= startOfMonth),
-        year: sumIf(o => o.paidAt >= startOfYear),
+        total: paid.reduce((s, o) => {
+          const d = parseDate(o.paidAt);
+          if (d && d > currentDate) return s; // ignore future dates in total
+          return s + Number(o.totalAmount || 0);
+        }, 0),
+        day: sumIf(d => isSameDay(d, currentDate)),
+        week: sumIf(d => isSameWeek(d, currentDate)),
+        month: sumIf(d => isSameMonth(d, currentDate)),
+        year: sumIf(d => isSameYear(d, currentDate)),
       },
     };
 
-    paidOrders.value = paid; // feeds the interactive monthly chart (revenue + orders)
+    paidOrders.value = paid;
   } catch (e) {
     console.error('[DashboardView] revenue', e);
   } finally {

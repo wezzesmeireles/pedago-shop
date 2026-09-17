@@ -40,6 +40,8 @@ export default async ({ req, res, log, error }) => {
   // Supabase), newest first. The auth user's $createdAt is only the migration
   // timestamp, so listing auth users would order everyone by migration time.
   const search = req.query?.search ?? parsedBody.search ?? ''
+  const role = req.query?.role ?? parsedBody.role ?? ''
+  const status = req.query?.status ?? parsedBody.status ?? ''
   const limit = Math.min(parseInt(req.query?.limit ?? parsedBody.limit ?? '50'), 100)
   const offset = parseInt(req.query?.offset ?? parsedBody.offset ?? '0')
 
@@ -48,9 +50,42 @@ export default async ({ req, res, log, error }) => {
     Query.limit(limit),
     Query.offset(offset),
   ]
-  if (search) profileQueries.push(Query.search('name', search))
 
-  const profilesResult = await db.listDocuments(DB, 'profiles', profileQueries)
+  if (role) {
+    profileQueries.push(Query.equal('role', role))
+  }
+  if (status === 'active') {
+    profileQueries.push(Query.equal('isActive', true))
+  } else if (status === 'inactive') {
+    profileQueries.push(Query.equal('isActive', false))
+  } else if (status === 'phone') {
+    profileQueries.push(Query.isNotNull('phone'))
+    profileQueries.push(Query.notEqual('phone', ''))
+  } else if (status === 'today') {
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    profileQueries.push(Query.greaterThanEqual('createdAt', todayStart.toISOString()))
+  }
+
+  if (search) {
+    if (search.includes('@')) {
+      profileQueries.push(Query.equal('email', search.trim()))
+    } else {
+      profileQueries.push(Query.startsWith('name', search.trim()))
+    }
+  }
+
+  let profilesResult
+  try {
+    profilesResult = await db.listDocuments(DB, 'profiles', profileQueries)
+  } catch (err) {
+    log('Failed listDocuments with filters, falling back to basic list: ' + err.message)
+    profilesResult = await db.listDocuments(DB, 'profiles', [
+      Query.orderDesc('createdAt'),
+      Query.limit(limit),
+      Query.offset(offset),
+    ])
+  }
   const profiles = profilesResult.documents
   const userIds = profiles.map(p => p.userId)
 
