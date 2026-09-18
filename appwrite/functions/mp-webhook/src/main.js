@@ -42,30 +42,74 @@ export default async ({ req, res, log, error }) => {
   async function sendDiscord(webhookUrl, order, itemsText, payLabel, buyerLocation) {
     if (!webhookUrl) return
     try {
-      const fields = [
-        { name: '🧾 Pedido', value: `**${order.orderNumber}**`, inline: true },
-        { name: '💰 Valor', value: `**R$ ${Number(order.totalAmount || 0).toFixed(2)}** (${payLabel})`, inline: true },
-        { name: '👤 Cliente', value: `${order.customerName || 'Cliente'}${order.customerEmail ? `\n📧 ${order.customerEmail}` : ''}${order.guestPhone ? `\n📱 ${order.guestPhone}` : ''}`, inline: false },
+      const frontendUrl = process.env.FRONTEND_URL || 'https://www.sitepedagogico.com'
+      const phone = order.guestPhone ? String(order.guestPhone).replace(/\D/g, '') : ''
+      const customerSearch = encodeURIComponent(order.customerEmail || order.customerName || phone || '')
+
+      const components = [
+        {
+          type: 1,
+          components: [
+            {
+              type: 2,
+              style: 5,
+              label: 'Ver Pedido',
+              url: `${frontendUrl}/admin/pedidos?search=${encodeURIComponent(order.orderNumber)}`,
+              emoji: { name: '🧾' },
+            },
+            {
+              type: 2,
+              style: 5,
+              label: 'Ver Cliente',
+              url: `${frontendUrl}/admin/usuarios?search=${customerSearch}`,
+              emoji: { name: '👤' },
+            },
+            ...(phone ? [{
+              type: 2,
+              style: 5,
+              label: 'WhatsApp',
+              url: `https://wa.me/55${phone}?text=${encodeURIComponent(`Olá ${order.customerName ? order.customerName.split(' ')[0] : ''}! Tudo bem? Vi seu pedido ${order.orderNumber} no Site Pedagógico.`)}`,
+              emoji: { name: '💬' },
+            }] : []),
+          ],
+        },
       ]
+
+      const customerInfo = [
+        `**${order.customerName || 'Cliente'}**`,
+        order.customerEmail ? `📧 \`${order.customerEmail}\`` : null,
+        phone ? `📱 \`${order.guestPhone}\` *(Compra Rápida)*` : null,
+      ].filter(Boolean).join('\n')
+
+      const fields = [
+        { name: '💰 Valor Pago', value: `**R$ ${Number(order.totalAmount || 0).toFixed(2)}**`, inline: true },
+        { name: '💳 Método', value: payLabel, inline: true },
+        { name: '📍 Local', value: buyerLocation || 'Brasil', inline: true },
+        { name: '👤 Dados do Cliente', value: customerInfo || 'Cliente não identificado', inline: false },
+      ]
+
       if (itemsText) {
-        fields.push({ name: '🛍️ Itens', value: itemsText.slice(0, 1000), inline: false })
+        fields.push({ name: '📦 Itens do Pedido', value: `>>> ${itemsText.slice(0, 950)}`, inline: false })
       }
-      if (buyerLocation) {
-        fields.push({ name: '📍 Localização', value: buyerLocation, inline: true })
-      }
+
       await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: `🎉 **Nova venda aprovada!** — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+          content: `💸 **PAGAMENTO CONFIRMADO!** R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
           embeds: [{
-            title: `✅ Pagamento Aprovado — ${order.orderNumber}`,
-            color: 0x10b981,
+            title: `✅ Pedido ${order.orderNumber} — Pago com Sucesso`,
+            color: 0x10B981,
+            author: {
+              name: 'Site Pedagógico • Notificação de Venda',
+              icon_url: 'https://www.sitepedagogico.com/favicon.ico',
+            },
             fields,
-            footer: { text: 'Site Pedagógico • Notificações Automáticas' },
-            timestamp: new Date().toISOString()
-          }]
-        })
+            footer: { text: 'Site Pedagógico • Notificações em Tempo Real' },
+            timestamp: new Date().toISOString(),
+          }],
+          components,
+        }),
       })
     } catch (err) {
       log('Discord webhook failed: ' + err.message)
