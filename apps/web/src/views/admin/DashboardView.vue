@@ -13,9 +13,9 @@
     <!-- ── Greeting ──────────────────────────────────────────── -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-          <h1 class="font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            {{ greeting }}, {{ firstName }} (v2) <span class="inline-block origin-[70%_80%] animate-wave">ðŸ‘‹</span>
-          </h1>
+        <h1 class="font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          {{ greeting }}, {{ firstName }} <span class="inline-block origin-[70%_80%] animate-wave">👋</span>
+        </h1>
         <p class="text-sm text-slate-500 mt-1 font-medium">☀️ {{ dateLabel }} · um resumo fresquinho da sua loja</p>
       </div>
       <RouterLink to="/admin/produtos"
@@ -931,36 +931,17 @@ async function loadDashboard() {
     const paid: any[] = [];
     let offset = 0;
     let hasMore = true;
-    
-    while (hasMore && offset < 3000) {
-      const queries = [
-        Query.equal('status', 'PAID'),
-        Query.orderDesc('$createdAt'),
-        Query.limit(100),
-        Query.offset(offset),
-      ];
-      
-      const batchRes = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
-      paid.push(...batchRes.documents);
-      
-      if (batchRes.documents.length < 100) {
-        hasMore = false;
-      } else {
-        offset += 100;
-      }
-    }
-    
-    const currentDate = new Date();
-    const sumIf = (pred: (d: Date) => boolean) => paid.reduce((s, o) => {
-      const d = parseDate(getOrderDate(o));
-      if (!d) return s; // ignore invalid dates
-      return pred(d) ? s + Number(o.totalAmount || 0) : s;
-    }, 0);
 
-    stats.value = {
-      ...stats.value,
-      revenue: {
-        total: paid.reduce((s, o) => {
+    const computeRevenue = (orders: any[]) => {
+      const currentDate = new Date();
+      const sumIf = (pred: (d: Date) => boolean) => orders.reduce((s, o) => {
+        const d = parseDate(getOrderDate(o));
+        if (!d) return s;
+        return pred(d) ? s + Number(o.totalAmount || 0) : s;
+      }, 0);
+
+      return {
+        total: orders.reduce((s, o) => {
           const d = parseDate(getOrderDate(o));
           return s + Number(o.totalAmount || 0);
         }, 0),
@@ -968,10 +949,36 @@ async function loadDashboard() {
         week: sumIf(d => isSameWeek(d, currentDate)),
         month: sumIf(d => isSameMonth(d, currentDate)),
         year: sumIf(d => isSameYear(d, currentDate)),
-      },
+      };
     };
 
-    paidOrders.value = paid;
+    while (hasMore && offset < 1000) {
+      const queries = [
+        Query.equal('status', 'PAID'),
+        Query.orderDesc('$createdAt'),
+        Query.limit(100),
+        Query.offset(offset),
+      ];
+
+      const batchRes = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
+      paid.push(...batchRes.documents);
+
+      // Immediately update stats on the first batch so Day/Week/Month show instantly
+      stats.value = {
+        ...stats.value,
+        revenue: computeRevenue(paid),
+      };
+      paidOrders.value = [...paid];
+      if (offset === 0) {
+        revenueLoading.value = false;
+      }
+
+      if (batchRes.documents.length < 100) {
+        hasMore = false;
+      } else {
+        offset += 100;
+      }
+    }
   } catch (e) {
     console.error('[DashboardView] revenue', e);
   } finally {

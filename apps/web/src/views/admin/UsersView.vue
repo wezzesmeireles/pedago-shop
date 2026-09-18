@@ -4,7 +4,7 @@
     <!-- ── Header ── -->
     <div class="flex items-center justify-between gap-3 flex-wrap">
       <div>
-        <h1 class="text-2xl font-black text-slate-900">Usuários (v2)</h1>
+        <h1 class="text-2xl font-black text-slate-900">Usuários</h1>
         <p class="text-sm text-slate-500 mt-0.5">Gerencie os clientes cadastrados</p>
       </div>
     </div>
@@ -697,7 +697,7 @@ async function loadUsers(page = 1) {
         role: p.role ?? 'CUSTOMER',
         isActive: p.isActive ?? true,
         avatarUrl: p.avatarUrl ?? p.avatar_url ?? '',
-        orderCount: orderCountMap[pId] ?? 0,
+        ordersCount: orderCountMap[pId] ?? 0,
         createdAt: p.createdAt ?? p.$createdAt,
       };
     });
@@ -705,29 +705,7 @@ async function loadUsers(page = 1) {
     totalCount.value = total;
     totalPages.value = Math.max(1, Math.ceil(total / limit));
     currentPage.value = page;
-      users.value = await Promise.all(userList.map(async (u: any) => {
-        let ordersCount = 0;
-        try {
-          const uId = u.userId ?? u.$id;
-          const uEmail = u.email ? String(u.email).toLowerCase().trim() : null;
-          const uPhone = u.phone ? String(u.phone).replace(/\D/g, '') : null;
-          const q = [Query.equal('status', 'PAID'), Query.limit(1)];
-          const orq = [];
-          if (uId) orq.push(Query.equal('userId', uId));
-          if (uEmail) orq.push(Query.equal('customerEmail', uEmail));
-          if (uPhone) orq.push(Query.equal('guestPhone', uPhone));
-          if (orq.length > 0) q.push(Query.or(orq));
-          
-          const cr = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, q);
-          ordersCount = cr.total;
-        } catch (e) {
-          console.error('Error counting orders', e);
-        }
-        return {
-          ...u,
-          ordersCount,
-        };
-      })) as any;
+    users.value = userList as any;
   } catch (err) {
     console.error('[UsersView] Error loading users:', err);
     users.value = [] as any;
