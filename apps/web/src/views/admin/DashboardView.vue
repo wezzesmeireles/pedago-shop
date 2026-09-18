@@ -13,9 +13,9 @@
     <!-- ── Greeting ──────────────────────────────────────────── -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
-        <h1 class="font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-          {{ greeting }}, {{ firstName }} (v2) <span class="inline-block origin-[70%_80%] animate-wave">👋</span>
-        </h1>
+          <h1 class="font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            {{ greeting }}, {{ firstName }} (v2) <span class="inline-block origin-[70%_80%] animate-wave">ðŸ‘‹</span>
+          </h1>
         <p class="text-sm text-slate-500 mt-1 font-medium">☀️ {{ dateLabel }} · um resumo fresquinho da sua loja</p>
       </div>
       <RouterLink to="/admin/produtos"
