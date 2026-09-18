@@ -39,6 +39,40 @@ export default async ({ req, res, log, error }) => {
     } catch { return '' }
   }
 
+  async function sendDiscord(webhookUrl, orderNumber, totalAmount, payLabel, customerName, customerEmail, guestPhone, itemsText, buyerLocation, status) {
+    if (!webhookUrl) return
+    try {
+      const isPaid = status === 'PAID'
+      const fields = [
+        { name: '🧾 Pedido', value: `**${orderNumber}**`, inline: true },
+        { name: '💰 Valor', value: `**R$ ${Number(totalAmount || 0).toFixed(2)}** (${payLabel})`, inline: true },
+        { name: '👤 Cliente', value: `${customerName || 'Cliente'}${customerEmail ? `\n📧 ${customerEmail}` : ''}${guestPhone ? `\n📱 ${guestPhone}` : ''}`, inline: false },
+      ]
+      if (itemsText) {
+        fields.push({ name: '🛍️ Itens', value: itemsText.slice(0, 1000), inline: false })
+      }
+      if (buyerLocation) {
+        fields.push({ name: '📍 Localização', value: buyerLocation, inline: true })
+      }
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: isPaid ? `🎉 **Nova venda aprovada!** — R$ ${Number(totalAmount || 0).toFixed(2)}` : `🛒 **Novo pedido gerado (${payLabel})** — R$ ${Number(totalAmount || 0).toFixed(2)}`,
+          embeds: [{
+            title: isPaid ? `✅ Pagamento Aprovado — ${orderNumber}` : `🛒 Pedido Criado — ${orderNumber}`,
+            color: isPaid ? 0x10b981 : 0x3b82f6,
+            fields,
+            footer: { text: 'Site Pedagógico • Notificações Automáticas' },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      })
+    } catch (err) {
+      log('Discord notification failed: ' + err.message)
+    }
+  }
+
   let body
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
@@ -281,24 +315,41 @@ export default async ({ req, res, log, error }) => {
     }
   }
 
-  // Telegram notifications (non-blocking) — uses telegramRecipients array
+  // Notifications (Discord & Telegram)
   try {
+    const buyerLocation = await geoTask
+    const payLabel = method === 'PIX' ? '💠 PIX'
+      : method === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
+      : method === 'FREE' ? '🎁 Gratuito'
+      : esc(method || '—')
+    const statusLabel = status === 'PAID' ? '✅ Pago' : '⏳ Aguardando pagamento'
+    const itemsText = orderItems
+      .map(oi => `• ${oi.product.name}${((oi.quantity || 1) > 1) ? ` (x${oi.quantity})` : ''}`)
+      .join('\n') || '—'
+
+    // Discord Webhook
+    if (siteConfig?.discordWebhookUrl) {
+      await sendDiscord(
+        siteConfig.discordWebhookUrl,
+        orderNumber,
+        totalAmount,
+        payLabel,
+        customerName,
+        customerEmail,
+        guestPhone,
+        itemsText,
+        buyerLocation,
+        status
+      )
+    }
+
+    // Telegram
     if (siteConfig?.telegramBotToken) {
       const recipients = siteConfig.telegramRecipients ?? []
-      // Fallback to old scalar field if array is empty
       const chatIds = recipients.length > 0
         ? recipients.map(r => r.chatId)
         : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
 
-      const buyerLocation = await geoTask
-      const payLabel = method === 'PIX' ? '💠 PIX'
-        : method === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
-        : method === 'FREE' ? '🎁 Gratuito'
-        : esc(method || '—')
-      const statusLabel = status === 'PAID' ? '✅ Pago' : '⏳ Aguardando pagamento'
-      const itemsText = orderItems
-        .map(oi => `  • ${esc(oi.product.name)}${(oi.quantity > 1) ? ` (x${oi.quantity})` : ''}`)
-        .join('\n') || '—'
       const msg =
         `🛒 <b>Novo Pedido</b> — <b>${esc(orderNumber)}</b>\n\n` +
         `👤 <b>${esc(customerName || 'Cliente')}</b>\n` +
@@ -317,7 +368,7 @@ export default async ({ req, res, log, error }) => {
       }
     }
   } catch (err) {
-    log('Telegram notification failed: ' + err.message)
+    log('Notification failed: ' + err.message)
   }
 
   // Push acompanha o mesmo evento do Telegram. Falhas ou usuários sem target

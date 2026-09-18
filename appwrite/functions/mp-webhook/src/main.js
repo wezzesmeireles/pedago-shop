@@ -39,6 +39,39 @@ export default async ({ req, res, log, error }) => {
     } catch { return '' }
   }
 
+  async function sendDiscord(webhookUrl, order, itemsText, payLabel, buyerLocation) {
+    if (!webhookUrl) return
+    try {
+      const fields = [
+        { name: '🧾 Pedido', value: `**${order.orderNumber}**`, inline: true },
+        { name: '💰 Valor', value: `**R$ ${Number(order.totalAmount || 0).toFixed(2)}** (${payLabel})`, inline: true },
+        { name: '👤 Cliente', value: `${order.customerName || 'Cliente'}${order.customerEmail ? `\n📧 ${order.customerEmail}` : ''}${order.guestPhone ? `\n📱 ${order.guestPhone}` : ''}`, inline: false },
+      ]
+      if (itemsText) {
+        fields.push({ name: '🛍️ Itens', value: itemsText.slice(0, 1000), inline: false })
+      }
+      if (buyerLocation) {
+        fields.push({ name: '📍 Localização', value: buyerLocation, inline: true })
+      }
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `🎉 **Nova venda aprovada!** — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+          embeds: [{
+            title: `✅ Pagamento Aprovado — ${order.orderNumber}`,
+            color: 0x10b981,
+            fields,
+            footer: { text: 'Site Pedagógico • Notificações Automáticas' },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      })
+    } catch (err) {
+      log('Discord webhook failed: ' + err.message)
+    }
+  }
+
   // Parse body safely
   let payload
   try {
@@ -191,44 +224,59 @@ export default async ({ req, res, log, error }) => {
     try {
       const cfg = await db.getDocument(DB, 'site_config', 'global')
       const siteConfig = JSON.parse(cfg.value)
-      if (wonNotifyClaim && siteConfig.telegramBotToken) {
-        const recipients = siteConfig.telegramRecipients ?? []
-        const chatIds = recipients.length > 0
-          ? recipients.map(r => r.chatId)
-          : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
+
+      if (wonNotifyClaim) {
         let buyerIp = '', buyerLocation = ''
         try {
           const meta = order.metadata ? JSON.parse(order.metadata) : {}
           buyerIp = meta.buyerIp || ''
           if (buyerIp) buyerLocation = await geolocate(buyerIp)
         } catch {}
+
         const payLabel = order.paymentMethod === 'PIX' ? '💠 PIX'
           : order.paymentMethod === 'CREDIT_CARD' ? '💳 Cartão de Crédito'
           : esc(order.paymentMethod || '—')
+
         const itemsText = itemsResult.documents
-          .map(it => `  • ${esc(it.productName)}${((it.quantity || 1) > 1) ? ` (x${it.quantity})` : ''}`)
+          .map(it => `• ${it.productName}${((it.quantity || 1) > 1) ? ` (x${it.quantity})` : ''}`)
           .join('\n') || '—'
-        let when = ''
-        try { when = new Date(now).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { when = now }
-        const msg =
-          `✅ <b>Pagamento Aprovado!</b>\n\n` +
-          `🧾 <b>${esc(order.orderNumber)}</b>\n` +
-          `👤 <b>${esc(order.customerName || 'Cliente')}</b>\n` +
-          `📧 ${esc(order.customerEmail || '—')}\n` +
-          (order.guestPhone ? `📱 ${esc(order.guestPhone)}\n🔰 Compra Rápida\n` : '') +
-          `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
-          `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b>   ${payLabel}` +
-          (payment.date_approved ? `\n✅ Pago em: ${dtBR(payment.date_approved)}` : '') +
-          (order.mpPaymentId ? `\n🔑 ID MP: <code>${esc(order.mpPaymentId)}</code>` : '') +
-          (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
-          (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
-          `\n🕐 ${when}`
-        for (const chatId of chatIds) {
-          await sendTelegram(siteConfig.telegramBotToken, chatId, msg)
+
+        // Discord Webhook Notification
+        if (siteConfig.discordWebhookUrl) {
+          await sendDiscord(siteConfig.discordWebhookUrl, order, itemsText, payLabel, buyerLocation)
+        }
+
+        // Telegram Notification
+        if (siteConfig.telegramBotToken) {
+          const recipients = siteConfig.telegramRecipients ?? []
+          const chatIds = recipients.length > 0
+            ? recipients.map(r => r.chatId)
+            : siteConfig.telegramChatId ? [siteConfig.telegramChatId] : []
+
+          let when = ''
+          try { when = new Date(now).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { when = now }
+
+          const msg =
+            `✅ <b>Pagamento Aprovado!</b>\n\n` +
+            `🧾 <b>${esc(order.orderNumber)}</b>\n` +
+            `👤 <b>${esc(order.customerName || 'Cliente')}</b>\n` +
+            `📧 ${esc(order.customerEmail || '—')}\n` +
+            (order.guestPhone ? `📱 ${esc(order.guestPhone)}\n🔰 Compra Rápida\n` : '') +
+            `\n🛍 <b>Itens:</b>\n${itemsText}\n\n` +
+            `💰 <b>R$ ${Number(order.totalAmount || 0).toFixed(2)}</b>   ${payLabel}` +
+            (payment.date_approved ? `\n✅ Pago em: ${dtBR(payment.date_approved)}` : '') +
+            (order.mpPaymentId ? `\n🔑 ID MP: <code>${esc(order.mpPaymentId)}</code>` : '') +
+            (buyerLocation ? `\n📍 ${esc(buyerLocation)}` : '') +
+            (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
+            `\n🕐 ${when}`
+
+          for (const chatId of chatIds) {
+            await sendTelegram(siteConfig.telegramBotToken, chatId, msg)
+          }
         }
       }
     } catch (err) {
-      log('Telegram notification failed: ' + err.message)
+      log('Notification failed: ' + err.message)
     }
 
     // Push nativo pro app do admin (FCM via Appwrite Messaging), espelhando o

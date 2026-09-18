@@ -125,6 +125,39 @@ export default async ({ req, res, log }) => {
     } catch (err) { log('Telegram failed: ' + err.message) }
   }
 
+  async function notifyDiscord(order, itemsText, payLabel, buyerLocation) {
+    if (!siteConfig?.discordWebhookUrl) return
+    try {
+      const fields = [
+        { name: '🧾 Pedido', value: `**${order.orderNumber}**`, inline: true },
+        { name: '💰 Valor', value: `**R$ ${Number(order.totalAmount || 0).toFixed(2)}** (${payLabel})`, inline: true },
+        { name: '👤 Cliente', value: `${order.customerName || 'Cliente'}${order.customerEmail ? `\n📧 ${order.customerEmail}` : ''}${order.guestPhone ? `\n📱 ${order.guestPhone}` : ''}`, inline: false },
+      ]
+      if (itemsText) {
+        fields.push({ name: '🛍️ Itens', value: itemsText.slice(0, 1000), inline: false })
+      }
+      if (buyerLocation) {
+        fields.push({ name: '📍 Localização', value: buyerLocation, inline: true })
+      }
+      await fetch(siteConfig.discordWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `🎉 **Nova venda aprovada!** — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+          embeds: [{
+            title: `✅ Pagamento Aprovado — ${order.orderNumber}`,
+            color: 0x10b981,
+            fields,
+            footer: { text: 'Site Pedagógico • Notificações Automáticas' },
+            timestamp: new Date().toISOString()
+          }]
+        })
+      })
+    } catch (err) {
+      log('Discord webhook failed: ' + err.message)
+    }
+  }
+
   // Push nativo pro app do admin (FCM via Appwrite Messaging). Espelha o
   // Telegram: enviado pra todos os usuários com role ADMIN (cada aparelho do
   // admin é um push target). Best-effort: falha aqui nunca quebra o pedido.
@@ -311,6 +344,7 @@ export default async ({ req, res, log }) => {
             (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
             `\n🕐 ${when}`
           )
+          await notifyDiscord(order, itemsText, payLabel, buyerLocation)
           await sendAdminPush(
             `🎉 Nova venda — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
             `Pedido ${order.orderNumber} — ${(order.customerName || 'Cliente').split(' ')[0]}`,
