@@ -705,10 +705,29 @@ async function loadUsers(page = 1) {
     totalCount.value = total;
     totalPages.value = Math.max(1, Math.ceil(total / limit));
     currentPage.value = page;
-    users.value = userList.map((u: any) => ({
-      ...u,
-      ordersCount: Number(u.orderCount ?? 0),
-    })) as any;
+      users.value = await Promise.all(userList.map(async (u: any) => {
+        let ordersCount = 0;
+        try {
+          const uId = u.userId ?? u.$id;
+          const uEmail = u.email ? String(u.email).toLowerCase().trim() : null;
+          const uPhone = u.phone ? String(u.phone).replace(/\D/g, '') : null;
+          const q = [Query.equal('status', 'PAID'), Query.limit(1)];
+          const orq = [];
+          if (uId) orq.push(Query.equal('userId', uId));
+          if (uEmail) orq.push(Query.equal('customerEmail', uEmail));
+          if (uPhone) orq.push(Query.equal('guestPhone', uPhone));
+          if (orq.length > 0) q.push(Query.or(orq));
+          
+          const cr = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, q);
+          ordersCount = cr.total;
+        } catch (e) {
+          console.error('Error counting orders', e);
+        }
+        return {
+          ...u,
+          ordersCount,
+        };
+      })) as any;
   } catch (err) {
     console.error('[UsersView] Error loading users:', err);
     users.value = [] as any;
