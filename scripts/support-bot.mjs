@@ -1,4 +1,4 @@
-import { Client, Databases } from 'node-appwrite'
+﻿import { Client, Databases } from 'node-appwrite'
 
 const client = new Client()
   .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://appwrite.wsgestao.digital/v1')
@@ -84,13 +84,243 @@ async function sendDM(token, userId, payload) {
   }
 }
 
+export async function postSupportPanel(cfg) {
+  if (!cfg) cfg = await getConfig()
+
+  const payload = {
+    content: '🛎️ **CENTRAL DE ATENDIMENTO E SUPORTE AO DESENVOLVEDOR**',
+    embeds: [{
+      title: '🛠️ Sistema de Chamados & Reporte de Bugs',
+      description: 'Encontrou algum erro no site, problema com pedidos, downloads ou precisa de ajuste técnico? Clique no botão **Abrir Ticket** abaixo para relatar.',
+      color: 0x5865F2,
+      fields: [
+        {
+          name: '🎫 Como funciona o botão Abrir Ticket?',
+          value: 'Ao clicar, um formulário abrirá na sua tela. Basta preencher o que aconteceu. O bot registrará seu chamado na hora e responderá: `Pedido adicionado para o desenvolvedor`.',
+          inline: false
+        },
+        {
+          name: '📊 Relatório Diário e Prompt Técnico',
+          value: 'No final do dia (ou clicando em **Gerar Relatório do Dia**), o bot compila todos os chamados e entrega um **Prompt de Correção completo** direto no privado do desenvolvedor.',
+          inline: false
+        }
+      ],
+      footer: { text: 'Site Pedagógico • Suporte Técnico' },
+      timestamp: new Date().toISOString()
+    }],
+    components: [
+      {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: 3, // SUCCESS / Green
+            label: 'Abrir Ticket',
+            custom_id: 'open_ticket',
+            emoji: { name: '🎫' }
+          },
+          {
+            type: 2,
+            style: 1, // PRIMARY / Blurple
+            label: 'Gerar Relatório do Dia',
+            custom_id: 'daily_report',
+            emoji: { name: '📊' }
+          },
+          {
+            type: 2,
+            style: 5, // LINK
+            label: 'Painel Admin',
+            url: `${cfg.frontendUrl}/admin`,
+            emoji: { name: '🌐' }
+          }
+        ]
+      }
+    ]
+  }
+
+  const res = await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bot ${cfg.token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
+
+  console.log('Support panel posted to #suporte! Status:', res.status)
+}
+
+async function handleInteraction(interaction, cfg) {
+  const { id, token: interactionToken, type, data, member, user } = interaction
+  const callerUser = member?.user || user
+
+  // 1. Clique em botão "open_ticket" -> Abre Modal Form
+  if (type === 3 && data?.custom_id === 'open_ticket') {
+    const modalPayload = {
+      type: 9, // MODAL
+      data: {
+        title: 'Abrir Ticket / Relatar Bug',
+        custom_id: 'modal_ticket',
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 4, // Text Input
+                custom_id: 'ticket_title',
+                label: 'Título do Problema / Ocorrência',
+                style: 1, // Short
+                min_length: 3,
+                max_length: 100,
+                placeholder: 'Ex: Erro ao baixar apostila no checkout',
+                required: true
+              }
+            ]
+          },
+          {
+            type: 1,
+            components: [
+              {
+                type: 4,
+                custom_id: 'ticket_desc',
+                label: 'Detalhes do Bug / O que aconteceu?',
+                style: 2, // Paragraph
+                min_length: 5,
+                max_length: 1000,
+                placeholder: 'Descreva o que o cliente relatou, link afetado ou mensagem de erro...',
+                required: true
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+    await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(modalPayload)
+    })
+    return
+  }
+
+  // 2. Clique em botão "daily_report"
+  if (type === 3 && data?.custom_id === 'daily_report') {
+    // Confirma interação imediatamente (ephemeral)
+    await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 4,
+        data: {
+          content: '⏳ Gerando relatório do dia e enviando o prompt técnico para o desenvolvedor...',
+          flags: 64
+        }
+      })
+    })
+
+    await generateDailyReport(cfg)
+    return
+  }
+
+  // 3. Envio do formulário Modal ("modal_ticket")
+  if (type === 5 && data?.custom_id === 'modal_ticket') {
+    let titleVal = ''
+    let descVal = ''
+
+    for (const row of (data.components || [])) {
+      for (const comp of (row.components || [])) {
+        if (comp.custom_id === 'ticket_title') titleVal = comp.value
+        if (comp.custom_id === 'ticket_desc') descVal = comp.value
+      }
+    }
+
+    const fullContent = `${titleVal}\n\n${descVal}`
+    const nowIso = new Date().toISOString()
+    const tickets = await getStoredTickets()
+    const ticketNum = String(tickets.length + 1).padStart(3, '0')
+    const ticketId = `SUP-${new Date().getFullYear()}-${ticketNum}`
+
+    const newTicket = {
+      id: ticketId,
+      messageId: id,
+      author: callerUser?.username || 'Equipe',
+      authorId: callerUser?.id || '',
+      content: fullContent,
+      createdAt: nowIso,
+      status: 'PENDENTE'
+    }
+
+    await saveTicket(newTicket)
+
+    // Resposta privada ao usuário que clicou
+    await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 4,
+        data: {
+          content: `✅ **Chamado #${ticketId} registrado com sucesso!** Nossa equipe técnica já foi avisada.`,
+          flags: 64 // Ephemeral
+        }
+      })
+    })
+
+    // Mensagem pública no canal com o texto exigido
+    await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bot ${cfg.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: 'Pedido adicionado para o desenvolvedor',
+        embeds: [{
+          title: `📌 Chamado Registrado via Botão — #${ticketId}`,
+          description: `**${titleVal}**\n\n>>> ${descVal}`,
+          color: 0x10B981,
+          fields: [
+            { name: '👤 Solicitante', value: `<@${callerUser?.id}>`, inline: true },
+            { name: '⏳ Status', value: '`PENDENTE PARA O DEV`', inline: true },
+            { name: '🕒 Horário', value: dtBR(nowIso), inline: true }
+          ],
+          footer: { text: 'Site Pedagógico • Suporte Técnico' },
+          timestamp: nowIso
+        }],
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 2,
+                style: 5,
+                label: 'Painel Admin',
+                url: `${cfg.frontendUrl}/admin`,
+                emoji: { name: '📊' }
+              },
+              {
+                type: 2,
+                style: 5,
+                label: 'Ver Loja',
+                url: cfg.frontendUrl,
+                emoji: { name: '🌐' }
+              }
+            ]
+          }
+        ]
+      })
+    })
+
+    console.log(`[TICKET ABERTO VIA BOTÃO] #${ticketId} por ${callerUser?.username}`)
+  }
+}
+
 async function handleMessage(msg, cfg) {
   if (!msg || !msg.id || msg.author?.id === cfg.botUserId) return
   if (msg.channel_id !== cfg.supportChannelId) return
 
   let content = (msg.content || '').trim()
 
-  // Se o conteúdo veio vazio do Gateway, busca a mensagem completa via REST
   if (!content) {
     try {
       const fullRes = await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages/${msg.id}`, {
@@ -103,11 +333,10 @@ async function handleMessage(msg, cfg) {
 
   if (!content) return
 
-  console.log(`[#suporte] ${msg.author.username}: ${content}`)
+  console.log(`[#suporte texto] ${msg.author.username}: ${content}`)
 
   const lower = content.toLowerCase()
 
-  // Verifica se é pedido de relatório
   if (
     lower === '!relatorio' ||
     lower === '!relatório' ||
@@ -120,7 +349,6 @@ async function handleMessage(msg, cfg) {
     return
   }
 
-  // É um bug ou pedido de suporte
   const nowIso = new Date().toISOString()
   const tickets = await getStoredTickets()
   const ticketNum = String(tickets.length + 1).padStart(3, '0')
@@ -138,7 +366,6 @@ async function handleMessage(msg, cfg) {
 
   await saveTicket(newTicket)
 
-  // Responde imediatamente no canal
   await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
     method: 'POST',
     headers: {
@@ -191,7 +418,6 @@ async function generateDailyReport(cfg, triggerMessageId = null) {
   const tickets = await getStoredTickets()
   const today = new Date().toISOString().slice(0, 10)
 
-  // Filtra tickets de hoje
   const todayTickets = tickets.filter(t => t.createdAt && t.createdAt.startsWith(today))
 
   if (todayTickets.length === 0) {
@@ -209,7 +435,6 @@ async function generateDailyReport(cfg, triggerMessageId = null) {
     return
   }
 
-  // 1. Resumo público no canal #suporte
   const ticketListSummary = todayTickets.map((t, idx) => {
     return `**${idx + 1}. [${t.id}]** por **@${t.author}** às ${dtBR(t.createdAt).split(' ')[1]}\n> ⚠️ *${t.content}*`
   }).join('\n\n')
@@ -240,7 +465,6 @@ async function generateDailyReport(cfg, triggerMessageId = null) {
     })
   })
 
-  // 2. Monta o Prompt de Correção completo para a IA / Desenvolvedor
   const promptText = [
     `# PROMPT DE CORREÇÃO DE BUGS — SITE PEDAGÓGICO (${dtBR(new Date().toISOString()).slice(0, 10)})`,
     ``,
@@ -260,7 +484,6 @@ async function generateDailyReport(cfg, triggerMessageId = null) {
 
   const promptBlock = `\`\`\`markdown\n${promptText.slice(0, 1900)}\n\`\`\``
 
-  // 3. Envia no PRIVADO (DM) do desenvolvedor
   await sendDM(cfg.token, cfg.developerUserId, {
     content: `🚨 **PROMPT DE CORREÇÃO DO DIA — SITE PEDAGÓGICO (${dtBR(new Date().toISOString()).slice(0, 10)})**\n\nOlá desenvolvedor! Foram registrados **${todayTickets.length}** chamado(s) de suporte hoje. Abaixo está o seu prompt pronto para copiar e colar para o assistente/IA:`,
     embeds: [{
@@ -306,6 +529,10 @@ async function startListener() {
         }))
       }
 
+      if (payload.t === 'INTERACTION_CREATE') {
+        await handleInteraction(payload.d, cfg)
+      }
+
       if (payload.t === 'MESSAGE_CREATE') {
         await handleMessage(payload.d, cfg)
       }
@@ -329,6 +556,8 @@ async function startListener() {
 const mode = process.argv[2] || 'listen'
 if (mode === 'report') {
   getConfig().then(cfg => generateDailyReport(cfg)).catch(console.error)
+} else if (mode === 'panel') {
+  getConfig().then(cfg => postSupportPanel(cfg)).catch(console.error)
 } else {
   startListener()
 }
