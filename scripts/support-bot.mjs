@@ -219,6 +219,97 @@ async function handleInteraction(interaction, cfg) {
     return
   }
 
+  // 3. Clique em botão "resolve_all_today" (clicado pelo desenvolvedor no PV)
+  if (type === 3 && data?.custom_id === 'resolve_all_today') {
+    console.log('[INTERACTION] Botão resolve_all_today clicado por:', callerUser?.username)
+    await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 6 })
+    })
+
+    const tickets = await getStoredTickets()
+    const nowIso = new Date().toISOString()
+    const pendingTickets = tickets.filter(t => t.status === 'PENDENTE')
+
+    if (pendingTickets.length === 0) {
+      await sendDM(cfg.token, cfg.developerUserId, {
+        content: 'ℹ️ Nenhum chamado pendente encontrado para marcar como solucionado.'
+      })
+      return
+    }
+
+    // Marca todos os pendentes como solucionados
+    for (const t of tickets) {
+      if (t.status === 'PENDENTE') {
+        t.status = 'SOLUCIONADO'
+        t.resolvedAt = nowIso
+      }
+    }
+
+    await db.updateDocument('pedago-db', 'site_config', 'support_tickets', {
+      value: JSON.stringify(tickets)
+    })
+
+    // 1. Confirmação no PV do desenvolvedor
+    await sendDM(cfg.token, cfg.developerUserId, {
+      content: `🎉 **${pendingTickets.length} chamado(s) marcado(s) como SOLUCIONADOS com sucesso!**\nO aviso oficial foi publicado no canal <#${cfg.supportChannelId}> para toda a equipe.`
+    })
+
+    // 2. Anúncio público no canal #suporte
+    const resolvedList = pendingTickets.map((t, idx) => {
+      const firstLine = (t.content || '').split('\n')[0]
+      return `✅ **[${t.id}]** ${firstLine} *(Reportado por @${t.author})*`
+    }).join('\n')
+
+    await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bot ${cfg.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: '🎉 **BUGS & CHAMADOS SOLUCIONADOS PELO DESENVOLVEDOR!**',
+        embeds: [{
+          title: '✅ Chamados Resolvidos e Aplicados em Produção',
+          description: `O desenvolvedor (<@${cfg.developerUserId}>) concluiu as correções para os seguintes chamados:\n\n${resolvedList}`,
+          color: 0x10B981,
+          fields: [
+            { name: '🛠️ Responsável', value: `<@${cfg.developerUserId}>`, inline: true },
+            { name: '🟢 Status', value: '`100% SOLUCIONADO`', inline: true },
+            { name: '🕒 Resolvido em', value: dtBR(nowIso), inline: true }
+          ],
+          footer: { text: 'Site Pedagógico • Suporte Técnico Concluído' },
+          timestamp: nowIso
+        }],
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 2,
+                style: 5,
+                label: 'Acessar Loja',
+                url: cfg.frontendUrl,
+                emoji: { name: '🌐' }
+              },
+              {
+                type: 2,
+                style: 5,
+                label: 'Painel Admin',
+                url: `${cfg.frontendUrl}/admin`,
+                emoji: { name: '📊' }
+              }
+            ]
+          }
+        ]
+      })
+    })
+
+    console.log(`[CHAMADOS SOLUCIONADOS] ${pendingTickets.length} chamados resolvidos pelo dev!`)
+    return
+  }
+
   // 3. Envio do formulário Modal ("modal_ticket")
   if (type === 5 && data?.custom_id === 'modal_ticket') {
     let titleVal = ''
@@ -491,8 +582,31 @@ async function generateDailyReport(cfg, triggerMessageId = null) {
     }]
   })
 
+  const resolveButtons = [
+    {
+      type: 1,
+      components: [
+        {
+          type: 2,
+          style: 3, // SUCCESS / Green
+          label: 'Marcar Chamados como Solucionados',
+          custom_id: 'resolve_all_today',
+          emoji: { name: '✅' }
+        },
+        {
+          type: 2,
+          style: 5, // LINK
+          label: 'Painel Admin',
+          url: `${cfg.frontendUrl}/admin`,
+          emoji: { name: '📊' }
+        }
+      ]
+    }
+  ]
+
   await sendDM(cfg.token, cfg.developerUserId, {
-    content: promptBlock
+    content: promptBlock,
+    components: resolveButtons
   })
 
   console.log('Daily report sent to #suporte and private DM sent to developer successfully!')
