@@ -777,7 +777,7 @@ async function openOrders(user: any) {
   try {
     const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
       Query.orderDesc('$createdAt'),
-      Query.limit(200),
+      Query.limit(100),
     ]);
 
     const uId = user.id;

@@ -14,7 +14,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h1 class="font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-          {{ greeting }}, {{ firstName }} <span class="inline-block origin-[70%_80%] animate-wave">👋</span>
+          {{ greeting }}, {{ firstName }} (v2) <span class="inline-block origin-[70%_80%] animate-wave">👋</span>
         </h1>
         <p class="text-sm text-slate-500 mt-1 font-medium">☀️ {{ dateLabel }} · um resumo fresquinho da sua loja</p>
       </div>
@@ -938,7 +938,6 @@ async function loadDashboard() {
         Query.orderDesc('$createdAt'),
         Query.limit(100),
         Query.offset(offset),
-        Query.select(['totalAmount', 'paidAt', 'createdAt', '$createdAt', 'paymentMethod']),
       ];
       
       const batchRes = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, queries);
