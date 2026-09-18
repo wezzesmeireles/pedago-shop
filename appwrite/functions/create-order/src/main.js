@@ -90,11 +90,6 @@ export default async ({ req, res, log, error }) => {
         phone ? `📱 \`${guestPhone}\` *(Compra Rápida)*` : null,
       ].filter(Boolean).join('\n')
 
-      const actionLinks = [
-        `👉 [🧾 **Ver Pedido no Painel**](${frontendUrl}/admin/pedidos?search=${encodeURIComponent(orderNumber)})`,
-        `👉 [👤 **Ver Perfil do Cliente**](${frontendUrl}/admin/usuarios?search=${customerSearch})`,
-        ...(phone ? [`👉 [💬 **Chamar no WhatsApp**](https://wa.me/55${phone}?text=${encodeURIComponent(`Olá ${customerName ? customerName.split(' ')[0] : ''}! Tudo bem? Vi seu pedido ${orderNumber} no Site Pedagógico.`)})`] : []),
-      ].join('\n')
 
       const fields = [
         { name: isPaid ? '💰 Valor Pago' : '💰 Total do Pedido', value: `**R$ ${Number(totalAmount || 0).toFixed(2)}**`, inline: true },
@@ -114,11 +109,6 @@ export default async ({ req, res, log, error }) => {
         fields.push({ name: '🔑 ID Transação MP', value: `\`${extraMeta.mpPaymentId}\``, inline: true })
       }
 
-      fields.push({
-        name: '⚡ Ações Rápidas (Clique para abrir)',
-        value: actionLinks,
-        inline: false,
-      })
 
       const title = isPaid
         ? `✅ Pedido ${orderNumber} — Pagamento Confirmado`
