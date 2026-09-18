@@ -39,11 +39,19 @@ export default async ({ req, res, log, error }) => {
     } catch { return '' }
   }
 
-  async function sendDiscord(webhookUrl, orderNumber, totalAmount, payLabel, customerName, customerEmail, guestPhone, itemsText, buyerLocation, status) {
-    if (!webhookUrl) return
+  async function sendDiscord(siteConfig, orderNumber, totalAmount, payLabel, customerName, customerEmail, guestPhone, itemsText, buyerLocation, status, extraMeta = {}) {
+    if (!siteConfig) return
+    const botToken = siteConfig.discordBotToken
+    const channelId = siteConfig.discordChannelId
+    const webhookUrl = siteConfig.discordWebhookUrl
+    if (!botToken && !webhookUrl) return
+
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'https://www.sitepedagogico.com'
       const isPaid = status === 'PAID'
+      const isFree = totalAmount === 0 || payLabel.includes('Gratuito')
+      const isCard = payLabel.includes('Cartão')
+      const isPix = payLabel.includes('PIX')
       const phone = guestPhone ? String(guestPhone).replace(/\D/g, '') : ''
       const customerSearch = encodeURIComponent(customerEmail || customerName || phone || '')
 
@@ -99,15 +107,18 @@ export default async ({ req, res, log, error }) => {
         fields.push({ name: '📦 Itens do Pedido', value: `>>> ${itemsText.slice(0, 950)}`, inline: false })
       }
 
+      if (extraMeta?.pixExpiresAt) {
+        fields.push({ name: '⏰ Expiração do PIX', value: dtBR(extraMeta.pixExpiresAt), inline: true })
+      }
+      if (extraMeta?.mpPaymentId) {
+        fields.push({ name: '🔑 ID Transação MP', value: `\`${extraMeta.mpPaymentId}\``, inline: true })
+      }
+
       fields.push({
         name: '⚡ Ações Rápidas (Clique para abrir)',
         value: actionLinks,
         inline: false,
       })
-
-      const isFree = totalAmount === 0 || payLabel.includes('Gratuito')
-      const isCard = payLabel.includes('Cartão')
-      const isPix = payLabel.includes('PIX')
 
       const title = isPaid
         ? `✅ Pedido ${orderNumber} — Pagamento Confirmado`
@@ -126,25 +137,49 @@ export default async ({ req, res, log, error }) => {
         ? `💳 **NOVO CHECKOUT NO CARTÃO!** — R$ ${Number(totalAmount || 0).toFixed(2)}`
         : `⏳ **NOVO PIX GERADO (Aguardando Pagamento)!** — R$ ${Number(totalAmount || 0).toFixed(2)}`
 
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content,
-          embeds: [{
-            title,
-            color,
-            author: {
-              name: 'Site Pedagógico • Notificação de Pedido',
-              icon_url: 'https://www.sitepedagogico.com/favicon.ico',
+      const payload = {
+        content,
+        embeds: [{
+          title,
+          color,
+          author: {
+            name: 'Site Pedagógico • Notificação de Pedido',
+            icon_url: 'https://www.sitepedagogico.com/favicon.ico',
+          },
+          fields,
+          footer: { text: 'Site Pedagógico • Notificações em Tempo Real' },
+          timestamp: new Date().toISOString(),
+        }],
+        components,
+      }
+
+      // Priority 1: Discord Bot API (Native physical buttons)
+      if (botToken && channelId) {
+        try {
+          const botResp = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bot ${botToken}`,
+              'Content-Type': 'application/json',
             },
-            fields,
-            footer: { text: 'Site Pedagógico • Notificações em Tempo Real' },
-            timestamp: new Date().toISOString(),
-          }],
-          components,
-        }),
-      })
+            body: JSON.stringify(payload),
+          })
+          if (botResp.ok) return
+          const errText = await botResp.text()
+          log(`Discord Bot API failed (${botResp.status}): ${errText}`)
+        } catch (botErr) {
+          log('Discord Bot API error: ' + botErr.message)
+        }
+      }
+
+      // Priority 2: Fallback to Webhook
+      if (webhookUrl) {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      }
     } catch (err) {
       log('Discord notification failed: ' + err.message)
     }
@@ -404,10 +439,10 @@ export default async ({ req, res, log, error }) => {
       .map(oi => `• ${oi.product.name}${((oi.quantity || 1) > 1) ? ` (x${oi.quantity})` : ''}`)
       .join('\n') || '—'
 
-    // Discord Webhook
-    if (siteConfig?.discordWebhookUrl) {
+    // Discord (Bot API with native buttons or Webhook)
+    if (siteConfig?.discordBotToken || siteConfig?.discordWebhookUrl) {
       await sendDiscord(
-        siteConfig.discordWebhookUrl,
+        siteConfig,
         orderNumber,
         totalAmount,
         payLabel,
@@ -416,7 +451,11 @@ export default async ({ req, res, log, error }) => {
         guestPhone,
         itemsText,
         buyerLocation,
-        status
+        status,
+        {
+          pixExpiresAt: method === 'PIX' ? mpResult?.date_of_expiration : null,
+          mpPaymentId,
+        }
       )
     }
 

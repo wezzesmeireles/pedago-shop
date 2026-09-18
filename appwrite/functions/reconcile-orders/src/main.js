@@ -125,8 +125,12 @@ export default async ({ req, res, log }) => {
     } catch (err) { log('Telegram failed: ' + err.message) }
   }
 
-  async function notifyDiscord(order, itemsText, payLabel, buyerLocation) {
-    if (!siteConfig?.discordWebhookUrl) return
+  async function notifyDiscord(order, itemsText, payLabel, buyerLocation, payment = {}) {
+    const botToken = siteConfig?.discordBotToken
+    const channelId = siteConfig?.discordChannelId
+    const webhookUrl = siteConfig?.discordWebhookUrl
+    if (!botToken && !webhookUrl) return
+
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'https://www.sitepedagogico.com'
       const phone = order.guestPhone ? String(order.guestPhone).replace(/\D/g, '') : ''
@@ -184,33 +188,64 @@ export default async ({ req, res, log }) => {
         fields.push({ name: '📦 Itens do Pedido', value: `>>> ${itemsText.slice(0, 950)}`, inline: false })
       }
 
+      if (order.mpPaymentId) {
+        fields.push({ name: '🔑 ID Transação MP', value: `\`${order.mpPaymentId}\``, inline: true })
+      }
+      if (payment?.date_approved) {
+        fields.push({ name: '✅ Aprovado em', value: dtBR(payment.date_approved), inline: true })
+      }
+
       fields.push({
         name: '⚡ Ações Rápidas (Clique para abrir)',
         value: actionLinks,
         inline: false,
       })
 
-      await fetch(siteConfig.discordWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: `💸 **PAGAMENTO CONFIRMADO!** R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
-          embeds: [{
-            title: `✅ Pedido ${order.orderNumber} — Pago com Sucesso`,
-            color: 0x10B981,
-            author: {
-              name: 'Site Pedagógico • Notificação de Venda',
-              icon_url: 'https://www.sitepedagogico.com/favicon.ico',
+      const payload = {
+        content: `💸 **PAGAMENTO CONFIRMADO!** R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
+        embeds: [{
+          title: `✅ Pedido ${order.orderNumber} — Pago com Sucesso`,
+          color: 0x10B981,
+          author: {
+            name: 'Site Pedagógico • Notificação de Venda',
+            icon_url: 'https://www.sitepedagogico.com/favicon.ico',
+          },
+          fields,
+          footer: { text: 'Site Pedagógico • Notificações em Tempo Real' },
+          timestamp: new Date().toISOString(),
+        }],
+        components,
+      }
+
+      // Priority 1: Discord Bot API (Native physical buttons)
+      if (botToken && channelId) {
+        try {
+          const botResp = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bot ${botToken}`,
+              'Content-Type': 'application/json',
             },
-            fields,
-            footer: { text: 'Site Pedagógico • Notificações em Tempo Real' },
-            timestamp: new Date().toISOString(),
-          }],
-          components,
-        }),
-      })
+            body: JSON.stringify(payload),
+          })
+          if (botResp.ok) return
+          const errText = await botResp.text()
+          log(`Discord Bot API failed (${botResp.status}): ${errText}`)
+        } catch (botErr) {
+          log('Discord Bot API error: ' + botErr.message)
+        }
+      }
+
+      // Priority 2: Fallback to Webhook
+      if (webhookUrl) {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      }
     } catch (err) {
-      log('Discord webhook failed: ' + err.message)
+      log('Discord notification failed: ' + err.message)
     }
   }
 
@@ -400,7 +435,7 @@ export default async ({ req, res, log }) => {
             (buyerIp ? `\n🌐 IP: <code>${esc(buyerIp)}</code>` : '') +
             `\n🕐 ${when}`
           )
-          await notifyDiscord(order, itemsText, payLabel, buyerLocation)
+          await notifyDiscord(order, itemsText, payLabel, buyerLocation, payment)
           await sendAdminPush(
             `🎉 Nova venda — R$ ${Number(order.totalAmount || 0).toFixed(2)}`,
             `Pedido ${order.orderNumber} — ${(order.customerName || 'Cliente').split(' ')[0]}`,
