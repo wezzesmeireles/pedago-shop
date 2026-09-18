@@ -4,7 +4,7 @@
     <!-- ── Header ── -->
     <div class="flex items-center justify-between gap-3 flex-wrap">
       <div>
-        <h1 class="text-2xl font-black text-slate-900">Usuários</h1>
+        <h1 class="text-2xl font-black text-slate-900">Usuários (v2)</h1>
         <p class="text-sm text-slate-500 mt-0.5">Gerencie os clientes cadastrados</p>
       </div>
     </div>
@@ -794,26 +794,19 @@ async function openOrders(user: any) {
   loadingOrders.value = true;
   userOrders.value = [];
   try {
-    const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, [
-      Query.orderDesc('$createdAt'),
-      Query.limit(100),
-    ]);
-
     const uId = user.id;
     const uEmail = user.email ? String(user.email).toLowerCase().trim() : null;
     const uPhone = user.phone ? String(user.phone).replace(/\D/g, '') : null;
-
-    const userDocs = result.documents.filter((o: any) => {
-      const oUserId = o.userId;
-      const oEmail = o.customerEmail ? String(o.customerEmail).toLowerCase().trim() : null;
-      const oPhone = o.guestPhone ? String(o.guestPhone).replace(/\D/g, '') : null;
-
-      return (
-        (uId && oUserId && uId === oUserId) ||
-        (uEmail && oEmail && uEmail === oEmail) ||
-        (uPhone && oPhone && uPhone === oPhone)
-      );
-    });
+    
+    const q = [Query.orderDesc('$createdAt'), Query.limit(100)];
+    const orq = [];
+    if (uId) orq.push(Query.equal('userId', uId));
+    if (uEmail) orq.push(Query.equal('customerEmail', uEmail));
+    if (uPhone) orq.push(Query.equal('guestPhone', uPhone));
+    if (orq.length > 0) q.push(Query.or(orq));
+    
+    const result = await databases.listDocuments(DB_ID, COLLECTIONS.ORDERS, q);
+    const userDocs = result.documents;
 
     const withItems = await Promise.all(userDocs.map(async (o: any) => {
       let items: any[] = [];
