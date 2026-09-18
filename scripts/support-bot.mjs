@@ -147,7 +147,19 @@ export async function postSupportPanel(cfg) {
     body: JSON.stringify(payload)
   })
 
-  console.log('Support panel posted to #suporte! Status:', res.status)
+  const msgData = await res.json()
+  console.log('Support panel posted to #suporte! Status:', res.status, 'Message ID:', msgData.id)
+  if (msgData.id) {
+    try {
+      const pinRes = await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/pins/${msgData.id}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bot ${cfg.token}` }
+      })
+      console.log('Panel pinned status:', pinRes.status)
+    } catch (e) {
+      console.error('Error pinning panel:', e.message)
+    }
+  }
 }
 
 async function handleInteraction(interaction, cfg) {
