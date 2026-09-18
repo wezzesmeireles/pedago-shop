@@ -82,6 +82,12 @@ export default async ({ req, res, log, error }) => {
         phone ? `📱 \`${guestPhone}\` *(Compra Rápida)*` : null,
       ].filter(Boolean).join('\n')
 
+      const actionLinks = [
+        `👉 [🧾 **Ver Pedido no Painel**](${frontendUrl}/admin/pedidos?search=${encodeURIComponent(orderNumber)})`,
+        `👉 [👤 **Ver Perfil do Cliente**](${frontendUrl}/admin/usuarios?search=${customerSearch})`,
+        ...(phone ? [`👉 [💬 **Chamar no WhatsApp**](https://wa.me/55${phone}?text=${encodeURIComponent(`Olá ${customerName ? customerName.split(' ')[0] : ''}! Tudo bem? Vi seu pedido ${orderNumber} no Site Pedagógico.`)})`] : []),
+      ].join('\n')
+
       const fields = [
         { name: isPaid ? '💰 Valor Pago' : '💰 Total do Pedido', value: `**R$ ${Number(totalAmount || 0).toFixed(2)}**`, inline: true },
         { name: '💳 Método', value: payLabel, inline: true },
@@ -93,16 +99,41 @@ export default async ({ req, res, log, error }) => {
         fields.push({ name: '📦 Itens do Pedido', value: `>>> ${itemsText.slice(0, 950)}`, inline: false })
       }
 
+      fields.push({
+        name: '⚡ Ações Rápidas (Clique para abrir)',
+        value: actionLinks,
+        inline: false,
+      })
+
+      const isFree = totalAmount === 0 || payLabel.includes('Gratuito')
+      const isCard = payLabel.includes('Cartão')
+      const isPix = payLabel.includes('PIX')
+
+      const title = isPaid
+        ? `✅ Pedido ${orderNumber} — Pagamento Confirmado`
+        : isFree
+        ? `🎁 Pedido ${orderNumber} — Material Gratuito Baixado`
+        : isCard
+        ? `💳 Pedido ${orderNumber} — Checkout no Cartão Iniciado`
+        : `⏳ Pedido ${orderNumber} — PIX Gerado (Aguardando Pagamento)`
+
+      const color = isPaid ? 0x10B981 : isFree ? 0x8B5CF6 : isCard ? 0xF59E0B : 0x3B82F6
+      const content = isPaid
+        ? `💸 **PAGAMENTO CONFIRMADO!** R$ ${Number(totalAmount || 0).toFixed(2)}`
+        : isFree
+        ? `🎁 **NOVO MATERIAL GRATUITO BAIXADO!**`
+        : isCard
+        ? `💳 **NOVO CHECKOUT NO CARTÃO!** — R$ ${Number(totalAmount || 0).toFixed(2)}`
+        : `⏳ **NOVO PIX GERADO (Aguardando Pagamento)!** — R$ ${Number(totalAmount || 0).toFixed(2)}`
+
       await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: isPaid
-            ? `💸 **PAGAMENTO CONFIRMADO!** R$ ${Number(totalAmount || 0).toFixed(2)}`
-            : `🛒 **NOVO PEDIDO GERADO (${payLabel})** — R$ ${Number(totalAmount || 0).toFixed(2)}`,
+          content,
           embeds: [{
-            title: isPaid ? `✅ Pedido ${orderNumber} — Pago com Sucesso` : `🛒 Pedido ${orderNumber} — Aguardando Pagamento`,
-            color: isPaid ? 0x10B981 : 0x3B82F6,
+            title,
+            color,
             author: {
               name: 'Site Pedagógico • Notificação de Pedido',
               icon_url: 'https://www.sitepedagogico.com/favicon.ico',

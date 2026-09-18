@@ -81,6 +81,12 @@ export default async ({ req, res, log, error }) => {
         phone ? `📱 \`${order.guestPhone}\` *(Compra Rápida)*` : null,
       ].filter(Boolean).join('\n')
 
+      const actionLinks = [
+        `👉 [🧾 **Ver Pedido no Painel**](${frontendUrl}/admin/pedidos?search=${encodeURIComponent(order.orderNumber)})`,
+        `👉 [👤 **Ver Perfil do Cliente**](${frontendUrl}/admin/usuarios?search=${customerSearch})`,
+        ...(phone ? [`👉 [💬 **Chamar no WhatsApp**](https://wa.me/55${phone}?text=${encodeURIComponent(`Olá ${order.customerName ? order.customerName.split(' ')[0] : ''}! Tudo bem? Vi seu pedido ${order.orderNumber} no Site Pedagógico.`)})`] : []),
+      ].join('\n')
+
       const fields = [
         { name: '💰 Valor Pago', value: `**R$ ${Number(order.totalAmount || 0).toFixed(2)}**`, inline: true },
         { name: '💳 Método', value: payLabel, inline: true },
@@ -91,6 +97,12 @@ export default async ({ req, res, log, error }) => {
       if (itemsText) {
         fields.push({ name: '📦 Itens do Pedido', value: `>>> ${itemsText.slice(0, 950)}`, inline: false })
       }
+
+      fields.push({
+        name: '⚡ Ações Rápidas (Clique para abrir)',
+        value: actionLinks,
+        inline: false,
+      })
 
       await fetch(webhookUrl, {
         method: 'POST',
