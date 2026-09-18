@@ -646,7 +646,7 @@ const chartData = computed(() => {
       const dateStr = getOrderDate(o);
       if (dateStr) {
         const pd = parseDate(dateStr);
-        if (pd && pd <= now && pd >= start && pd <= end) {
+        if (pd && pd >= start && pd <= end) {
           revenue += Number(o.totalAmount || 0);
           orders++;
         }
@@ -744,11 +744,6 @@ const paymentMethodSegments = computed(() => {
   const now = new Date();
   
   for (const o of paidOrders.value) {
-    const dateStr = getOrderDate(o);
-    if (dateStr) {
-      const pd = parseDate(dateStr);
-      if (pd && pd > now) continue;
-    }
     if (o.paymentMethod === 'PIX') items[0].count++;
     else if (o.paymentMethod === 'CREDIT_CARD') items[1].count++;
     else if (o.paymentMethod === 'FREE' || o.totalAmount === 0) items[2].count++;
@@ -777,7 +772,7 @@ const weekdaySales = computed(() => {
     const dateStr = getOrderDate(o);
     if (dateStr) {
       const pd = parseDate(dateStr);
-      if (pd && pd <= now) {
+      if (pd) {
         const d = pd.getDay();
         counts[d]++;
       }
@@ -959,7 +954,7 @@ async function loadDashboard() {
     const currentDate = new Date();
     const sumIf = (pred: (d: Date) => boolean) => paid.reduce((s, o) => {
       const d = parseDate(getOrderDate(o));
-      if (!d || d > currentDate) return s; // ignore invalid or future dates
+      if (!d) return s; // ignore invalid dates
       return pred(d) ? s + Number(o.totalAmount || 0) : s;
     }, 0);
 
@@ -968,7 +963,6 @@ async function loadDashboard() {
       revenue: {
         total: paid.reduce((s, o) => {
           const d = parseDate(getOrderDate(o));
-          if (d && d > currentDate) return s; // ignore future dates in total
           return s + Number(o.totalAmount || 0);
         }, 0),
         day: sumIf(d => isSameDay(d, currentDate)),
