@@ -599,7 +599,7 @@ const dateLabel = computed(() =>
 );
 
 function getOrderDate(o: any): string | null {
-  return o?.paidAt || o?.createdAt || o?.$createdAt || null;
+  return o?.createdAt || o?.$createdAt || o?.paidAt || null;
 }
 
 function parseDate(iso: string | null | undefined): Date | null {
