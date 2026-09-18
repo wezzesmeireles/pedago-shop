@@ -162,6 +162,78 @@ export async function postSupportPanel(cfg) {
   }
 }
 
+async function notifyDeveloperNewTicket(ticket, cfg) {
+  try {
+    const promptText = [
+      `# PROMPT DE CORREÇÃO — CHAMADO [${ticket.id}]`,
+      ``,
+      `Você é o desenvolvedor responsável pela plataforma Site Pedagógico (Vue 3, Tailwind, Appwrite).`,
+      `Um novo chamado de suporte acaba de ser aberto:`,
+      ``,
+      `- Ticket ID: ${ticket.id}`,
+      `- Solicitante: @${ticket.author}`,
+      `- Horário: ${dtBR(ticket.createdAt)}`,
+      `- Descrição do Bug:`,
+      `  ${ticket.content}`,
+      ``,
+      `## 🛠️ INSTRUÇÕES DE EXECUÇÃO:`,
+      `1. Analise o erro reportado acima no código-fonte do repositório.`,
+      `2. Verifique os componentes afetados em apps/web ou funções Appwrite.`,
+      `3. Reproduza o cenário e elabore o plano de correção.`,
+      `4. Aplique as correções mantendo a estabilidade e execute build/testes.`,
+      `5. Após corrigir, clique no botão 'Marcar como Solucionado' abaixo para avisar automaticamente toda a equipe no canal #suporte.`
+    ].join('\n')
+
+    const promptBlock = `\`\`\`markdown\n${promptText.slice(0, 1900)}\n\`\`\``
+
+    // 1. Notificação estruturada no PV com dados do ticket
+    await sendDM(cfg.token, cfg.developerUserId, {
+      content: `🚨 **NOVO TICKET DE SUPORTE REGISTRADO — #${ticket.id}**\nOlá desenvolvedor! Um novo chamado acabou de ser aberto no canal <#${cfg.supportChannelId}>.`,
+      embeds: [{
+        title: `📌 Chamado #${ticket.id} — Detalhes Técnicos`,
+        description: `**Solicitante:** @${ticket.author}\n**Registrado em:** ${dtBR(ticket.createdAt)}\n\n**Descrição Relatada:**\n>>> ${ticket.content.slice(0, 2000)}`,
+        color: 0xEF4444,
+        fields: [
+          { name: '⏳ Status', value: '`PENDENTE PARA O DEV`', inline: true },
+          { name: '🆔 Protocolo', value: `\`${ticket.id}\``, inline: true }
+        ],
+        footer: { text: 'Site Pedagógico • Notificação Automática Imediata' },
+        timestamp: ticket.createdAt
+      }]
+    })
+
+    // 2. Prompt pronto para copiar + Botão de Solucionar
+    await sendDM(cfg.token, cfg.developerUserId, {
+      content: promptBlock,
+      components: [
+        {
+          type: 1,
+          components: [
+            {
+              type: 2,
+              style: 3, // SUCCESS / Green
+              label: 'Marcar como Solucionado',
+              custom_id: `resolve_ticket_${ticket.id}`,
+              emoji: { name: '✅' }
+            },
+            {
+              type: 2,
+              style: 5, // LINK
+              label: 'Painel Admin',
+              url: `${cfg.frontendUrl}/admin`,
+              emoji: { name: '📊' }
+            }
+          ]
+        }
+      ]
+    })
+
+    console.log(`[NOTIFICADO DEV] Ticket #${ticket.id} enviado automaticamente ao PV do desenvolvedor!`)
+  } catch (err) {
+    console.error('Erro ao notificar desenvolvedor sobre novo ticket:', err.message)
+  }
+}
+
 async function handleInteraction(interaction, cfg) {
   const { id, token: interactionToken, type, data, member, user } = interaction
   const callerUser = member?.user || user
@@ -329,7 +401,103 @@ async function handleInteraction(interaction, cfg) {
     return
   }
 
-  // 3. Envio do formulário Modal ("modal_ticket")
+  // 4. Clique em botão "resolve_ticket_<ID>" (resolução individual pelo desenvolvedor no PV)
+  if (type === 3 && data?.custom_id?.startsWith('resolve_ticket_')) {
+    const targetTicketId = data.custom_id.replace('resolve_ticket_', '')
+    console.log('[INTERACTION] Botão resolve_ticket individual clicado para:', targetTicketId)
+    await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 6 })
+    })
+
+    const tickets = await getStoredTickets()
+    const nowIso = new Date().toISOString()
+    const ticket = tickets.find(t => t.id === targetTicketId)
+
+    if (!ticket) {
+      await sendDM(cfg.token, cfg.developerUserId, {
+        content: `⚠️ Chamado #${targetTicketId} não foi encontrado no banco de dados.`
+      })
+      return
+    }
+
+    if (ticket.status === 'SOLUCIONADO') {
+      await sendDM(cfg.token, cfg.developerUserId, {
+        content: `ℹ️ O chamado #${targetTicketId} já consta como solucionado anteriormente.`
+      })
+      return
+    }
+
+    ticket.status = 'SOLUCIONADO'
+    ticket.resolvedAt = nowIso
+
+    await db.updateDocument('pedago-db', 'site_config', 'support_tickets', {
+      value: JSON.stringify(tickets)
+    })
+
+    // Confirmação no PV do desenvolvedor
+    await sendDM(cfg.token, cfg.developerUserId, {
+      content: `🎉 **Chamado #${targetTicketId} marcado como SOLUCIONADO com sucesso!**\nO aviso oficial foi publicado no canal <#${cfg.supportChannelId}> para toda a equipe.`
+    })
+
+    // Anúncio público no canal #suporte
+    await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bot ${cfg.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: '✅ **CHAMADO TÉCNICO SOLUCIONADO PELO DESENVOLVEDOR**',
+        embeds: [{
+          title: `🎯 Chamado #${ticket.id} Resolvido`,
+          description: `O desenvolvedor (<@${cfg.developerUserId}>) analisou e aplicou a solução para o problema reportado:\n\n> ⚠️ *${ticket.content}*`,
+          color: 0x10B981,
+          fields: [
+            { name: '👤 Solicitante Original', value: ticket.authorId ? `<@${ticket.authorId}>` : `@${ticket.author}`, inline: true },
+            { name: '✅ Status Atual', value: '`SOLUCIONADO & APLICADO`', inline: true },
+            { name: '🕒 Resolvido em', value: dtBR(nowIso), inline: true }
+          ],
+          footer: { text: 'Site Pedagógico • Suporte Técnico' },
+          timestamp: nowIso
+        }],
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 2,
+                style: 3,
+                label: 'Abrir Novo Ticket',
+                custom_id: 'open_ticket',
+                emoji: { name: '🎫' }
+              },
+              {
+                type: 2,
+                style: 5,
+                label: 'Acessar Loja',
+                url: cfg.frontendUrl,
+                emoji: { name: '🌐' }
+              },
+              {
+                type: 2,
+                style: 5,
+                label: 'Painel Admin',
+                url: `${cfg.frontendUrl}/admin`,
+                emoji: { name: '📊' }
+              }
+            ]
+          }
+        ]
+      })
+    })
+
+    console.log(`[CHAMADO INDIVIDUAL SOLUCIONADO] #${targetTicketId} resolvido pelo dev!`)
+    return
+  }
+
+  // 5. Envio do formulário Modal ("modal_ticket")
   if (type === 5 && data?.custom_id === 'modal_ticket') {
     let titleVal = ''
     let descVal = ''
@@ -358,6 +526,9 @@ async function handleInteraction(interaction, cfg) {
     }
 
     await saveTicket(newTicket)
+
+    // Disparo imediato e automático para o PV do desenvolvedor
+    notifyDeveloperNewTicket(newTicket, cfg).catch(err => console.error('Erro notificando dev:', err))
 
     // Resposta privada ao usuário que clicou
     await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
@@ -478,6 +649,9 @@ async function handleMessage(msg, cfg) {
   }
 
   await saveTicket(newTicket)
+
+  // Disparo imediato e automático para o PV do desenvolvedor
+  notifyDeveloperNewTicket(newTicket, cfg).catch(err => console.error('Erro notificando dev:', err))
 
   await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
     method: 'POST',
