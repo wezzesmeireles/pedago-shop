@@ -1,4 +1,4 @@
-﻿import { Client, Databases } from 'node-appwrite'
+import { Client, Databases } from 'node-appwrite'
 
 const client = new Client()
   .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://appwrite.wsgestao.digital/v1')
@@ -206,18 +206,14 @@ async function handleInteraction(interaction, cfg) {
 
   // 2. Clique em botão "daily_report"
   if (type === 3 && data?.custom_id === 'daily_report') {
-    // Confirma interação imediatamente (ephemeral)
-    await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
+    console.log('[INTERACTION] Botão daily_report clicado por:', callerUser?.username)
+    // Confirma interação imediatamente com DEFERRED_UPDATE_MESSAGE (type 6) para evitar timeout do Discord
+    const ackRes = await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 4,
-        data: {
-          content: '⏳ Gerando relatório do dia e enviando o prompt técnico para o desenvolvedor...',
-          flags: 64
-        }
-      })
+      body: JSON.stringify({ type: 6 })
     })
+    console.log('[INTERACTION] daily_report ACK status:', ackRes.status)
 
     await generateDailyReport(cfg)
     return
@@ -511,14 +507,17 @@ async function startListener() {
 
   let heartbeatInterval = 41250
   let timer = null
+  let lastSeq = null
 
   ws.onopen = () => console.log('Conectado ao Gateway Discord com sucesso!')
   ws.onmessage = async (event) => {
     try {
       const payload = JSON.parse(event.data)
+      if (payload.s) lastSeq = payload.s
+
       if (payload.op === 10) {
         heartbeatInterval = payload.d.heartbeat_interval
-        timer = setInterval(() => ws.send(JSON.stringify({ op: 1, d: null })), heartbeatInterval)
+        timer = setInterval(() => ws.send(JSON.stringify({ op: 1, d: lastSeq })), heartbeatInterval)
         ws.send(JSON.stringify({
           op: 2,
           d: {
@@ -530,6 +529,7 @@ async function startListener() {
       }
 
       if (payload.t === 'INTERACTION_CREATE') {
+        console.log('[GATEWAY] INTERACTION_CREATE recebido! Tipo:', payload.d?.type, 'CustomID:', payload.d?.data?.custom_id)
         await handleInteraction(payload.d, cfg)
       }
 
