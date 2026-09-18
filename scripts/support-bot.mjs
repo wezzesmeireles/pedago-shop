@@ -288,6 +288,13 @@ async function handleInteraction(interaction, cfg) {
             components: [
               {
                 type: 2,
+                style: 3, // SUCCESS / Green
+                label: 'Abrir Novo Ticket',
+                custom_id: 'open_ticket',
+                emoji: { name: '🎫' }
+              },
+              {
+                type: 2,
                 style: 5,
                 label: 'Acessar Loja',
                 url: cfg.frontendUrl,
@@ -378,6 +385,13 @@ async function handleInteraction(interaction, cfg) {
           {
             type: 1,
             components: [
+              {
+                type: 2,
+                style: 3, // SUCCESS / Green
+                label: 'Abrir Outro Ticket',
+                custom_id: 'open_ticket',
+                emoji: { name: '🎫' }
+              },
               {
                 type: 2,
                 style: 5,
@@ -481,6 +495,13 @@ async function handleMessage(msg, cfg) {
           components: [
             {
               type: 2,
+              style: 3, // SUCCESS / Green
+              label: 'Abrir Outro Ticket',
+              custom_id: 'open_ticket',
+              emoji: { name: '🎫' }
+            },
+            {
+              type: 2,
               style: 5,
               label: 'Painel Admin',
               url: `${cfg.frontendUrl}/admin`,
@@ -548,7 +569,28 @@ async function generateDailyReport(cfg, triggerMessageId = null) {
         ],
         footer: { text: 'Site Pedagógico • Suporte Técnico' },
         timestamp: new Date().toISOString()
-      }]
+      }],
+      components: [
+        {
+          type: 1,
+          components: [
+            {
+              type: 2,
+              style: 3, // SUCCESS / Green
+              label: 'Abrir Novo Ticket',
+              custom_id: 'open_ticket',
+              emoji: { name: '🎫' }
+            },
+            {
+              type: 2,
+              style: 5,
+              label: 'Painel Admin',
+              url: `${cfg.frontendUrl}/admin`,
+              emoji: { name: '📊' }
+            }
+          ]
+        }
+      ]
     })
   })
 
