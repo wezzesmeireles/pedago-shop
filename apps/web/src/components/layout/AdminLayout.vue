@@ -1,5 +1,5 @@
 <template>
-  <div class="admin-shell min-h-screen flex overflow-x-hidden">
+  <div :class="['admin-shell min-h-screen flex overflow-x-hidden', isAdminDark ? 'admin-dark' : '']">
 
     <!-- ── Sidebar Desktop ─────────────────────────────────────── -->
     <aside :class="['admin-sidebar flex-col hidden md:flex fixed inset-y-0 left-0 z-30 transition-all duration-300', sidebarCollapsed ? 'w-20' : 'w-64']">
@@ -176,6 +176,26 @@
           <span class="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Sistema online
           </span>
+
+          <!-- Dark mode toggle -->
+          <button
+            type="button"
+            @click="toggleAdminTheme"
+            :title="isAdminDark ? 'Mudar para tema claro' : 'Mudar para tema escuro'"
+            aria-label="Alternar tema escuro/claro"
+            class="admin-theme-toggle w-10 h-10 md:w-9 md:h-9 rounded-2xl md:rounded-xl flex items-center justify-center transition-all duration-200 border cursor-pointer group"
+            :class="isAdminDark
+              ? 'bg-slate-800/90 border-slate-700/80 text-amber-300 hover:bg-slate-700 hover:text-amber-200 shadow-md shadow-slate-950/40'
+              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-sm'"
+          >
+            <svg v-if="isAdminDark" class="w-4 h-4 transition-transform group-hover:rotate-45 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <svg v-else class="w-4 h-4 transition-transform group-hover:-rotate-12 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          </button>
+
           <div class="admin-avatar w-10 h-10 md:w-9 md:h-9 rounded-2xl md:rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
             {{ auth.user?.name?.[0]?.toUpperCase() }}
           </div>
@@ -226,6 +246,19 @@ const router = useRouter();
 const route = useRoute();
 const mobileMenuOpen = ref(false);
 const sidebarCollapsed = ref(false);
+const isAdminDark = ref(
+  typeof window !== 'undefined'
+    ? localStorage.getItem('pedago_admin_dark') !== 'false'
+    : true
+);
+
+function toggleAdminTheme() {
+  isAdminDark.value = !isAdminDark.value;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('pedago_admin_dark', String(isAdminDark.value));
+  }
+}
+
 watch(() => route.path, () => { mobileMenuOpen.value = false; });
 
 const icon = {

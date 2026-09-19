@@ -1,0 +1,223 @@
+/* ═════════════════════════════════════════════════════════════════════
+   ADMIN DARK THEME — EXCLUSIVO PARA O PAINEL ADMINISTRATIVO
+   Escopado sob .admin-dark para NÃO afetar a loja ou área do cliente.
+   ═════════════════════════════════════════════════════════════════════ */
+
+.admin-dark.admin-workspace,
+.admin-dark .admin-workspace {
+  background:
+    radial-gradient(circle at 100% 0, rgba(0, 174, 189, 0.08), transparent 30rem),
+    radial-gradient(circle at 0 100%, rgba(239, 93, 157, 0.06), transparent 32rem),
+    #0d0f18 !important;
+  color: #f1f5f9;
+}
+
+/* ── Topbar no modo escuro ─────────────────────────────────────────── */
+.admin-dark .admin-topbar {
+  background: rgba(15, 17, 26, 0.88) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: blur(20px) saturate(1.4) !important;
+}
+
+.admin-dark .admin-topbar span.text-slate-900 {
+  color: #f8fafc !important;
+}
+
+.admin-dark .admin-topbar span.text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.admin-dark .admin-topbar span.text-slate-300 {
+  color: #475569 !important;
+}
+
+/* ── Cards e Superfícies ───────────────────────────────────────────── */
+.admin-dark .bg-white {
+  background-color: #171926 !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+.admin-dark .bg-slate-50,
+.admin-dark .bg-gray-50 {
+  background-color: #121420 !important;
+}
+
+.admin-dark .bg-slate-100,
+.admin-dark .bg-gray-100 {
+  background-color: #1f2233 !important;
+}
+
+.admin-dark .bg-slate-200\/60,
+.admin-dark .bg-slate-200 {
+  background-color: #272a3e !important;
+}
+
+/* ── Bordas e Linhas Divisórias ────────────────────────────────────── */
+.admin-dark .border-slate-100,
+.admin-dark .border-slate-200,
+.admin-dark .border-gray-100,
+.admin-dark .border-gray-200 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.admin-dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+.admin-dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.admin-dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Textos e Tipografia ────────────────────────────────────────────── */
+.admin-dark .text-slate-900,
+.admin-dark .text-gray-900,
+.admin-dark .text-slate-800,
+.admin-dark .text-gray-800 {
+  color: #f8fafc !important;
+}
+
+.admin-dark .text-slate-700,
+.admin-dark .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+
+.admin-dark .text-slate-600,
+.admin-dark .text-gray-600 {
+  color: #94a3b8 !important;
+}
+
+.admin-dark .text-slate-500,
+.admin-dark .text-gray-500 {
+  color: #64748b !important;
+}
+
+.admin-dark .text-slate-400,
+.admin-dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+/* ── Formulários e Campos de Entrada (Inputs, Selects, Textareas) ─── */
+.admin-dark input:not([type="checkbox"]):not([type="radio"]),
+.admin-dark select,
+.admin-dark textarea {
+  background-color: #11131f !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-dark input::placeholder,
+.admin-dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+.admin-dark input:focus,
+.admin-dark select:focus,
+.admin-dark textarea:focus {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25) !important;
+  outline: none !important;
+}
+
+/* Checkboxes no dark mode */
+.admin-dark input[type="checkbox"] {
+  background-color: #11131f !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ── Tabelas no Dark Mode ──────────────────────────────────────────── */
+.admin-dark table {
+  color: #cbd5e1 !important;
+}
+
+.admin-dark table thead th {
+  background-color: #121420 !important;
+  color: #94a3b8 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-dark table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.admin-dark table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.035) !important;
+}
+
+/* ── Modais, Diálogos e Drawers ────────────────────────────────────── */
+.admin-dark [role="dialog"],
+.admin-dark .modal-card,
+.admin-dark .bg-white.rounded-3xl,
+.admin-dark .bg-white.rounded-2xl {
+  background-color: #181a27 !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.75) !important;
+}
+
+/* ── Badges e Filtros ──────────────────────────────────────────────── */
+.admin-dark .bg-slate-100.text-slate-700,
+.admin-dark .bg-slate-100.text-slate-800 {
+  background-color: #24273b !important;
+  color: #e2e8f0 !important;
+}
+
+.admin-dark .hover\:bg-slate-100:hover,
+.admin-dark .hover\:bg-gray-100:hover {
+  background-color: #222538 !important;
+}
+
+.admin-dark .hover\:bg-slate-50:hover,
+.admin-dark .hover\:bg-gray-50:hover {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ── Botões Secundários / Outline ──────────────────────────────────── */
+.admin-dark button.border-slate-200,
+.admin-dark a.border-slate-200,
+.admin-dark button.border-slate-300,
+.admin-dark a.border-slate-300 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background-color: #171926 !important;
+  color: #e2e8f0 !important;
+}
+
+.admin-dark button.border-slate-200:hover,
+.admin-dark a.border-slate-200:hover,
+.admin-dark button.border-slate-300:hover,
+.admin-dark a.border-slate-300:hover {
+  background-color: #222538 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ── Suavização de Sombras no Dark Mode ────────────────────────────── */
+.admin-dark .shadow-sm {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+.admin-dark .shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4) !important;
+}
+
+.admin-dark .shadow-xl,
+.admin-dark .shadow-2xl {
+  box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.65) !important;
+}
+
+/* ── Navegação Mobile Inferior no Dark Mode ────────────────────────── */
+.admin-dark .admin-bottom-nav {
+  background-color: rgba(18, 20, 31, 0.95) !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-dark .admin-bottom-nav a,
+.admin-dark .admin-bottom-nav button {
+  color: #94a3b8 !important;
+}
+
+.admin-dark .admin-bottom-nav a.text-violet-600,
+.admin-dark .admin-bottom-nav button.text-violet-600 {
+  color: #a78bfa !important;
+}
+
+/* ── Ajuste de Blobs Decorativos ───────────────────────────────────── */
+.admin-dark .pointer-events-none .blur-3xl {
+  opacity: 0.22 !important;
+}

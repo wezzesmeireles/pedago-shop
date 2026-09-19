@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import './admin-dark.css';
 
 :root {
   --color-primary: #7C3AED;
