@@ -235,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
@@ -252,11 +252,35 @@ const isAdminDark = ref(
     : true
 );
 
+function applyTheme(isDark: boolean) {
+  if (typeof document !== 'undefined') {
+    if (isDark) {
+      document.documentElement.classList.add('admin-dark');
+    } else {
+      document.documentElement.classList.remove('admin-dark');
+    }
+  }
+}
+
+watch(isAdminDark, (val) => {
+  applyTheme(val);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('pedago_admin_dark', String(val));
+  }
+}, { immediate: true });
+
+onMounted(() => {
+  applyTheme(isAdminDark.value);
+});
+
+onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.remove('admin-dark');
+  }
+});
+
 function toggleAdminTheme() {
   isAdminDark.value = !isAdminDark.value;
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('pedago_admin_dark', String(isAdminDark.value));
-  }
 }
 
 watch(() => route.path, () => { mobileMenuOpen.value = false; });

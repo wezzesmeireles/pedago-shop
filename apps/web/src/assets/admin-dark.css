@@ -3,6 +3,17 @@
    Escopado sob .admin-dark para NÃO afetar a loja ou área do cliente.
    ═════════════════════════════════════════════════════════════════════ */
 
+html.admin-dark,
+html.admin-dark body,
+.admin-dark.admin-shell,
+.admin-dark .admin-shell,
+.admin-dark.admin-workspace,
+.admin-dark .admin-workspace {
+  background-color: #0d0f18 !important;
+  color: #f1f5f9;
+  color-scheme: dark;
+}
+
 .admin-dark.admin-workspace,
 .admin-dark .admin-workspace {
   background:
@@ -10,6 +21,13 @@
     radial-gradient(circle at 0 100%, rgba(239, 93, 157, 0.06), transparent 32rem),
     #0d0f18 !important;
   color: #f1f5f9;
+}
+
+.admin-dark h1,
+.admin-dark h2,
+.admin-dark h3,
+.admin-dark h4 {
+  color: #f8fafc !important;
 }
 
 /* ── Topbar no modo escuro ─────────────────────────────────────────── */

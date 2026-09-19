@@ -5,6 +5,7 @@ import App from './App.vue';
 import router from './router';
 import { initTelegramLogger } from './lib/telegram-logger';
 import './assets/main.css';
+import './assets/admin-dark.css';
 
 // A PWA aberta durante uma publicação pode manter uma página antiga que aponta
 // para um chunk já substituído. Limpa somente os caches do site e recarrega uma
