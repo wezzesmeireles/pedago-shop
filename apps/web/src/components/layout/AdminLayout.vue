@@ -16,10 +16,10 @@
           <div v-else class="admin-monogram w-11 h-11 rounded-2xl flex items-center justify-center text-white font-display font-bold text-sm shadow-lg">
             SP
           </div>
-          <!-- Store name -->
-          <div class="text-center w-full overflow-hidden transition-all duration-300" :class="sidebarCollapsed ? 'opacity-0 h-0 hidden' : 'opacity-100 h-auto'">
-            <p class="font-extrabold text-white text-lg leading-tight tracking-tight whitespace-nowrap">{{ config.storeName }}</p>
-            <span class="inline-block mt-1 text-[10px] font-bold text-violet-400 tracking-[0.2em] uppercase bg-violet-950/60 px-2.5 py-0.5 rounded-full">Admin</span>
+          <!-- Admin Badge -->
+          <div class="text-center w-full overflow-hidden transition-all duration-300 flex flex-col items-center" :class="sidebarCollapsed ? 'opacity-0 h-0 hidden' : 'opacity-100 h-auto'">
+            <p v-if="config.storeName && !['sitepedagogico', 'site pedagógico'].includes(config.storeName.toLowerCase().trim())" class="font-bold text-white/90 text-sm leading-tight tracking-tight whitespace-nowrap mb-1">{{ config.storeName }}</p>
+            <span class="inline-block text-[10px] font-bold text-violet-300 tracking-[0.22em] uppercase bg-violet-900/50 border border-violet-700/40 px-3 py-0.5 rounded-full shadow-sm">Painel Admin</span>
           </div>
         </RouterLink>
       </div>
@@ -301,12 +301,16 @@ async function handleLogout() {
 }
 
 .admin-logo-card {
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 16px;
-  background: white;
-  box-shadow: 0 12px 28px -18px rgba(0,0,0,0.7);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 4px 6px;
 }
-.admin-logo-card img { max-height: 58px; }
+.admin-logo-card img {
+  max-height: 52px;
+  width: auto;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+}
 
 .admin-monogram,
 .admin-avatar {
