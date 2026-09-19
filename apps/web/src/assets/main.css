@@ -226,6 +226,48 @@
 .snap-scroll::-webkit-scrollbar { display: none; }
 .snap-item { scroll-snap-align: start; }
 
+/* ─── Global sleek transparent scrollbars ─────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 100, 180, 0.25) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 100, 180, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 100, 180, 0.45);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar,
+.scrollbar-hide {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
 /* ─── Custom focus ring ─────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--color-primary);

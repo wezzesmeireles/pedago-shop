@@ -25,7 +25,7 @@
       </div>
 
       <!-- Nav -->
-      <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden">
+      <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden no-scrollbar">
         <p class="pt-1 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest transition-all duration-300 overflow-hidden whitespace-nowrap text-center" :class="sidebarCollapsed ? 'opacity-0 h-0 mb-0 hidden' : 'opacity-100 h-auto px-3'">Principal</p>
         <RouterLink
           v-for="item in mainNav"
@@ -125,7 +125,7 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
-        <nav class="flex-1 px-3 py-4 overflow-y-auto overscroll-contain">
+        <nav class="flex-1 px-3 py-4 overflow-y-auto overscroll-contain no-scrollbar">
           <p class="px-3 pb-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/35">Gerenciar</p>
           <div class="grid grid-cols-2 gap-2">
           <RouterLink v-for="item in mainNav" :key="item.to" :to="item.to"
@@ -298,6 +298,20 @@ async function handleLogout() {
     radial-gradient(circle at 85% 95%, rgba(239, 93, 157, 0.12), transparent 18rem),
     linear-gradient(180deg, #20152f, #171120 72%, #15101d);
   box-shadow: 12px 0 35px -28px rgba(39, 21, 55, 0.8);
+}
+
+.admin-sidebar,
+.admin-sidebar nav {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.admin-sidebar::-webkit-scrollbar,
+.admin-sidebar nav::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 .admin-logo-card {
