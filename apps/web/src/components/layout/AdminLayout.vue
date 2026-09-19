@@ -239,6 +239,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { useSiteConfigStore } from '@/stores/site-config.store';
+import '@/assets/admin-dark.css';
 
 const auth = useAuthStore();
 const { config } = useSiteConfigStore();
@@ -546,5 +547,126 @@ async function handleLogout() {
 @media (prefers-reduced-motion: reduce) {
   .page-enter-active { transition: none; }
   .page-enter-from { opacity: 1; transform: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN DARK MODE — COMPONENT-LEVEL ENFORCEMENT
+   ══════════════════════════════════════════════════════════════════ */
+.admin-shell.admin-dark {
+  background: #0d0f18 !important;
+}
+
+.admin-shell.admin-dark .admin-workspace {
+  background:
+    radial-gradient(circle at 100% 0, rgba(0, 174, 189, 0.08), transparent 30rem),
+    radial-gradient(circle at 0 100%, rgba(239, 93, 157, 0.06), transparent 32rem),
+    #0d0f18 !important;
+  color: #f1f5f9 !important;
+}
+
+.admin-shell.admin-dark .admin-topbar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(15, 17, 26, 0.94) !important;
+}
+
+.admin-shell.admin-dark .admin-topbar :deep(span.text-slate-900) {
+  color: #f8fafc !important;
+}
+
+.admin-shell.admin-dark .admin-topbar :deep(span.text-slate-500) {
+  color: #94a3b8 !important;
+}
+
+.admin-shell.admin-dark :deep(.bg-white) {
+  background-color: #171926 !important;
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+.admin-shell.admin-dark :deep(.bg-slate-50),
+.admin-shell.admin-dark :deep(.bg-gray-50) {
+  background-color: #121420 !important;
+}
+
+.admin-shell.admin-dark :deep(.bg-slate-100),
+.admin-shell.admin-dark :deep(.bg-gray-100) {
+  background-color: #1f2233 !important;
+}
+
+.admin-shell.admin-dark :deep(.bg-slate-200),
+.admin-shell.admin-dark :deep(.bg-slate-200\/60) {
+  background-color: #272a3e !important;
+}
+
+.admin-shell.admin-dark :deep(.text-slate-900),
+.admin-shell.admin-dark :deep(.text-gray-900),
+.admin-shell.admin-dark :deep(.text-slate-800),
+.admin-shell.admin-dark :deep(.text-gray-800),
+.admin-shell.admin-dark :deep(h1),
+.admin-shell.admin-dark :deep(h2),
+.admin-shell.admin-dark :deep(h3),
+.admin-shell.admin-dark :deep(h4) {
+  color: #f8fafc !important;
+}
+
+.admin-shell.admin-dark :deep(.text-slate-700),
+.admin-shell.admin-dark :deep(.text-gray-700) {
+  color: #cbd5e1 !important;
+}
+
+.admin-shell.admin-dark :deep(.text-slate-600),
+.admin-shell.admin-dark :deep(.text-gray-600),
+.admin-shell.admin-dark :deep(.text-slate-500),
+.admin-shell.admin-dark :deep(.text-gray-500) {
+  color: #94a3b8 !important;
+}
+
+.admin-shell.admin-dark :deep(.text-slate-400),
+.admin-shell.admin-dark :deep(.text-gray-400) {
+  color: #64748b !important;
+}
+
+.admin-shell.admin-dark :deep(.border-slate-100),
+.admin-shell.admin-dark :deep(.border-slate-200),
+.admin-shell.admin-dark :deep(.border-gray-100),
+.admin-shell.admin-dark :deep(.border-gray-200) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-shell.admin-dark :deep(.divide-slate-100 > :not([hidden]) ~ :not([hidden])),
+.admin-shell.admin-dark :deep(.divide-slate-200 > :not([hidden]) ~ :not([hidden])) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-shell.admin-dark :deep(input:not([type='checkbox']):not([type='radio'])),
+.admin-shell.admin-dark :deep(select),
+.admin-shell.admin-dark :deep(textarea) {
+  background-color: #11131f !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-shell.admin-dark :deep(table thead th) {
+  background-color: #121420 !important;
+  color: #94a3b8 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-shell.admin-dark :deep(table tbody tr) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.admin-shell.admin-dark :deep(table tbody tr:hover) {
+  background-color: rgba(255, 255, 255, 0.035) !important;
+}
+
+.admin-shell.admin-dark :deep([role='dialog']),
+.admin-shell.admin-dark :deep(.modal-card) {
+  background-color: #181a27 !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+}
+
+.admin-shell.admin-dark .admin-bottom-nav {
+  background-color: rgba(18, 20, 31, 0.96) !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
 }
 </style>
