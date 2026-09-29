@@ -1,4 +1,4 @@
-﻿import { Client, Databases } from 'node-appwrite'
+import { Client, Databases } from 'node-appwrite'
 
 const client = new Client()
   .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://appwrite.wsgestao.digital/v1')
@@ -23,8 +23,8 @@ async function sendUpdateLog() {
   const payload = {
     content: '📢 **REGISTRO DE ATUALIZAÇÕES — SITE PEDAGÓGICO**',
     embeds: [{
-      title: '🚀 Resumo de Atualizações do Sistema — 18/09/2026',
-      description: 'Confira em termos práticos tudo o que foi implementado, otimizado e colocado em produção hoje para a equipe:',
+      title: '🚀 Novas Atualizações & Melhorias do Sistema — 29/09/2026',
+      description: 'Confira em detalhes todas as implementações, correções visuais e melhorias de suporte técnico aplicadas hoje na plataforma:',
       color: 0x5865F2,
       author: {
         name: 'Site Pedagógico • Central de Atualizações',
@@ -33,32 +33,27 @@ async function sendUpdateLog() {
       },
       fields: [
         {
-          name: '📊 1. Faturamento e Dashboard Corrigidos',
-          value: '• **Cálculo Real do Dia:** Corrigido o faturamento diário para considerar a data de criação do pedido. Pedidos antigos que foram apenas reconciliados hoje não poluem mais o faturamento de hoje.\n• **Carregamento Instantâneo:** Carregamento progressivo em ~150ms sem congelar a tela nem atingir limites da API.\n• **Limpeza Visual:** Todas as tags de teste `(v2)` foram removidas do painel.',
+          name: '🌙 1. Modo Escuro (Dark Mode) no Painel Admin',
+          value: '• **Cobertura Total:** Implementado tema escuro completo em todas as abas e componentes da administração (`/admin`), cobrindo Dashboard, Pedidos, Produtos, Categorias, Cupons, Banners, Depoimentos, Reconciliação e Configurações.\n• **Alternador Dinâmico:** Botão seletor no topo (Sol ☀️ / Lua 🌙) com indicador de status Claro/Escuro e salvamento automático das preferências no navegador.\n• **Conforto Visual & Contraste:** Tabelas, cards, filtros, formulários e modais estilizados para máxima legibilidade no uso noturno.',
           inline: false,
         },
         {
-          name: '🤖 2. Bot Oficial no Discord Ativado',
-          value: '• **Integração Nativa:** Conectamos o Bot oficial do Discord com permissões de envio estruturado.\n• **Separação de Canais:**\n  • 🛒 `#notificações-vendas`: Alertas instantâneos de cada pedido e pagamento.\n  • 📢 `#atualizações`: Histórico de melhorias, deploys e comunicados do sistema.',
+          name: '🎨 2. Visual da Logo & Barras de Rolagem Transparentes',
+          value: '• **Harmonização da Logo:** Corrigido o fundo da logo na barra lateral da administração para integração fluida tanto no tema claro quanto no escuro.\n• **Scrollbars Transparentes:** Barras de rolagem modernas, discretas e translúcidas em todas as tabelas e painéis do admin, eliminando o aspecto visual pesado padrão do navegador.',
           inline: false,
         },
         {
-          name: '🔘 3. Botões Físicos Interativos',
-          value: '• Todas as notificações de vendas agora possuem **botões nativos**:\n  • 🧾 **Ver Pedido:** Vai direto pro pedido no painel de administração.\n  • 👤 **Ver Cliente:** Abre a ficha de cadastro do comprador.\n  • 💬 **WhatsApp:** Inicia conversa com o cliente com mensagem predefinida.\n• **Design Limpo:** Links de texto redundantes foram removidos para manter o visual elegante.',
+          name: '🎫 3. Suporte no Discord & Abertura de Chamados Corrigida',
+          value: '• **Abertura de Chamados para Todos:** Solucionado o problema onde outros membros não conseguiam abrir chamados no canal <#1550614015175295047>.\n• **Zero Timeouts (< 100ms):** A confirmação do formulário (Modal) agora é instantânea no Discord, eliminando qualquer risco da mensagem "Esta interação falhou".\n• **Fallback no Chat:** Ao digitar qualquer mensagem no canal de suporte, o bot responde marcando o usuário com instruções e o botão **Abrir Ticket** na hora.\n• **Novo Painel Fixado:** Publicado e fixado novo painel oficial de atendimento com botões interativos.',
           inline: false,
         },
         {
-          name: '⚡ 4. Alertas Automáticos de Vendas',
-          value: '• ⏳ **Novo PIX Gerado:** Dispara assim que o cliente gera o QR Code na tela.\n• 💳 **Checkout no Cartão:** Notifica o início de pagamento com cartão de crédito.\n• 🎁 **Material Gratuito:** Notifica quando um cliente baixa material sem custo.\n• ✅ **Venda Aprovada:** Alerta em verde com valor exato, itens e ID Mercado Pago.',
-          inline: false,
-        },
-        {
-          name: '🚀 5. Deploy em Produção',
-          value: '• As funções de backend (`create-order`, `mp-webhook`, `reconcile-orders`) foram compiladas e publicadas no Appwrite.\n• Código-fonte sincronizado e publicado no repositório oficial (`main`).',
+          name: '💳 4. Estabilidade no Checkout & Mercado Pago',
+          value: '• Otimização e resiliência na geração do QR Code Pix e tratamento de retornos de pagamento.',
           inline: false,
         }
       ],
-      footer: { text: 'Site Pedagógico • Sistema 100% Operacional' },
+      footer: { text: 'Site Pedagógico • Sistema 100% Operacional e Atualizado' },
       timestamp: new Date().toISOString(),
     }],
     components: [
@@ -82,9 +77,9 @@ async function sendUpdateLog() {
           {
             type: 2,
             style: 5,
-            label: 'Ver Pedidos',
-            url: `${frontendUrl}/admin/pedidos`,
-            emoji: { name: '🧾' },
+            label: 'Ver Chamados (#suporte)',
+            url: `https://discord.com/channels/1550601013856047127/1550614015175295047`,
+            emoji: { name: '🎫' },
           }
         ]
       }
