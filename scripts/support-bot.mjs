@@ -280,13 +280,22 @@ async function handleInteraction(interaction, cfg) {
       }
     }
 
-    await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(modalPayload)
-    })
+    try {
+      const res = await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(modalPayload)
+      })
+      console.log(`[MODAL OPEN_TICKET] Status: ${res.status} para usuário: ${callerUser?.username} (${callerUser?.id})`)
+      if (!res.ok) {
+        console.error('[MODAL OPEN_TICKET ERROR BODY]', await res.text())
+      }
+    } catch (err) {
+      console.error('[MODAL OPEN_TICKET EXCEPTION]', err.message)
+    }
     return
   }
+
 
   // 2. Clique em botão "daily_report"
   if (type === 3 && data?.custom_id === 'daily_report') {
@@ -511,9 +520,36 @@ async function handleInteraction(interaction, cfg) {
 
     const fullContent = `${titleVal}\n\n${descVal}`
     const nowIso = new Date().toISOString()
-    const tickets = await getStoredTickets()
+    
+    let tickets = []
+    try {
+      tickets = await getStoredTickets()
+    } catch (e) {
+      console.error('Erro ao ler tickets existentes:', e.message)
+    }
     const ticketNum = String(tickets.length + 1).padStart(3, '0')
     const ticketId = `SUP-${new Date().getFullYear()}-${ticketNum}`
+
+    // Resposta imediata ao Discord para fechar o modal no cliente do usuário e evitar timeout (3 segundos)
+    try {
+      const ackRes = await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 4,
+          data: {
+            content: `✅ **Chamado #${ticketId} registrado com sucesso!** Nossa equipe técnica já foi avisada.`,
+            flags: 64 // Ephemeral
+          }
+        })
+      })
+      console.log(`[MODAL SUBMIT ACK] Status: ${ackRes.status} para ${callerUser?.username} (#${ticketId})`)
+      if (!ackRes.ok) {
+        console.error('[MODAL SUBMIT ACK ERROR]', await ackRes.text())
+      }
+    } catch (err) {
+      console.error('[MODAL SUBMIT ACK EXCEPTION]', err.message)
+    }
 
     const newTicket = {
       id: ticketId,
@@ -525,44 +561,182 @@ async function handleInteraction(interaction, cfg) {
       status: 'PENDENTE'
     }
 
+    try {
+      await saveTicket(newTicket)
+    } catch (err) {
+      console.error('Erro ao persistir ticket:', err.message)
+    }
+
+    // Disparo imediato e automático para o PV do desenvolvedor
+    notifyDeveloperNewTicket(newTicket, cfg).catch(err => console.error('Erro notificando dev:', err))
+
+    // Mensagem pública no canal com o texto exigido
+    try {
+      const pubRes = await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bot ${cfg.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          content: 'Pedido adicionado para o desenvolvedor',
+          embeds: [{
+            title: `📌 Chamado Registrado via Botão — #${ticketId}`,
+            description: `**${titleVal}**\n\n>>> ${descVal}`,
+            color: 0x10B981,
+            fields: [
+              { name: '👤 Solicitante', value: `<@${callerUser?.id}>`, inline: true },
+              { name: '⏳ Status', value: '`PENDENTE PARA O DEV`', inline: true },
+              { name: '🕒 Horário', value: dtBR(nowIso), inline: true }
+            ],
+            footer: { text: 'Site Pedagógico • Suporte Técnico' },
+            timestamp: nowIso
+          }],
+          components: [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: 3, // SUCCESS / Green
+                  label: 'Abrir Outro Ticket',
+                  custom_id: 'open_ticket',
+                  emoji: { name: '🎫' }
+                },
+                {
+                  type: 2,
+                  style: 5,
+                  label: 'Painel Admin',
+                  url: `${cfg.frontendUrl}/admin`,
+                  emoji: { name: '📊' }
+                },
+                {
+                  type: 2,
+                  style: 5,
+                  label: 'Ver Loja',
+                  url: cfg.frontendUrl,
+                  emoji: { name: '🌐' }
+                }
+              ]
+            }
+          ]
+        })
+      })
+      console.log(`[CANAL SUPORTE MSG] Status: ${pubRes.status} para #${ticketId}`)
+    } catch (err) {
+      console.error('[CANAL SUPORTE MSG ERROR]', err.message)
+    }
+
+    console.log(`[TICKET ABERTO VIA BOTÃO] #${ticketId} por ${callerUser?.username}`)
+    return
+  }
+}
+
+async function handleMessage(msg, cfg) {
+  try {
+    if (!msg || !msg.id || msg.author?.id === cfg.botUserId) return
+    if (msg.channel_id !== cfg.supportChannelId) return
+
+    let content = (msg.content || '').trim()
+
+    // Se o bot não tem a intent privilegiada MESSAGE_CONTENT no portal,
+    // mensagens de outros membros chegam com content vazio.
+    // O bot avisa o usuário e disponibiliza o botão "Abrir Ticket" imediatamente!
+    if (!content) {
+      console.log(`[#suporte texto sem conteúdo] Mensagem de @${msg.author?.username} (${msg.author?.id}) - Enviando botão de suporte...`)
+      try {
+        await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bot ${cfg.token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            content: `👋 Olá <@${msg.author.id}>! Para registrar seu chamado ou relatar um problema diretamente ao desenvolvedor, clique no botão **Abrir Ticket** abaixo:`,
+            message_reference: { message_id: msg.id },
+            components: [
+              {
+                type: 1,
+                components: [
+                  {
+                    type: 2,
+                    style: 3,
+                    label: 'Abrir Ticket',
+                    custom_id: 'open_ticket',
+                    emoji: { name: '🎫' }
+                  }
+                ]
+              }
+            ]
+          })
+        })
+      } catch (e) {
+        console.error('Erro enviando botão de ajuda para mensagem:', e.message)
+      }
+      return
+    }
+
+    // Se tiver menção ao bot, limpa para pegar apenas a mensagem
+    const cleanContent = content.replace(new RegExp(`<@!?${cfg.botUserId}>`, 'g'), '').trim()
+    if (!cleanContent) return
+
+    console.log(`[#suporte texto] ${msg.author.username}: ${cleanContent}`)
+
+    const lower = cleanContent.toLowerCase()
+
+    if (
+      lower === '!relatorio' ||
+      lower === '!relatório' ||
+      lower.includes('gerar relatorio') ||
+      lower.includes('gerar relatório') ||
+      lower === 'relatorio' ||
+      lower === 'relatório'
+    ) {
+      await generateDailyReport(cfg, msg.id)
+      return
+    }
+
+    const nowIso = new Date().toISOString()
+    const tickets = await getStoredTickets().catch(() => [])
+    const ticketNum = String(tickets.length + 1).padStart(3, '0')
+    const ticketId = `SUP-${new Date().getFullYear()}-${ticketNum}`
+
+    const newTicket = {
+      id: ticketId,
+      messageId: msg.id,
+      author: msg.author.username,
+      authorId: msg.author.id,
+      content: cleanContent,
+      createdAt: nowIso,
+      status: 'PENDENTE',
+    }
+
     await saveTicket(newTicket)
 
     // Disparo imediato e automático para o PV do desenvolvedor
     notifyDeveloperNewTicket(newTicket, cfg).catch(err => console.error('Erro notificando dev:', err))
 
-    // Resposta privada ao usuário que clicou
-    await fetch(`https://discord.com/api/v10/interactions/${id}/${interactionToken}/callback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 4,
-        data: {
-          content: `✅ **Chamado #${ticketId} registrado com sucesso!** Nossa equipe técnica já foi avisada.`,
-          flags: 64 // Ephemeral
-        }
-      })
-    })
-
-    // Mensagem pública no canal com o texto exigido
     await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bot ${cfg.token}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         content: 'Pedido adicionado para o desenvolvedor',
+        message_reference: { message_id: msg.id },
         embeds: [{
-          title: `📌 Chamado Registrado via Botão — #${ticketId}`,
-          description: `**${titleVal}**\n\n>>> ${descVal}`,
-          color: 0x10B981,
+          title: `📌 Chamado Registrado — #${ticketId}`,
+          description: `Olá **${msg.author.username}**, o seu pedido/bug foi registrado e adicionado à fila para o desenvolvedor.`,
+          color: 0x3B82F6,
           fields: [
-            { name: '👤 Solicitante', value: `<@${callerUser?.id}>`, inline: true },
+            { name: '📝 Descrição do Bug', value: `>>> ${cleanContent.slice(0, 900)}`, inline: false },
+            { name: '👤 Solicitante', value: `<@${msg.author.id}>`, inline: true },
             { name: '⏳ Status', value: '`PENDENTE PARA O DEV`', inline: true },
-            { name: '🕒 Horário', value: dtBR(nowIso), inline: true }
+            { name: '🕒 Registrado em', value: dtBR(nowIso), inline: true },
           ],
           footer: { text: 'Site Pedagógico • Suporte Técnico' },
-          timestamp: nowIso
+          timestamp: nowIso,
         }],
         components: [
           {
@@ -580,131 +754,23 @@ async function handleInteraction(interaction, cfg) {
                 style: 5,
                 label: 'Painel Admin',
                 url: `${cfg.frontendUrl}/admin`,
-                emoji: { name: '📊' }
+                emoji: { name: '📊' },
               },
               {
                 type: 2,
                 style: 5,
-                label: 'Ver Loja',
+                label: 'Ver Site',
                 url: cfg.frontendUrl,
-                emoji: { name: '🌐' }
+                emoji: { name: '🌐' },
               }
             ]
           }
         ]
       })
     })
-
-    console.log(`[TICKET ABERTO VIA BOTÃO] #${ticketId} por ${callerUser?.username}`)
+  } catch (err) {
+    console.error('[HANDLE_MESSAGE ERROR]', err.message)
   }
-}
-
-async function handleMessage(msg, cfg) {
-  if (!msg || !msg.id || msg.author?.id === cfg.botUserId) return
-  if (msg.channel_id !== cfg.supportChannelId) return
-
-  let content = (msg.content || '').trim()
-
-  if (!content) {
-    try {
-      const fullRes = await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages/${msg.id}`, {
-        headers: { 'Authorization': `Bot ${cfg.token}` }
-      })
-      const fullMsg = await fullRes.json()
-      content = (fullMsg.content || '').trim()
-    } catch {}
-  }
-
-  if (!content) return
-
-  console.log(`[#suporte texto] ${msg.author.username}: ${content}`)
-
-  const lower = content.toLowerCase()
-
-  if (
-    lower === '!relatorio' ||
-    lower === '!relatório' ||
-    lower.includes('gerar relatorio') ||
-    lower.includes('gerar relatório') ||
-    lower === 'relatorio' ||
-    lower === 'relatório'
-  ) {
-    await generateDailyReport(cfg, msg.id)
-    return
-  }
-
-  const nowIso = new Date().toISOString()
-  const tickets = await getStoredTickets()
-  const ticketNum = String(tickets.length + 1).padStart(3, '0')
-  const ticketId = `SUP-${new Date().getFullYear()}-${ticketNum}`
-
-  const newTicket = {
-    id: ticketId,
-    messageId: msg.id,
-    author: msg.author.username,
-    authorId: msg.author.id,
-    content: content,
-    createdAt: nowIso,
-    status: 'PENDENTE',
-  }
-
-  await saveTicket(newTicket)
-
-  // Disparo imediato e automático para o PV do desenvolvedor
-  notifyDeveloperNewTicket(newTicket, cfg).catch(err => console.error('Erro notificando dev:', err))
-
-  await fetch(`https://discord.com/api/v10/channels/${cfg.supportChannelId}/messages`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bot ${cfg.token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      content: 'Pedido adicionado para o desenvolvedor',
-      message_reference: { message_id: msg.id },
-      embeds: [{
-        title: `📌 Chamado Registrado — #${ticketId}`,
-        description: `Olá **${msg.author.username}**, o seu pedido/bug foi registrado e adicionado à fila para o desenvolvedor.`,
-        color: 0x3B82F6,
-        fields: [
-          { name: '📝 Descrição do Bug', value: `>>> ${content.slice(0, 900)}`, inline: false },
-          { name: '👤 Solicitante', value: `<@${msg.author.id}>`, inline: true },
-          { name: '⏳ Status', value: '`PENDENTE PARA O DEV`', inline: true },
-          { name: '🕒 Registrado em', value: dtBR(nowIso), inline: true },
-        ],
-        footer: { text: 'Site Pedagógico • Suporte Técnico' },
-        timestamp: nowIso,
-      }],
-      components: [
-        {
-          type: 1,
-          components: [
-            {
-              type: 2,
-              style: 3, // SUCCESS / Green
-              label: 'Abrir Outro Ticket',
-              custom_id: 'open_ticket',
-              emoji: { name: '🎫' }
-            },
-            {
-              type: 2,
-              style: 5,
-              label: 'Painel Admin',
-              url: `${cfg.frontendUrl}/admin`,
-              emoji: { name: '📊' },
-            },
-            {
-              type: 2,
-              style: 5,
-              label: 'Ver Site',
-              url: cfg.frontendUrl,
-              emoji: { name: '🌐' },
-            }
-          ]
-        }
-      ]
-    })
-  })
 }
 
 async function generateDailyReport(cfg, triggerMessageId = null) {
