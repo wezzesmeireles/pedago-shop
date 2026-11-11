@@ -1,3 +1,6 @@
+import { resolveStorageAssets } from './public-assets';
+import { webOrigin } from './endpoint';
+
 const apiOrigin = (() => {
   if (typeof window === 'undefined') return '';
   // Native mobile builds do not have a Vercel server alongside the app.
@@ -27,7 +30,7 @@ export function fetchPublicCatalog() {
     catalogPromise = fetch(publicApiUrl('/api/catalog'))
       .then(async (response) => {
         if (!response.ok) throw new Error(`Catálogo indisponível (${response.status})`);
-        return response.json();
+        return resolveStorageAssets(await response.json(), webOrigin);
       })
       .catch((error) => {
         catalogPromise = null;

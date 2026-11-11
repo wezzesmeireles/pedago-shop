@@ -4,6 +4,8 @@ import { databases, DB_ID, COLLECTIONS } from '@/lib/appwrite';
 import type { SiteConfigData } from '@sitepedagogico/shared';
 import { DEFAULT_SITE_CONFIG } from '@sitepedagogico/shared';
 import { publicApiUrl } from '@/lib/public-api';
+import { resolveStorageAssets } from '@/lib/public-assets';
+import { webOrigin } from '@/lib/endpoint';
 
 const CACHE_KEY = 'sp_site_cfg_v1';
 
@@ -27,7 +29,7 @@ function mergeConfig(data: Partial<SiteConfigData>): SiteConfigData {
   if (!merged.banners || merged.banners.length === 0) {
     merged.banners = DEFAULT_SITE_CONFIG.banners;
   }
-  return merged;
+  return resolveStorageAssets(merged, webOrigin);
 }
 
 async function fetchFromAppwrite(): Promise<SiteConfigData | null> {
