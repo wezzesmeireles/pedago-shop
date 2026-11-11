@@ -125,6 +125,7 @@
 </template>
 
 <script setup lang="ts">
+import { authenticatedHeaders } from '@/lib/public-api';
 import { ref, computed, watch, onMounted } from 'vue';
 import { databases } from '@/lib/appwrite';
 import { DB_ID, COLLECTIONS } from '@/lib/appwrite';
@@ -185,7 +186,7 @@ async function lookupUser() {
   try {
     const res = await fetch('/api/send-product', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authenticatedHeaders(),
       body: JSON.stringify({ email: email.value, productId: '__lookup__' }),
     });
     const data = await res.json();
@@ -216,7 +217,7 @@ async function send() {
   try {
     const res = await fetch('/api/send-product', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authenticatedHeaders(),
       body: JSON.stringify({ email: email.value, productId: productId.value, message: message.value }),
     });
     const data = await res.json();

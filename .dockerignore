@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/dist
+dist-server
+**/.env*
+!apps/web/.env.production
+**/secrets
+scripts
+.codex
+**/*.log

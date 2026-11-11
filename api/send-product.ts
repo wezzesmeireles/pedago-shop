@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { requireAdmin } from '../server/appwrite';
 
 const SITE = 'https://www.sitepedagogico.com';
 const APPWRITE = 'https://appwrite.wsgestao.digital/v1';
@@ -13,6 +14,7 @@ function authHeaders() {
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).end();
+  if (!await requireAdmin(req)) return res.status(403).json({ error: 'Acesso restrito a administradores.' });
 
   const { productId, email, message } = req.body;
   if (!email) return res.status(400).json({ error: 'Email é obrigatório' });
