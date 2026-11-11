@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
 // anon key é pública — já está no bundle JS do frontend
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? 'https://hdldxgbvkjcoesmfoglm.supabase.co';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? 'sb_publishable_W64H0XMozN-8ll1QaaNPyw_JC7SkAhF';
@@ -78,8 +81,12 @@ export default async function handler(req: any, res: any) {
   // Isso evita loops infinitos se um navegador in-app (como o do WhatsApp) cair no regex de bot.
   let baseHtml = '';
   try {
-    const spaRes = await fetch(`${SITE_URL}/index.html`, { headers: { 'user-agent': 'vercel-og-proxy' } });
-    baseHtml = await spaRes.text();
+    if (process.env.STATIC_DIR) {
+      baseHtml = await readFile(resolve(process.env.STATIC_DIR, 'index.html'), 'utf8');
+    } else {
+      const spaRes = await fetch(`${SITE_URL}/index.html`, { headers: { 'user-agent': 'vercel-og-proxy' } });
+      baseHtml = await spaRes.text();
+    }
   } catch {
     return res.redirect(302, `${SITE_URL}/`);
   }

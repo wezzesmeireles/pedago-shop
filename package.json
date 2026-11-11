@@ -3,13 +3,21 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build"
+    "build": "pnpm --filter @sitepedagogico/shared build && pnpm --filter web build",
+    "build:server": "esbuild server/http.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist-server/http.cjs",
+    "start": "node dist-server/http.cjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.3",
     "dotenv": "^17.4.2",
+    "esbuild": "~0.25.12",
     "node-appwrite": "^26.2.0",
     "tar": "^7.5.16",
     "typescript": "^5.4.5"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "dependencies": {
+    "express": "^4.22.3",
+    "http-proxy": "^1.18.1"
   }
 }

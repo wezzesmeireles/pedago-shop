@@ -70,6 +70,8 @@ export function publicSiteConfig(config: Record<string, unknown>) {
     telegramChatId: _telegramChat,
     telegramRecipients: _telegramRecipients,
     googleClientSecret: _googleSecret,
+    discordBotToken: _discordToken,
+    discordWebhookUrl: _discordWebhook,
     ...safe
   } = config;
   return safe;
